@@ -2,7 +2,7 @@ import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  ImageBackground,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -16,89 +16,70 @@ export default function SignupScreen() {
   const router = useRouter();
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/onboarding1.jpg")} // Usa a tua imagem de fundo de treino
-      style={styles.background}
-    >
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
+      {/* Imagem de Fundo Absoluta */}
+      <Image
+        source={require("../../assets/images/onboarding1.jpg")}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
+        style={{ flex: 1 }}
       >
-        <Text style={styles.headerTitle}>Signup</Text>
+        <View className="flex-1 justify-center items-center px-6 bg-black/40">
+          <Text className="text-white text-5xl font-bold mb-10 italic">
+            Signup
+          </Text>
 
-        <BlurView intensity={60} tint="dark" style={styles.glassCard}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Name</Text>
-            <TextInput style={styles.input} placeholderTextColor="#888" />
-          </View>
+          {/* Cartão com Efeito de Vidro */}
+          <BlurView
+            intensity={60}
+            tint="dark"
+            className="w-full p-8 rounded-[30px] overflow-hidden border border-white/20"
+          >
+            <View className="mb-6 border-b border-white/30">
+              <Text className="text-white text-xs mb-[-4px]">Name</Text>
+              <TextInput
+                className="text-white h-12 text-lg"
+                placeholderTextColor="#888"
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput style={styles.input} keyboardType="email-address" />
-          </View>
+            <View className="mb-6 border-b border-white/30">
+              <Text className="text-white text-xs mb-[-4px]">Email</Text>
+              <TextInput
+                className="text-white h-12 text-lg"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput style={styles.input} secureTextEntry />
-          </View>
+            <View className="mb-8 border-b border-white/30">
+              <Text className="text-white text-xs mb-[-4px]">Password</Text>
+              <TextInput className="text-white h-12 text-lg" secureTextEntry />
+            </View>
+
+            <TouchableOpacity
+              className="bg-white h-[56px] rounded-full justify-center items-center"
+              onPress={() => router.push("/auth/login")}
+            >
+              <Text className="text-black font-bold text-lg">SIGN UP</Text>
+            </TouchableOpacity>
+          </BlurView>
 
           <TouchableOpacity
-            style={styles.mainButton}
             onPress={() => router.push("/auth/login")}
+            className="mt-8"
           >
-            <Text style={styles.buttonText}>SIGN UP</Text>
+            <Text className="text-white text-sm">
+              Already have an account?{" "}
+              <Text className="font-bold underline">Login</Text>
+            </Text>
           </TouchableOpacity>
-        </BlurView>
-
-        <TouchableOpacity onPress={() => router.push("/auth/login")}>
-          <Text style={styles.footerText}>
-            Already have an account? <Text style={styles.link}>Login</Text>
-          </Text>
-        </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
-    </ImageBackground>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  background: { flex: 1 },
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  headerTitle: {
-    fontSize: 40,
-    color: "#fff",
-    fontWeight: "bold",
-    marginBottom: 30,
-    fontFamily: "serif",
-  },
-  glassCard: {
-    width: "100%",
-    padding: 25,
-    borderRadius: 30,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  inputGroup: {
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.3)",
-  },
-  label: { color: "#fff", fontSize: 14, marginBottom: -5 },
-  input: { color: "#fff", height: 45, fontSize: 16 },
-  mainButton: {
-    backgroundColor: "#fff",
-    height: 55,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 20,
-  },
-  buttonText: { color: "#000", fontWeight: "bold", fontSize: 16 },
-  footerText: { color: "#fff", marginTop: 30, fontSize: 14 },
-  link: { fontWeight: "bold", textDecorationLine: "underline" },
-});

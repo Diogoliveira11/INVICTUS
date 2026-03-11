@@ -1,15 +1,14 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Dimensions,
-  ImageBackground,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-// Importa o componente que acabaste de instalar
-import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
 
@@ -47,81 +46,58 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ImageBackground
-        key={index} // Força a atualização da imagem
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
+      {/* 1. Imagem de fundo absoluta */}
+      <Image
+        key={index}
         source={slides[index].img}
-        style={styles.container}
+        style={StyleSheet.absoluteFillObject}
         resizeMode="cover"
+      />
+
+      {/* 2. Gradiente e Conteúdo */}
+      <LinearGradient
+        colors={["transparent", "rgba(0,0,0,0.5)", "#000"]}
+        // O justifyContent: 'flex-end' garante que o conteúdo desça para o fundo no iOS
+        style={{
+          flex: 1,
+          justifyContent: "flex-end",
+          paddingBottom: 60,
+          paddingHorizontal: 30,
+        }}
       >
-        {/* O Gradiente que cria a parte escura vinda de baixo */}
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.7)", "#000"]}
-          style={styles.overlay}
-        >
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>{slides[index].title}</Text>
-            <Text style={styles.subtitle}>Your Journey Begins Here</Text>
+        <View className="items-center">
+          <Text className="text-white text-3xl font-bold text-center mb-2">
+            {slides[index].title}
+          </Text>
 
-            {/* Tracinhos indicadores */}
-            <View style={styles.indicatorRow}>
-              {slides.map((_, i) => (
-                <View
-                  key={i}
-                  style={[styles.dot, i === index && styles.activeDot]}
-                />
-              ))}
-            </View>
+          <Text className="text-gray-400 text-base mb-10 italic">
+            Your Journey Begins Here
+          </Text>
 
-            <TouchableOpacity style={styles.button} onPress={handlePress}>
-              <Text style={styles.buttonText}>{slides[index].btn}</Text>
-            </TouchableOpacity>
+          {/* Indicadores (Barras de progresso) */}
+          <View className="flex-row mb-8">
+            {slides.map((_, i) => (
+              <View
+                key={i}
+                className={`h-1 mx-1 rounded-full ${
+                  i === index ? "w-7 bg-white" : "w-3 bg-gray-600"
+                }`}
+              />
+            ))}
           </View>
-        </LinearGradient>
-      </ImageBackground>
+
+          {/* Botão */}
+          <TouchableOpacity
+            className="w-full border-2 border-[#E31C25] py-4 rounded-full items-center"
+            onPress={handlePress}
+          >
+            <Text className="text-white font-bold text-lg tracking-widest">
+              {slides[index].btn}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  textContainer: {
-    padding: 30,
-    paddingBottom: 60,
-    alignItems: "center",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 30,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  subtitle: {
-    color: "#ccc",
-    fontSize: 16,
-    marginBottom: 40,
-    fontStyle: "italic",
-  },
-  indicatorRow: { flexDirection: "row", marginBottom: 30 },
-  dot: { width: 12, height: 3, backgroundColor: "#555", marginHorizontal: 4 },
-  activeDot: { backgroundColor: "#fff", width: 25 },
-  button: {
-    width: "100%",
-    borderColor: "#E31C25",
-    borderWidth: 2,
-    padding: 18,
-    borderRadius: 35,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
-    letterSpacing: 1,
-  },
-});

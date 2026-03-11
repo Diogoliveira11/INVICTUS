@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   Dimensions,
-  ImageBackground,
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -18,151 +18,85 @@ export default function LoginScreen() {
   const router = useRouter();
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/onboarding3.png")}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      <View style={styles.container}>
-        <Text style={styles.headerTitle}>Login</Text>
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
+      {/* Imagem de Fundo - Usando a mesma lógica do Onboarding */}
+      <Image
+        source={require("../../assets/images/onboarding3.png")}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      />
 
-        <BlurView intensity={80} tint="dark" style={styles.glassCard}>
-          <Text style={styles.welcomeText}>Welcome Back</Text>
+      <View className="flex-1 justify-center items-center px-6 bg-black/30">
+        {/* Título Principal */}
+        <Text
+          className="text-white text-5xl font-bold mb-10 text-center"
+          style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
+        >
+          Login
+        </Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+        {/* Cartão de Vidro */}
+        <BlurView
+          intensity={80}
+          tint="dark"
+          className="w-full p-8 rounded-[30px] overflow-hidden border border-white/20"
+        >
+          <Text className="text-white text-2xl font-bold mb-6 text-left">
+            Welcome Back
+          </Text>
+
+          {/* Grupo de Input: Email */}
+          <View className="mb-5 border-b border-white/30">
+            <Text className="text-white text-xs mb-[-2px]">Email</Text>
             <TextInput
-              style={styles.input}
+              className="text-white h-11 text-lg"
               placeholderTextColor="#ccc"
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
+          {/* Grupo de Input: Password */}
+          <View className="mb-5 border-b border-white/30">
+            <Text className="text-white text-xs mb-[-2px]">Password</Text>
             <TextInput
-              style={styles.input}
+              className="text-white h-11 text-lg"
               secureTextEntry
               placeholderTextColor="#ccc"
             />
           </View>
 
-          <TouchableOpacity>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
+          {/* Esqueci-me da Password */}
+          <TouchableOpacity className="self-end mb-6">
+            <Text className="text-white text-xs opacity-70">
+              Forgot Password?
+            </Text>
           </TouchableOpacity>
 
+          {/* Botão de Login */}
           <TouchableOpacity
-            style={styles.mainButton}
-            onPress={() => router.push("../GenderSelection")}
+            className="bg-white h-[56px] rounded-full justify-center items-center"
+            onPress={() => router.push("/GenderSelection")}
           >
-            <Text style={styles.buttonText}>Log In</Text>
+            <Text className="text-black font-bold text-lg uppercase">
+              Log In
+            </Text>
           </TouchableOpacity>
         </BlurView>
 
+        {/* Link para Signup */}
         <TouchableOpacity
           onPress={() => router.push("/auth/signup")}
-          style={styles.footerContainer}
+          className="mt-8"
         >
-          <Text style={styles.footerText}>
-            {/* Corrigindo o erro de ESLint: "Don't" deve ser escrito assim */}
+          <Text className="text-white text-sm">
             {"Don't have an account? "}
-            <Text style={styles.signUpLink}>Sign up!</Text>
+            <Text className="font-bold underline">Sign up!</Text>
           </Text>
         </TouchableOpacity>
 
-        <Text style={styles.helpText}>Need Help?</Text>
+        <Text className="text-white/40 mt-6 text-xs italic">Need Help?</Text>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    width: width,
-    height: height,
-  },
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 25,
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
-  headerTitle: {
-    fontSize: 42,
-    color: "#fff",
-    fontWeight: "bold",
-    marginBottom: 40,
-    textAlign: "center",
-    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-  },
-  glassCard: {
-    width: "100%",
-    padding: 25,
-    borderRadius: 30,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  welcomeText: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 25,
-  },
-  inputGroup: {
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.3)",
-  },
-  label: {
-    color: "#fff",
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  input: {
-    color: "#fff",
-    height: 40,
-    fontSize: 16,
-    paddingVertical: 5,
-  },
-  forgotText: {
-    color: "#fff",
-    alignSelf: "flex-end",
-    fontSize: 13,
-    marginBottom: 25,
-    opacity: 0.8,
-  },
-  mainButton: {
-    backgroundColor: "#fff",
-    height: 55,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  buttonText: {
-    color: "#000",
-    fontWeight: "bold",
-    fontSize: 16,
-    textTransform: "uppercase",
-  },
-  footerContainer: {
-    marginTop: 30,
-  },
-  footerText: {
-    color: "#fff",
-    fontSize: 14,
-  },
-  signUpLink: {
-    fontWeight: "bold",
-    textDecorationLine: "underline",
-  },
-  helpText: {
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 15,
-    fontSize: 12,
-  },
-});

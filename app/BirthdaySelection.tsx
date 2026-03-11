@@ -8,7 +8,6 @@ import {
   NativeSyntheticEvent,
   Platform,
   SafeAreaView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -26,7 +25,6 @@ interface ScrollColumnProps {
 export default function BirthdaySelection() {
   const router = useRouter();
 
-  // --- LÓGICA DE DATA DINÂMICA ---
   const today = new Date();
   const monthsNames = [
     "Jan.",
@@ -42,11 +40,8 @@ export default function BirthdaySelection() {
     "Nov.",
     "Dec.",
   ];
-
   const currentDay = today.getDate().toString();
   const currentMonth = monthsNames[today.getMonth()];
-
-  // O utilizador tem de ter no mínimo 12 anos, logo o ano máximo permitido é 2014 (em 2026)
   const maxAllowedYear = today.getFullYear() - 12;
   const startingYear = maxAllowedYear.toString();
 
@@ -54,11 +49,8 @@ export default function BirthdaySelection() {
   const [month, setMonth] = useState(currentMonth);
   const [year, setYear] = useState(startingYear);
 
-  // Listas de dados
   const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
   const months = monthsNames;
-
-  // A lista de anos começa no ano máximo permitido (ex: 2014) e vai até 100 anos atrás
   const years = Array.from({ length: 90 }, (_, i) =>
     (maxAllowedYear - i).toString(),
   );
@@ -69,8 +61,17 @@ export default function BirthdaySelection() {
     onValueChange,
   }: ScrollColumnProps) => {
     return (
-      <View style={styles.column}>
-        <View style={styles.individualOval} pointerEvents="none" />
+      <View className="flex-1 items-center justify-center">
+        {/* Fundo oval do item selecionado */}
+        <View
+          pointerEvents="none"
+          className="absolute bg-[#2D2F33] rounded-xl z-0 top-1/2"
+          style={{
+            height: ITEM_HEIGHT - 12,
+            width: "80%",
+            marginTop: -(ITEM_HEIGHT - 12) / 2,
+          }}
+        />
 
         <FlatList
           data={data}
@@ -97,14 +98,16 @@ export default function BirthdaySelection() {
             index,
           })}
           renderItem={({ item }) => (
-            <View style={styles.itemWrapper}>
+            <View
+              style={{ height: ITEM_HEIGHT }}
+              className="justify-center items-center"
+            >
               <Text
-                style={[
-                  styles.itemText,
+                className={`text-center ${
                   selectedValue === item
-                    ? styles.selectedItemText
-                    : styles.unselectedItemText,
-                ]}
+                    ? "text-white font-bold text-2xl"
+                    : "text-gray-500 text-lg opacity-40"
+                }`}
               >
                 {item}
               </Text>
@@ -116,26 +119,42 @@ export default function BirthdaySelection() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Insert your birth date!</Text>
-          <Text style={styles.subtitle}>
+    <SafeAreaView className="flex-1 bg-[#121417]">
+      <View className="flex-1 px-6 py-8 justify-between">
+        <View className="items-center mt-5">
+          <Text className="text-3xl font-bold text-white text-center italic">
+            Insert your birth date!
+          </Text>
+          <Text className="text-sm text-gray-400 text-center mt-2 px-5">
             To give you a better experience we need to know your gender
           </Text>
         </View>
 
-        <View style={styles.pickerMainContainer}>
-          <View style={styles.labelRow}>
-            <Text style={styles.labelText}>Day</Text>
-            <Text style={styles.labelText}>Month</Text>
-            <Text style={styles.labelText}>Year</Text>
+        <View className="flex-1 justify-center my-8">
+          <View className="flex-row w-full mb-4">
+            <Text className="flex-1 text-white text-lg font-medium text-center">
+              Day
+            </Text>
+            <Text className="flex-1 text-white text-lg font-medium text-center">
+              Month
+            </Text>
+            <Text className="flex-1 text-white text-lg font-medium text-center">
+              Year
+            </Text>
           </View>
 
-          <View style={styles.pickerWrapper}>
-            <View style={styles.selectionLines} pointerEvents="none" />
+          <View
+            style={{ height: ITEM_HEIGHT * 5 }}
+            className="justify-center items-center w-full"
+          >
+            {/* Linhas de seleção vermelhas */}
+            <View
+              pointerEvents="none"
+              className="absolute w-full border-t-2 border-b-2 border-red-600 z-10 top-1/2"
+              style={{ height: ITEM_HEIGHT, marginTop: -ITEM_HEIGHT / 2 }}
+            />
 
-            <View style={styles.pickersContainer}>
+            <View className="flex-row w-full h-full">
               <ScrollColumn
                 data={days}
                 selectedValue={day}
@@ -155,19 +174,19 @@ export default function BirthdaySelection() {
           </View>
         </View>
 
-        <View style={styles.footer}>
+        <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
-            style={styles.backButton}
+            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
             onPress={() => router.back()}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.nextButton}
+            className="bg-red-600 flex-row items-center py-4 px-8 rounded-full"
             onPress={() => router.push("/WeightSelection")}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
+            <Text className="text-white text-lg font-bold mr-2">Next</Text>
             <ChevronRight color="white" size={20} />
           </TouchableOpacity>
         </View>
@@ -175,113 +194,3 @@ export default function BirthdaySelection() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#121417" },
-  content: {
-    flex: 1,
-    paddingHorizontal: 25,
-    paddingVertical: 30,
-    justifyContent: "space-between",
-  },
-  header: { alignItems: "center", marginTop: 20 },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 10,
-    paddingHorizontal: 20,
-  },
-
-  pickerMainContainer: {
-    flex: 1,
-    justifyContent: "center",
-    marginVertical: 30,
-  },
-  labelRow: { flexDirection: "row", width: "100%", marginBottom: 15 },
-  labelText: {
-    flex: 1,
-    color: "white",
-    fontSize: 18,
-    fontWeight: "500",
-    textAlign: "center",
-  },
-
-  pickerWrapper: {
-    height: ITEM_HEIGHT * 5,
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-  },
-  pickersContainer: { flexDirection: "row", width: "100%", height: "100%" },
-
-  column: { flex: 1, alignItems: "center", justifyContent: "center" },
-
-  individualOval: {
-    position: "absolute",
-    height: ITEM_HEIGHT - 12,
-    width: "80%",
-    backgroundColor: "#2D2F33",
-    borderRadius: 12,
-    zIndex: 0,
-    top: "50%",
-    marginTop: -(ITEM_HEIGHT - 12) / 2,
-  },
-
-  selectionLines: {
-    position: "absolute",
-    height: ITEM_HEIGHT,
-    width: "100%",
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: "#FF0000",
-    zIndex: 1,
-    top: "50%",
-    marginTop: -ITEM_HEIGHT / 2,
-  },
-
-  itemWrapper: {
-    height: ITEM_HEIGHT,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  itemText: { fontSize: 22, textAlign: "center" },
-  selectedItemText: { color: "white", fontWeight: "bold" },
-  unselectedItemText: { color: "#4B5563", fontSize: 18, opacity: 0.4 },
-
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  backButton: {
-    backgroundColor: "#2D2F33",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nextButton: {
-    backgroundColor: "#FF0000",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-  },
-  nextButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginRight: 5,
-  },
-});

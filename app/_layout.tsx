@@ -1,6 +1,4 @@
 // 1. IMPORTANTE: Importar o CSS global aqui no topo
-import "../my-expo-app/global.css";
-
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   DarkTheme,
@@ -9,6 +7,7 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import "../global.css";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
