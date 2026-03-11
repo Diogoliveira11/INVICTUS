@@ -6,9 +6,7 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   SafeAreaView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -16,16 +14,16 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// --- LIMITES DEFINIDOS ---
 const MIN_KG = 20;
 const MAX_KG = 300;
 const MIN_LB = 45;
 const MAX_LB = 661;
-
 const ITEM_WIDTH = 20;
 const DEFAULT_WEIGHT_KG = 70;
 
-// Geramos os dados baseados em KG (20 a 300)
+// Calculamos o padding exato para centrar o primeiro item
+const SNAP_OFFSET = SCREEN_WIDTH / 2 - ITEM_WIDTH / 2;
+
 const weightData = Array.from(
   { length: MAX_KG - MIN_KG + 1 },
   (_, i) => MIN_KG + i,
@@ -38,7 +36,6 @@ export default function WeightSelection() {
   const flatListRef = useRef<FlatList>(null);
   const isSwitchingUnit = useRef(false);
 
-  // Inicialização da régua no peso padrão
   useEffect(() => {
     const initialIndex = weightData.indexOf(DEFAULT_WEIGHT_KG);
     const timer = setTimeout(() => {
@@ -46,23 +43,19 @@ export default function WeightSelection() {
         offset: initialIndex * ITEM_WIDTH,
         animated: false,
       });
-    }, 150);
+    }, 200);
     return () => clearTimeout(timer);
   }, []);
 
-  // --- LÓGICA DE TRANSIÇÃO COM LIMITES ESPECÍFICOS ---
   const toggleUnit = (newUnit: "KG" | "LB") => {
     if (unit === newUnit) return;
-
     isSwitchingUnit.current = true;
-    let convertedValue: number;
 
+    let convertedValue: number;
     if (newUnit === "LB") {
-      // Converte para Libras e aplica limites 45-661
       convertedValue = Math.round(weight * 2.20462);
       convertedValue = Math.max(MIN_LB, Math.min(MAX_LB, convertedValue));
     } else {
-      // Converte para KG e aplica limites 20-300
       convertedValue = Math.round(weight / 2.20462);
       convertedValue = Math.max(MIN_KG, Math.min(MAX_KG, convertedValue));
     }
@@ -70,9 +63,6 @@ export default function WeightSelection() {
     setWeight(convertedValue);
     setUnit(newUnit);
 
-    // Na nossa régua (que é baseada em índices), precisamos mapear o valor visual
-    // Se estivermos em LB, o scroll deve ir para a posição proporcional na régua de KG
-    // Para simplificar e manter a precisão visual, usamos o valor de KG correspondente para o scroll
     const scrollWeight =
       newUnit === "LB" ? Math.round(convertedValue / 2.20462) : convertedValue;
     const index = weightData.indexOf(
@@ -94,109 +84,106 @@ export default function WeightSelection() {
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (isSwitchingUnit.current) return;
 
-    const xOffset = event.nativeEvent.contentOffset.x;
-    const index = Math.round(xOffset / ITEM_WIDTH);
+    const x = event.nativeEvent.contentOffset.x;
+
+    // Calculamos o índice com base no offset, somando metade da largura do item
+    // para garantir que o "salto" para o próximo número ocorra exatamente no meio do caminho.
+    const index = Math.round(x / ITEM_WIDTH);
 
     if (index >= 0 && index < weightData.length) {
       const kgValue = weightData[index];
-
       if (unit === "KG") {
-        setWeight(kgValue);
+        if (weight !== kgValue) setWeight(kgValue);
       } else {
-        // Se a unidade for LB, mostramos o valor convertido na tela
         const lbValue = Math.round(kgValue * 2.20462);
-        setWeight(Math.max(MIN_LB, Math.min(MAX_LB, lbValue)));
+        const finalLb = Math.max(MIN_LB, Math.min(MAX_LB, lbValue));
+        if (weight !== finalLb) setWeight(finalLb);
       }
     }
   };
 
-  const renderItem = ({ item }: { item: number }) => {
-    const isMajor = item % 5 === 0;
-    return (
-      <View
-        style={{
-          width: ITEM_WIDTH,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <View
-          style={[styles.bar, isMajor ? styles.barMajor : styles.barMinor]}
-        />
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>What’s your weight?</Text>
-          <Text style={styles.subtitle}>You can always change this later</Text>
+    <SafeAreaView className="flex-1 bg-[#121417]">
+      <View className="flex-1 px-6 justify-between py-10">
+        <View className="items-center mt-5">
+          <Text className="text-3xl font-bold text-white text-center italic">
+            What’s your weight?
+          </Text>
+          <Text className="text-base text-gray-400 text-center mt-2">
+            You can always change this later
+          </Text>
         </View>
 
-        <View style={styles.weightDisplay}>
-          <Text style={styles.weightNumber}>{weight}</Text>
-          <Text style={styles.weightUnit}>{unit.toLowerCase()}</Text>
+        <View className="flex-row items-baseline justify-center">
+          <Text className="text-white text-8xl font-bold">{weight}</Text>
+          <Text className="text-gray-400 text-2xl ml-2 font-medium">
+            {unit.toLowerCase()}
+          </Text>
         </View>
 
-        <View style={styles.rulerContainer}>
-          <View style={styles.centerIndicator} pointerEvents="none" />
+        <View className="h-[120px] items-center justify-center relative">
+          {/* Ponteiro Central */}
+          <View
+            pointerEvents="none"
+            className="absolute h-24 w-1 bg-[#E31C25] rounded-full z-10"
+            style={{ left: SCREEN_WIDTH / 2 - 27 }} // Ajuste fino para o padding da SafeAreaView
+          />
 
           <FlatList
             ref={flatListRef}
             data={weightData}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.toString()}
             horizontal
             showsHorizontalScrollIndicator={false}
             snapToInterval={ITEM_WIDTH}
-            snapToAlignment="center"
+            snapToAlignment="start" // Mudamos para start para alinhar com o padding
             decelerationRate="fast"
+            scrollEventThrottle={1} // Máxima precisão de leitura
             bounces={false}
             onScroll={onScroll}
-            scrollEventThrottle={16}
             contentContainerStyle={{
-              paddingHorizontal: SCREEN_WIDTH / 2 - ITEM_WIDTH / 2,
+              paddingHorizontal: SNAP_OFFSET,
             }}
             getItemLayout={(_, index) => ({
               length: ITEM_WIDTH,
               offset: ITEM_WIDTH * index,
               index,
             })}
+            renderItem={({ item }) => {
+              const isMajor = item % 5 === 0;
+              return (
+                <View
+                  style={{ width: ITEM_WIDTH }}
+                  className="items-center justify-center"
+                >
+                  <View
+                    className={`w-[2px] rounded-full bg-[#E31C25] ${
+                      isMajor ? "h-[60px] opacity-100" : "h-[30px] opacity-30"
+                    }`}
+                  />
+                </View>
+              );
+            }}
           />
         </View>
 
-        <View style={styles.unitSwitcherContainer}>
-          <View style={styles.unitSwitcherBg}>
+        <View className="items-center">
+          <View className="flex-row bg-[#2D2F33] rounded-full p-1 w-52">
             <TouchableOpacity
-              style={[
-                styles.unitButton,
-                unit === "KG" && styles.unitButtonActive,
-              ]}
+              className={`flex-1 h-11 justify-center items-center rounded-full ${unit === "KG" ? "bg-[#E31C25]" : ""}`}
               onPress={() => toggleUnit("KG")}
             >
               <Text
-                style={[
-                  styles.unitButtonText,
-                  unit === "KG" && styles.unitButtonTextActive,
-                ]}
+                className={`font-bold text-base ${unit === "KG" ? "text-white" : "text-gray-400"}`}
               >
                 KG
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.unitButton,
-                unit === "LB" && styles.unitButtonActive,
-              ]}
+              className={`flex-1 h-11 justify-center items-center rounded-full ${unit === "LB" ? "bg-[#E31C25]" : ""}`}
               onPress={() => toggleUnit("LB")}
             >
               <Text
-                style={[
-                  styles.unitButtonText,
-                  unit === "LB" && styles.unitButtonTextActive,
-                ]}
+                className={`font-bold text-base ${unit === "LB" ? "text-white" : "text-gray-400"}`}
               >
                 LB
               </Text>
@@ -204,118 +191,24 @@ export default function WeightSelection() {
           </View>
         </View>
 
-        <View style={styles.footer}>
+        {/* Footer Navigation */}
+        <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
-            style={styles.backButton}
+            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
             onPress={() => router.back()}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={styles.nextButton}
+            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
             onPress={() => router.push("/HeightSelection")}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
-            <ChevronRight color="white" size={24} />
+            <Text className="text-white text-lg font-bold mr-2">Next</Text>
+            <ChevronRight color="white" size={20} />
           </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#121417" },
-  content: {
-    flex: 1,
-    paddingHorizontal: 25,
-    justifyContent: "space-between",
-    paddingVertical: 40,
-  },
-  header: { alignItems: "center", marginTop: 20 },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 10,
-  },
-  weightDisplay: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "center",
-  },
-  weightNumber: { fontSize: 80, fontWeight: "bold", color: "white" },
-  weightUnit: { fontSize: 24, color: "#D1D5DB", marginLeft: 8 },
-  rulerContainer: {
-    height: 120,
-    width: SCREEN_WIDTH,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  centerIndicator: {
-    position: "absolute",
-    height: 90,
-    width: 4,
-    backgroundColor: "#FF0000",
-    borderRadius: 2,
-    zIndex: 10,
-    left: "50%",
-    marginLeft: -2,
-  },
-  bar: { width: 3, backgroundColor: "#FF0000", borderRadius: 2 },
-  barMinor: { height: 35, opacity: 0.3 },
-  barMajor: { height: 70, opacity: 1 },
-  unitSwitcherContainer: { alignItems: "center" },
-  unitSwitcherBg: {
-    flexDirection: "row",
-    backgroundColor: "#2D2F33",
-    borderRadius: 30,
-    padding: 4,
-    width: 200,
-  },
-  unitButton: {
-    flex: 1,
-    height: 45,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 25,
-  },
-  unitButtonActive: { backgroundColor: "#FF0000" },
-  unitButtonText: { color: "#9CA3AF", fontWeight: "bold", fontSize: 16 },
-  unitButtonTextActive: { color: "white" },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: {
-    backgroundColor: "#2D2F33",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nextButton: {
-    backgroundColor: "#FF0000",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-  },
-  nextButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginRight: 5,
-  },
-});

@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-  Dimensions,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -13,7 +12,6 @@ import {
   View,
 } from "react-native";
 
-const { width } = Dimensions.get("window");
 const ITEM_HEIGHT = 60;
 
 interface ScrollColumnProps {
@@ -40,6 +38,7 @@ export default function BirthdaySelection() {
     "Nov.",
     "Dec.",
   ];
+
   const currentDay = today.getDate().toString();
   const currentMonth = monthsNames[today.getMonth()];
   const maxAllowedYear = today.getFullYear() - 12;
@@ -65,10 +64,11 @@ export default function BirthdaySelection() {
         {/* Fundo oval do item selecionado */}
         <View
           pointerEvents="none"
-          className="absolute bg-[#2D2F33] rounded-xl z-0 top-1/2"
+          className="absolute bg-[#2D2F33] rounded-xl z-0"
           style={{
             height: ITEM_HEIGHT - 12,
             width: "80%",
+            top: "50%",
             marginTop: -(ITEM_HEIGHT - 12) / 2,
           }}
         />
@@ -103,11 +103,7 @@ export default function BirthdaySelection() {
               className="justify-center items-center"
             >
               <Text
-                className={`text-center ${
-                  selectedValue === item
-                    ? "text-white font-bold text-2xl"
-                    : "text-gray-500 text-lg opacity-40"
-                }`}
+                className={`text-center ${selectedValue === item ? "text-white font-bold text-2xl" : "text-gray-500 text-lg opacity-40"}`}
               >
                 {item}
               </Text>
@@ -121,37 +117,43 @@ export default function BirthdaySelection() {
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-6 py-8 justify-between">
+        {/* Header */}
         <View className="items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center italic">
             Insert your birth date!
           </Text>
           <Text className="text-sm text-gray-400 text-center mt-2 px-5">
-            To give you a better experience we need to know your gender
+            This helps us tailor your workout plan to your age
           </Text>
         </View>
 
+        {/* Picker Central */}
         <View className="flex-1 justify-center my-8">
+          {/* Labels */}
           <View className="flex-row w-full mb-4">
-            <Text className="flex-1 text-white text-lg font-medium text-center">
-              Day
-            </Text>
-            <Text className="flex-1 text-white text-lg font-medium text-center">
-              Month
-            </Text>
-            <Text className="flex-1 text-white text-lg font-medium text-center">
-              Year
-            </Text>
+            {["Day", "Month", "Year"].map((label) => (
+              <Text
+                key={label}
+                className="flex-1 text-white text-lg font-medium text-center"
+              >
+                {label}
+              </Text>
+            ))}
           </View>
 
           <View
             style={{ height: ITEM_HEIGHT * 5 }}
             className="justify-center items-center w-full"
           >
-            {/* Linhas de seleção vermelhas */}
+            {/* Linhas de seleção vermelhas - Usando posicionamento absoluto para evitar que o FlatList as empurre */}
             <View
               pointerEvents="none"
-              className="absolute w-full border-t-2 border-b-2 border-red-600 z-10 top-1/2"
-              style={{ height: ITEM_HEIGHT, marginTop: -ITEM_HEIGHT / 2 }}
+              className="absolute w-full border-t-2 border-b-2 border-[#E31C25] z-10"
+              style={{
+                height: ITEM_HEIGHT,
+                top: "50%",
+                marginTop: -ITEM_HEIGHT / 2,
+              }}
             />
 
             <View className="flex-row w-full h-full">
@@ -174,6 +176,7 @@ export default function BirthdaySelection() {
           </View>
         </View>
 
+        {/* Footer Navigation */}
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
@@ -183,7 +186,7 @@ export default function BirthdaySelection() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="bg-red-600 flex-row items-center py-4 px-8 rounded-full"
+            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
             onPress={() => router.push("/WeightSelection")}
           >
             <Text className="text-white text-lg font-bold mr-2">Next</Text>

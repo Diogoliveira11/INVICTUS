@@ -1,17 +1,13 @@
+import { useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-  Dimensions,
   SafeAreaView,
-  StyleSheet,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-// Importar o router
-import { useRouter } from "expo-router";
-
-const { width } = Dimensions.get("window");
 
 const DAYS = [
   { id: "Mon", label: "Monday" },
@@ -23,14 +19,11 @@ const DAYS = [
   { id: "Sun", label: "Sunday" },
 ];
 
-export default function WorkOutDays() {
-  const router = useRouter(); // Inicializar o router
+export default function WorkOutSchedule() {
+  const router = useRouter();
 
-  const [selectedDays, setSelectedDays] = useState<string[]>([
-    "Mon",
-    "Tue",
-    "Wed",
-  ]);
+  // Dias selecionados por padrão (exemplo)
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
   const toggleDay = (dayId: string) => {
     if (selectedDays.includes(dayId)) {
@@ -41,159 +34,74 @@ export default function WorkOutDays() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <SafeAreaView className="flex-1 bg-[#121417]">
+      <View className="flex-1 px-6 py-8 justify-between">
         {/* Header */}
-        <View style={styles.header}>
-          {/* Texto entre chavetas para evitar erro de caracteres especiais */}
-          <Text style={styles.title}>{"What's your workout plan?"}</Text>
-          <Text style={styles.subtitle}>
+        <View className="items-center mt-5">
+          <Text className="text-3xl font-bold text-white text-center italic">
+            {"What's your workout plan?"}
+          </Text>
+          <Text className="text-sm text-gray-400 text-center mt-2 px-5">
             Select the days you want to train during the week
           </Text>
         </View>
 
-        {/* Days List */}
-        <View style={styles.daysContainer}>
-          {DAYS.map((day) => {
-            const isSelected = selectedDays.includes(day.id);
-            return (
-              <TouchableOpacity
-                key={day.id}
-                activeOpacity={0.7}
-                onPress={() => toggleDay(day.id)}
-                style={[styles.dayRow, isSelected && styles.dayRowSelected]}
-              >
-                <Text
-                  style={[styles.dayText, isSelected && styles.dayTextSelected]}
+        {/* Days List - Com ScrollView caso o ecrã seja pequeno */}
+        <ScrollView className="my-6" showsVerticalScrollIndicator={false}>
+          <View className="space-y-1">
+            {DAYS.map((day) => {
+              const isSelected = selectedDays.includes(day.id);
+              return (
+                <TouchableOpacity
+                  key={day.id}
+                  activeOpacity={0.7}
+                  onPress={() => toggleDay(day.id)}
+                  className={`flex-row justify-between items-center py-5 border-b border-[#2D2F33]`}
                 >
-                  {day.label}
-                </Text>
+                  <Text
+                    className={`text-lg ${
+                      isSelected ? "text-white font-bold" : "text-gray-500"
+                    }`}
+                  >
+                    {day.label}
+                  </Text>
 
-                <View
-                  style={[
-                    styles.circle,
-                    isSelected
-                      ? styles.circleSelected
-                      : styles.circleUnselected,
-                  ]}
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  {/* Círculo de Seleção (Checkbox) */}
+                  <View
+                    className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
+                      isSelected
+                        ? "border-[#E31C25] bg-[#E31C25]/20"
+                        : "border-gray-600 bg-transparent"
+                    }`}
+                  >
+                    {isSelected && (
+                      <View className="w-2.5 h-2.5 rounded-full bg-[#E31C25]" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
 
-        {/* Footer */}
-        <View style={styles.footer}>
+        {/* Footer Navigation */}
+        <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()} // Botão voltar a funcionar
+            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
+            onPress={() => router.back()}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.nextButton}
-            onPress={() => {
-              console.log("Dias selecionados:", selectedDays);
-              // router.push("/ProximoPasso");
-            }}
+            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
+            //onPress={() => router.push("/WeightSelection")}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
-            <ChevronRight color="white" size={24} />
+            <Text className="text-white text-lg font-bold mr-2">Next</Text>
+            <ChevronRight color="white" size={20} />
           </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121417",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 25,
-    justifyContent: "space-between",
-    paddingVertical: 40,
-  },
-  header: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 10,
-    lineHeight: 22,
-  },
-  daysContainer: {
-    marginTop: 20,
-  },
-  dayRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "#2D2F33",
-  },
-  dayRowSelected: {},
-  dayText: {
-    fontSize: 18,
-    color: "#9CA3AF",
-  },
-  dayTextSelected: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  circle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-  },
-  circleUnselected: {
-    borderColor: "#4B5563",
-    backgroundColor: "transparent",
-  },
-  circleSelected: {
-    borderColor: "#FF0000",
-    backgroundColor: "rgba(255, 0, 0, 0.3)",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: {
-    backgroundColor: "#2D2F33",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nextButton: {
-    backgroundColor: "#FF0000",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 35,
-    borderRadius: 30,
-  },
-  nextButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginRight: 5,
-  },
-});

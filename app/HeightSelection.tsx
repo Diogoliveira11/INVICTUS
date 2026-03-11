@@ -1,130 +1,224 @@
-import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
+  Dimensions,
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
   SafeAreaView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+// Ajustado para 70 para um equilíbrio melhor
+const ITEM_HEIGHT = 70;
+
+interface ScrollColumnProps {
+  data: string[];
+  selectedValue: string;
+  onValueChange: (value: string) => void;
+  unitLabel?: string;
+}
+
 export default function HeightSelection() {
   const router = useRouter();
-
-  // Unidade atual: CM ou FT
   const [unit, setUnit] = useState<"CM" | "FT">("CM");
 
-  // O valor numérico muda conforme a unidade (cm ou polegadas totais)
-  const [heightValue, setHeightValue] = useState(170);
+  const [cmValue, setCmValue] = useState("170");
+  const [ftValue, setFtValue] = useState("5");
+  const [inValue, setInValue] = useState("7");
 
-  // Lista de CM (120 a 220)
-  const cmItems = useMemo(
-    () => Array.from({ length: 101 }, (_, i) => 120 + i),
+  const cmData = useMemo(
+    () => Array.from({ length: 101 }, (_, i) => (120 + i).toString()),
     [],
   );
-
-  // Lista de Polegadas totais para FT (aprox. 3'11" a 7'3")
-  const ftItems = useMemo(
-    () => Array.from({ length: 41 }, (_, i) => 47 + i),
+  const ftData = useMemo(
+    () => Array.from({ length: 5 }, (_, i) => (4 + i).toString()),
     [],
   );
-
-  // --- Lógica de Conversão ---
-  const cmToInches = (cm: number) => Math.round(cm / 2.54);
-  const inchesToCm = (inches: number) => Math.round(inches * 2.54);
-
-  const formatToFeet = (totalInches: number) => {
-    const feet = Math.floor(totalInches / 12);
-    const inches = totalInches % 12;
-    return `${feet}'${inches}"`;
-  };
+  const inData = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => i.toString()),
+    [],
+  );
 
   const toggleUnit = (newUnit: "CM" | "FT") => {
     if (unit === newUnit) return;
-
     if (newUnit === "FT") {
-      setHeightValue(cmToInches(heightValue));
+      const totalInches = Math.round(parseInt(cmValue) / 2.54);
+      const feet = Math.floor(totalInches / 12);
+      const inches = totalInches % 12;
+      setFtValue(Math.max(4, Math.min(8, feet)).toString());
+      setInValue(inches.toString());
     } else {
-      setHeightValue(inchesToCm(heightValue));
+      const totalInches = parseInt(ftValue) * 12 + parseInt(inValue);
+      const cm = Math.round(totalInches * 2.54);
+      setCmValue(Math.max(120, Math.min(220, cm)).toString());
     }
     setUnit(newUnit);
   };
 
+  const ScrollColumn = ({
+    data,
+    selectedValue,
+    onValueChange,
+    unitLabel,
+  }: ScrollColumnProps) => {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <View
+          pointerEvents="none"
+          className="absolute bg-[#2D2F33] rounded-2xl z-0"
+          style={{
+            height: ITEM_HEIGHT - 10,
+            width: "92%",
+            top: "50%",
+            marginTop: -(ITEM_HEIGHT - 10) / 2,
+          }}
+        />
+
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          snapToAlignment="center"
+          decelerationRate={Platform.OS === "ios" ? "normal" : 0.9}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
+          onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+            const y = e.nativeEvent.contentOffset.y;
+            const index = Math.round(y / ITEM_HEIGHT);
+            if (data[index] && data[index] !== selectedValue) {
+              onValueChange(data[index]);
+            }
+          }}
+          initialScrollIndex={
+            data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0
+          }
+          getItemLayout={(_, index) => ({
+            length: ITEM_HEIGHT,
+            offset: ITEM_HEIGHT * index,
+            index,
+          })}
+          renderItem={({ item }) => (
+            <View
+              style={{ height: ITEM_HEIGHT }}
+              className="justify-center items-center"
+            >
+              <Text
+                className={`text-center ${
+                  selectedValue === item
+                    ? "text-white font-bold text-4xl" // TAMANHO EQUILIBRADO
+                    : "text-gray-500 text-xl opacity-20"
+                }`}
+              >
+                {item}
+                <Text className="text-lg font-normal">{unitLabel || ""}</Text>
+              </Text>
+            </View>
+          )}
+        />
+      </View>
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>What’s your height?</Text>
-          <Text style={styles.subtitle}>
-            To give you a better experience we need{"\n"}to know your gender
+    <SafeAreaView className="flex-1 bg-[#121417]">
+      <View className="flex-1 px-6 py-8 justify-between">
+        <View className="items-center mt-5">
+          <Text className="text-3xl font-bold text-white text-center italic">
+            What´s your height?
+          </Text>
+          <Text className="text-sm text-gray-400 text-center mt-2 px-5">
+            This helps us create your personalized plan
           </Text>
         </View>
 
-        {/* Área do Seletor - Estilo BirthdaySelection */}
-        <View style={styles.pickerWrapper}>
-          <View style={styles.selectionLines} />
-
-          <View style={styles.pickersContainer}>
-            <Picker
-              selectedValue={heightValue.toString()}
-              onValueChange={(itemValue) => setHeightValue(parseInt(itemValue))}
-              style={styles.picker}
-              itemStyle={styles.pickerItem}
-            >
-              {(unit === "CM" ? cmItems : ftItems).map((val) => (
-                <Picker.Item
-                  key={val}
-                  label={unit === "CM" ? val.toString() : formatToFeet(val)}
-                  value={val.toString()}
-                  color="white"
-                />
-              ))}
-            </Picker>
-
-            {/* Rótulo da Unidade fixo ao lado */}
-            <View style={styles.unitLabelWrapper}>
-              <Text style={styles.unitLabelText}>
-                {unit === "CM" ? "cm" : "ft"}
+        <View className="flex-1 justify-center my-2">
+          <View className="flex-row w-full mb-4 justify-center">
+            {unit === "CM" ? (
+              <Text className="text-white text-lg font-semibold">
+                Centimeters
               </Text>
+            ) : (
+              <>
+                <Text className="flex-1 text-white text-lg font-semibold text-center">
+                  Feet
+                </Text>
+                <Text className="flex-1 text-white text-lg font-semibold text-center">
+                  Inches
+                </Text>
+              </>
+            )}
+          </View>
+
+          <View
+            style={{ height: ITEM_HEIGHT * 5 }}
+            className="justify-center items-center w-full"
+          >
+            <View
+              pointerEvents="none"
+              className="absolute border-t-2 border-b-2 border-[#E31C25] z-10"
+              style={{
+                height: ITEM_HEIGHT,
+                top: "50%",
+                marginTop: -ITEM_HEIGHT / 2,
+                width: unit === "CM" ? "45%" : "100%",
+              }}
+            />
+
+            <View className="flex-row w-full h-full justify-center">
+              {unit === "CM" ? (
+                <View style={{ width: SCREEN_WIDTH * 0.45 }}>
+                  <ScrollColumn
+                    data={cmData}
+                    selectedValue={cmValue}
+                    onValueChange={setCmValue}
+                  />
+                </View>
+              ) : (
+                <>
+                  <ScrollColumn
+                    data={ftData}
+                    selectedValue={ftValue}
+                    onValueChange={setFtValue}
+                    unitLabel="'"
+                  />
+                  <ScrollColumn
+                    data={inData}
+                    selectedValue={inValue}
+                    onValueChange={setInValue}
+                    unitLabel="''"
+                  />
+                </>
+              )}
             </View>
           </View>
         </View>
 
-        {/* Unit Switcher (Botões Vermelho/Cinza) */}
-        <View style={styles.unitSwitcherContainer}>
-          <View style={styles.unitSwitcherBg}>
+        {/* Switcher */}
+        <View className="items-center mb-6">
+          <View className="flex-row bg-[#2D2F33] rounded-full p-1 w-52">
             <TouchableOpacity
-              style={[
-                styles.unitButton,
-                unit === "CM" && styles.unitButtonActive,
-              ]}
+              className={`flex-1 py-3 items-center rounded-full ${unit === "CM" ? "bg-[#E31C25]" : ""}`}
               onPress={() => toggleUnit("CM")}
             >
               <Text
-                style={[
-                  styles.unitButtonText,
-                  unit === "CM" && styles.unitButtonTextActive,
-                ]}
+                className={`font-bold ${unit === "CM" ? "text-white" : "text-gray-400"}`}
               >
                 CM
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={[
-                styles.unitButton,
-                unit === "FT" && styles.unitButtonActive,
-              ]}
+              className={`flex-1 py-3 items-center rounded-full ${unit === "FT" ? "bg-[#E31C25]" : ""}`}
               onPress={() => toggleUnit("FT")}
             >
               <Text
-                style={[
-                  styles.unitButtonText,
-                  unit === "FT" && styles.unitButtonTextActive,
-                ]}
+                className={`font-bold ${unit === "FT" ? "text-white" : "text-gray-400"}`}
               >
                 FT
               </Text>
@@ -132,143 +226,24 @@ export default function HeightSelection() {
           </View>
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
+        {/* Footer Navigation */}
+        <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
-            style={styles.backButton}
+            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
             onPress={() => router.back()}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.nextButton}
+            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
             onPress={() => router.push("/GoalSelection")}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
-            <ChevronRight color="white" size={24} />
+            <Text className="text-white text-lg font-bold mr-2">Next</Text>
+            <ChevronRight color="white" size={20} />
           </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121417",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 25,
-    justifyContent: "space-between",
-    paddingVertical: 40,
-  },
-  header: {
-    alignItems: "center",
-    marginTop: 30,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 10,
-    lineHeight: 22,
-  },
-  pickerWrapper: {
-    height: 250,
-    justifyContent: "center",
-  },
-  pickersContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  picker: {
-    width: 180, // Largura suficiente para o formato 5'11"
-  },
-  pickerItem: {
-    fontSize: 40,
-    fontWeight: "bold",
-  },
-  selectionLines: {
-    position: "absolute",
-    height: 70,
-    width: "100%",
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: "#FF0000",
-    alignSelf: "center",
-  },
-  unitLabelWrapper: {
-    marginLeft: 5,
-    justifyContent: "center",
-  },
-  unitLabelText: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "500",
-    marginTop: 15,
-  },
-  unitSwitcherContainer: {
-    alignItems: "center",
-  },
-  unitSwitcherBg: {
-    flexDirection: "row",
-    backgroundColor: "#2D2F33",
-    borderRadius: 30,
-    padding: 4,
-    width: 220,
-  },
-  unitButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 25,
-  },
-  unitButtonActive: {
-    backgroundColor: "#FF0000",
-  },
-  unitButtonText: {
-    color: "#9CA3AF",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  unitButtonTextActive: {
-    color: "white",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: {
-    backgroundColor: "#2D2F33",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nextButton: {
-    backgroundColor: "#FF0000",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 35,
-    borderRadius: 30,
-  },
-  nextButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginRight: 5,
-  },
-});

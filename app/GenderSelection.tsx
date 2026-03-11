@@ -1,151 +1,76 @@
 import { useRouter } from "expo-router";
-import { ChevronRight, Mars, Venus } from "lucide-react-native";
+import { ArrowLeft, ChevronRight, Mars, Venus } from "lucide-react-native";
 import React, { useState } from "react";
-import {
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { SafeAreaView, Text, TouchableOpacity, View } from "react-native";
 
 export default function GenderSelection() {
   const [gender, setGender] = useState<"male" | "female" | null>(null);
   const router = useRouter();
 
-  // Verifica se o género foi selecionado para habilitar o botão
   const isReady = gender !== null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <SafeAreaView className="flex-1 bg-[#121417]">
+      <View className="flex-1 px-[30px] justify-between py-[50px]">
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Tell us about yourself!</Text>
-          <Text style={styles.subtitle}>
+        <View className="items-center mt-10">
+          <Text className="text-white text-[28px] font-bold text-center italic">
+            Tell us about yourself!
+          </Text>
+          <Text className="text-gray-400 text-base text-center mt-[15px] leading-[22px]">
             To give you a better experience we need to know your gender
           </Text>
         </View>
 
-        {/* Selection Area */}
-        <View style={styles.selectionContainer}>
+        {/* Selection Area - Usando gap para separação garantida */}
+        <View className="items-center" style={{ gap: 40 }}>
+          {/* Male Button */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setGender("male")}
-            style={[
-              styles.genderCircle,
-              gender === "male" ? styles.activeCircle : styles.inactiveCircle,
-            ]}
+            className={`w-[160px] h-[160px] rounded-full justify-center items-center shadow-lg shadow-black ${
+              gender === "male" ? "bg-[#E31C25]" : "bg-[#2D2F33]"
+            }`}
           >
             <Mars color="white" size={60} strokeWidth={2.5} />
-            <Text style={styles.genderLabel}>Male</Text>
+            <Text className="text-white mt-2.5 text-base font-medium">
+              Male
+            </Text>
           </TouchableOpacity>
 
+          {/* Female Button */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setGender("female")}
-            style={[
-              styles.genderCircle,
-              gender === "female" ? styles.activeCircle : styles.inactiveCircle,
-            ]}
+            className={`w-[160px] h-[160px] rounded-full justify-center items-center shadow-lg shadow-black ${
+              gender === "female" ? "bg-[#E31C25]" : "bg-[#2D2F33]"
+            }`}
           >
             <Venus color="white" size={60} strokeWidth={2.5} />
-            <Text style={styles.genderLabel}>Female</Text>
+            <Text className="text-white mt-2.5 text-base font-medium">
+              Female
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Footer Button */}
-        <View style={styles.footer}>
+        {/* Footer Navigation */}
+        <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
-            // Desativa o botão se nenhum género for selecionado
-            disabled={!isReady}
-            style={[
-              styles.nextButton,
-              // Estilo visual para botão desativado (opacidade 30%)
-              !isReady && { opacity: 0.3 },
-            ]}
+            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
+            onPress={() => router.back()}
+          >
+            <ArrowLeft color="white" size={24} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
             onPress={() => router.push("/BirthdaySelection")}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
-            <ChevronRight color="white" size={24} />
+            <Text className="text-white text-lg font-bold mr-2">Next</Text>
+            <ChevronRight color="white" size={20} />
           </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121417",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 30,
-    justifyContent: "space-between",
-    paddingVertical: 50,
-  },
-  header: {
-    alignItems: "center",
-    marginTop: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 15,
-    lineHeight: 22,
-  },
-  selectionContainer: {
-    alignItems: "center",
-    gap: 40,
-  },
-  genderCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  activeCircle: {
-    backgroundColor: "#FF0000",
-  },
-  inactiveCircle: {
-    backgroundColor: "#2D2F33",
-  },
-  genderLabel: {
-    color: "white",
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  footer: {
-    alignItems: "flex-end",
-  },
-  nextButton: {
-    backgroundColor: "#FF0000",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 35,
-    borderRadius: 30,
-  },
-  nextButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginRight: 5,
-  },
-});
