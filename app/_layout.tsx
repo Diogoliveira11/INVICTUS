@@ -1,3 +1,6 @@
+// 1. IMPORTANTE: Importar o CSS global aqui no topo
+import "../my-expo-app/global.css";
+
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   DarkTheme,
@@ -7,14 +10,11 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
-// 1. REMOVE o unstable_settings que estava a forçar as (tabs)
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      {/* 2. Define a ordem: index primeiro, depois onboarding */}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />

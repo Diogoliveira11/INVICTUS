@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { ChevronRight, Mars, Venus } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -7,13 +8,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-// 1. Importa o hook de navegação
-import { useRouter } from "expo-router";
 
 export default function GenderSelection() {
   const [gender, setGender] = useState<"male" | "female" | null>(null);
-  // 2. Inicializa o router
   const router = useRouter();
+
+  // Verifica se o género foi selecionado para habilitar o botão
+  const isReady = gender !== null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -56,7 +57,13 @@ export default function GenderSelection() {
         {/* Footer Button */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.nextButton}
+            // Desativa o botão se nenhum género for selecionado
+            disabled={!isReady}
+            style={[
+              styles.nextButton,
+              // Estilo visual para botão desativado (opacidade 30%)
+              !isReady && { opacity: 0.3 },
+            ]}
             onPress={() => router.push("/BirthdaySelection")}
           >
             <Text style={styles.nextButtonText}>Next</Text>
@@ -68,7 +75,6 @@ export default function GenderSelection() {
   );
 }
 
-// ... (teus estilos mantêm-se iguais)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
