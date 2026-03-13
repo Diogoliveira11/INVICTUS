@@ -7,6 +7,7 @@ export default function GenderSelection() {
   const [gender, setGender] = useState<"male" | "female" | null>(null);
   const router = useRouter();
 
+  // Variável booleana para verificar se algo foi selecionado
   const isReady = gender !== null;
 
   return (
@@ -22,7 +23,7 @@ export default function GenderSelection() {
           </Text>
         </View>
 
-        {/* Selection Area - Usando gap para separação garantida */}
+        {/* Selection Area */}
         <View className="items-center" style={{ gap: 40 }}>
           {/* Male Button */}
           <TouchableOpacity
@@ -62,12 +63,25 @@ export default function GenderSelection() {
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
+          {/* Botão Next com Validação */}
           <TouchableOpacity
-            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
+            // 1. Desativa o clique se isReady for false
+            disabled={!isReady}
+            activeOpacity={0.8}
             onPress={() => router.push("/BirthdaySelection")}
+            // 2. Muda o estilo baseado na seleção
+            className={`flex-row items-center py-4 px-8 rounded-full ${
+              isReady ? "bg-[#E31C25]" : "bg-zinc-800 opacity-50"
+            }`}
           >
-            <Text className="text-white text-lg font-bold mr-2">Next</Text>
-            <ChevronRight color="white" size={20} />
+            <Text
+              className={`text-lg font-bold mr-2 ${
+                isReady ? "text-white" : "text-gray-500"
+              }`}
+            >
+              Next
+            </Text>
+            <ChevronRight color={isReady ? "white" : "#666"} size={20} />
           </TouchableOpacity>
         </View>
       </View>

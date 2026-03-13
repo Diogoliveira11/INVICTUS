@@ -22,8 +22,11 @@ const DAYS = [
 export default function WorkOutSchedule() {
   const router = useRouter();
 
-  // Dias selecionados por padrão (exemplo)
+  // Estado para armazenar os dias selecionados
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
+
+  // Lógica: Se o array estiver vazio, o botão fica desativado
+  const isNextDisabled = selectedDays.length === 0;
 
   const toggleDay = (dayId: string) => {
     if (selectedDays.includes(dayId)) {
@@ -46,9 +49,9 @@ export default function WorkOutSchedule() {
           </Text>
         </View>
 
-        {/* Days List - Com ScrollView caso o ecrã seja pequeno */}
+        {/* Days List */}
         <ScrollView className="my-6" showsVerticalScrollIndicator={false}>
-          <View className="space-y-1">
+          <View>
             {DAYS.map((day) => {
               const isSelected = selectedDays.includes(day.id);
               return (
@@ -56,7 +59,7 @@ export default function WorkOutSchedule() {
                   key={day.id}
                   activeOpacity={0.7}
                   onPress={() => toggleDay(day.id)}
-                  className={`flex-row justify-between items-center py-5 border-b border-[#2D2F33]`}
+                  className="flex-row justify-between items-center py-5 border-b border-[#2D2F33]"
                 >
                   <Text
                     className={`text-lg ${
@@ -66,7 +69,7 @@ export default function WorkOutSchedule() {
                     {day.label}
                   </Text>
 
-                  {/* Círculo de Seleção (Checkbox) */}
+                  {/* Círculo de Seleção */}
                   <View
                     className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
                       isSelected
@@ -86,6 +89,7 @@ export default function WorkOutSchedule() {
 
         {/* Footer Navigation */}
         <View className="flex-row justify-between items-center mb-2">
+          {/* Botão Back */}
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
             onPress={() => router.back()}
@@ -93,12 +97,21 @@ export default function WorkOutSchedule() {
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
+          {/* Botão Next (Validado) */}
           <TouchableOpacity
-            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
-            //onPress={() => router.push("/WeightSelection")}
+            disabled={isNextDisabled}
+            activeOpacity={0.8}
+            onPress={() => router.replace("/(tabs)")} // O replace impede o user de voltar ao onboarding
+            className={`flex-row items-center py-4 px-8 rounded-full ${
+              isNextDisabled ? "bg-zinc-800 opacity-50" : "bg-[#E31C25]"
+            }`}
           >
-            <Text className="text-white text-lg font-bold mr-2">Next</Text>
-            <ChevronRight color="white" size={20} />
+            <Text
+              className={`text-lg font-bold mr-2 ${isNextDisabled ? "text-gray-500" : "text-white"}`}
+            >
+              Next
+            </Text>
+            <ChevronRight color={isNextDisabled ? "#666" : "white"} size={20} />
           </TouchableOpacity>
         </View>
       </View>
