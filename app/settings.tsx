@@ -88,7 +88,9 @@ export default function SettingsScreen() {
         {/* PREFERENCES SECTION */}
         <SectionTitle title="Preferences" />
         <View className="px-5">
-          <SettingItem icon={Dumbbell} label="Workouts" />
+          <SettingItem icon={Dumbbell} label="Workouts" 
+           onPress={() => router.push("/workoutsettings")}/>
+
           <SettingItem icon={Ruler} label="Units" />
           <SettingItem icon={Globe} label="Language" />
           <SettingItem icon={Moon} label="Theme" />
