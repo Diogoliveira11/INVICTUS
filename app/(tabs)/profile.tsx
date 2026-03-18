@@ -130,7 +130,7 @@ export default function ProfileScreen() {
 
               {/* BOTÃO DEFINIÇÕES */}
               <TouchableOpacity 
-                onPress={() => router.push("/profilesettings")} // Exemplo para definições
+                onPress={() => router.push("/settings")} // Exemplo para definições
                 className="bg-zinc-800 w-12 h-12 rounded-full items-center justify-center"
               >
                 <Settings size={24} color="#FFFFFF" />

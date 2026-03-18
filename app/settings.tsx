@@ -1,26 +1,26 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
-    ArrowLeft,
-    ChevronRight,
-    ClipboardList,
-    Dumbbell,
-    Globe,
-    HelpCircle,
-    Info,
-    Mail,
-    Moon,
-    Ruler,
-    Share,
-    Star,
-    User
+  ArrowLeft,
+  ChevronRight,
+  ClipboardList,
+  Dumbbell,
+  Globe,
+  HelpCircle,
+  Info,
+  Mail,
+  Moon,
+  Ruler,
+  Share,
+  Star,
+  User
 } from "lucide-react-native";
 import React from "react";
 import {
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -81,7 +81,8 @@ export default function SettingsScreen() {
         {/* ACCOUNT SECTION */}
         <SectionTitle title="Account" />
         <View className="px-5">
-          <SettingItem icon={User} label="Account" onPress={() => {}} />
+          <SettingItem icon={User} label="Account" 
+          onPress={() => router.push("/accountsettings")}/>
         </View>
 
         {/* PREFERENCES SECTION */}
