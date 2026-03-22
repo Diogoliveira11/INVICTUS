@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { ArrowLeft, ChevronRight, Mars, Venus } from "lucide-react-native";
+import { ChevronRight, Mars, Venus } from "lucide-react-native";
 import React, { useState } from "react";
 import { SafeAreaView, Text, TouchableOpacity, View } from "react-native";
 
@@ -55,20 +55,13 @@ export default function GenderSelection() {
         </View>
 
         {/* Footer Navigation */}
-        <View className="flex-row justify-between items-center mb-2">
-          <TouchableOpacity
-            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
-            onPress={() => router.back()}
-          >
-            <ArrowLeft color="white" size={24} />
-          </TouchableOpacity>
-
+        <View className="flex-row justify-end items-center mb-2">
           {/* Botão Next com Validação */}
           <TouchableOpacity
             // 1. Desativa o clique se isReady for false
             disabled={!isReady}
             activeOpacity={0.8}
-            onPress={() => router.push("/birthday")}
+            onPress={() => router.push("/video")}
             // 2. Muda o estilo baseado na seleção
             className={`flex-row items-center py-4 px-8 rounded-full ${
               isReady ? "bg-[#E31C25]" : "bg-zinc-800 opacity-50"

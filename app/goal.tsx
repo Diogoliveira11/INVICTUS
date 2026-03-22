@@ -14,36 +14,38 @@ import {
 } from "react-native";
 
 // Aumentado para dar mais destaque e espaço à caixa
-const ITEM_HEIGHT = 75; 
+const ITEM_HEIGHT = 75;
 
 export default function GoalSelection() {
   const router = useRouter();
   const goals = ["Lose weight", "Gain Weight", "Create Muscle"];
   const [selectedGoal, setSelectedGoal] = useState("Gain Weight");
 
-  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const newGoal = goals[index];
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const y = e.nativeEvent.contentOffset.y;
+      const index = Math.round(y / ITEM_HEIGHT);
+      const newGoal = goals[index];
 
-    if (newGoal && newGoal !== selectedGoal) {
-      setTimeout(() => {
-        setSelectedGoal(newGoal);
-        if (Platform.OS !== 'web') {
-          Haptics.selectionAsync().catch(() => {});
-        }
-      }, 0);
-    }
-  }, [selectedGoal]);
+      if (newGoal && newGoal !== selectedGoal) {
+        setTimeout(() => {
+          setSelectedGoal(newGoal);
+          if (Platform.OS !== "web") {
+            Haptics.selectionAsync().catch(() => {});
+          }
+        }, 0);
+      }
+    },
+    [selectedGoal],
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-8 py-10 justify-between">
-        
         {/* Header */}
         <View className="items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center italic">
-            What's your goal?
+            What´s your goal?
           </Text>
           <Text className="text-base text-gray-400 text-center mt-2 px-5">
             This helps us create your personalized plan
@@ -52,8 +54,10 @@ export default function GoalSelection() {
 
         {/* Picker Central */}
         <View className="flex-1 justify-center items-center">
-          <View style={{ height: ITEM_HEIGHT * 5 }} className="w-full justify-center items-center relative">
-            
+          <View
+            style={{ height: ITEM_HEIGHT * 5 }}
+            className="w-full justify-center items-center relative"
+          >
             {/* Overlay Reforçado */}
             <View
               pointerEvents="none"
@@ -62,17 +66,20 @@ export default function GoalSelection() {
                 height: ITEM_HEIGHT,
                 top: "50%",
                 marginTop: -ITEM_HEIGHT / 2,
-                alignSelf: 'center', 
+                alignSelf: "center",
               }}
             >
               {/* Linhas vermelhas um pouco mais grossas (border-2) */}
-              <View 
-                className="border-t-2 border-b-2 border-[#FF0000] absolute" 
-                style={{ height: ITEM_HEIGHT, width: '130%' }} 
+              <View
+                className="border-t-2 border-b-2 border-[#FF0000] absolute"
+                style={{ height: ITEM_HEIGHT, width: "130%" }}
               />
-              
+
               {/* Caixa cinzenta maior e mais arredondada */}
-              <View className="bg-[#2D2F33] rounded-2xl px-12" style={{ height: ITEM_HEIGHT * 0.85 }}>
+              <View
+                className="bg-[#2D2F33] rounded-2xl px-12"
+                style={{ height: ITEM_HEIGHT * 0.85 }}
+              >
                 <Text className="text-2xl font-bold opacity-0">
                   Create Muscle
                 </Text>
@@ -95,12 +102,15 @@ export default function GoalSelection() {
                 index,
               })}
               contentContainerStyle={{
-                paddingVertical: ITEM_HEIGHT * 2, 
+                paddingVertical: ITEM_HEIGHT * 2,
               }}
               renderItem={({ item }) => {
                 const isSelected = selectedGoal === item;
                 return (
-                  <View style={{ height: ITEM_HEIGHT }} className="justify-center items-center">
+                  <View
+                    style={{ height: ITEM_HEIGHT }}
+                    className="justify-center items-center"
+                  >
                     <Text
                       className={`text-center ${
                         isSelected

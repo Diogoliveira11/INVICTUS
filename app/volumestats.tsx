@@ -32,20 +32,20 @@ export default function VolumeStats() {
           <Text className="text-white text-5xl font-black mt-2">19 344</Text>
           <Text className="text-[#E31C25] text-xl font-bold uppercase">Kg</Text>
         </View>
-{/* Estatísticas de Progresso */}
+        {/* Estatísticas de Progresso */}
         <View className="flex-row justify-between mb-6">
           <View className="bg-zinc-900/50 border border-zinc-800 w-[48%] p-6 rounded-[35px]">
             <TrendingUp color="#E31C25" size={24} />
             <Text className="text-white text-2xl font-black mt-4">+12%</Text>
             <Text className="text-zinc-500 text-xs font-bold uppercase tracking-tighter">
-              Este Mês
+              This Week
             </Text>
           </View>
           <View className="bg-zinc-900/50 border border-zinc-800 w-[48%] p-6 rounded-[35px]">
-            <Award color="#E31C25" size={24} />
-            <Text className="text-white text-2xl font-black">1.2k</Text>
+            <TrendingUp color="#E31C25" size={24} />
+            <Text className="text-white text-2xl font-black mt-4">1.2K</Text>
             <Text className="text-zinc-500 text-xs font-bold uppercase tracking-tighter">
-              Repetições
+              Reps
             </Text>
           </View>
         </View>
