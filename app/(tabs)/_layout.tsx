@@ -5,7 +5,6 @@ import React, { useEffect } from "react";
 import { Image, Platform, View } from "react-native";
 
 export default function TabsLayout() {
-  
   // BLOCO PARA ESCONDER OS BOTÕES DO TELEMÓVEL
   useEffect(() => {
     async function hideSystemBars() {
@@ -34,7 +33,7 @@ export default function TabsLayout() {
           borderTopWidth: 1,
           borderTopColor: "#18181b",
           // MANTIDO: As tuas alturas originais sem alterações
-          height: Platform.OS === "ios" ? 88 : 70, 
+          height: Platform.OS === "ios" ? 88 : 70,
           paddingBottom: Platform.OS === "ios" ? 30 : 10,
           paddingTop: 10,
         },
@@ -64,18 +63,29 @@ export default function TabsLayout() {
         name="profile"
         options={{
           tabBarIcon: ({ focused }) => (
-            <View 
+            <View
               className={`w-8 h-8 rounded-full overflow-hidden ${
-                focused ? "border-[2px] border-[#E31C25]" : "border border-zinc-500"
+                focused
+                  ? "border-[2px] border-[#E31C25]"
+                  : "border border-zinc-500"
               }`}
             >
               <Image
-                source={{ uri: "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg" }}
+                source={{
+                  uri: "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
+                }}
                 className="w-full h-full"
                 resizeMode="cover"
               />
             </View>
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="exercises"
+        options={{
+          href: null, // ESCONDE O BOTÃO DA BARRA
         }}
       />
     </Tabs>

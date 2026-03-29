@@ -61,7 +61,7 @@ export default function GenderSelection() {
             // 1. Desativa o clique se isReady for false
             disabled={!isReady}
             activeOpacity={0.8}
-            onPress={() => router.push("/video")}
+            onPress={() => router.push("/birthday")}
             // 2. Muda o estilo baseado na seleção
             className={`flex-row items-center py-4 px-8 rounded-full ${
               isReady ? "bg-[#E31C25]" : "bg-zinc-800 opacity-50"
