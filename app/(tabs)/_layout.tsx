@@ -82,10 +82,26 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* Esconde a pasta exercises e tudo o que está lá dentro da barra inferior */}
       <Tabs.Screen
-        name="exercises"
+        name="exercises/index"
         options={{
-          href: null, // ESCONDE O BOTÃO DA BARRA
+          href: null,
+        }}
+      />
+
+      {/* Garante que o arquivo de detalhes também não crie uma aba */}
+      <Tabs.Screen
+        name="exercises/[id]"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="createexercise"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
