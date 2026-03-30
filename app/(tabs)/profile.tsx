@@ -8,19 +8,11 @@ import {
   Settings,
 } from "lucide-react-native";
 import React, { useState } from "react";
-import {
-  Dimensions,
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
+// Removido o Dimensions e o width que não estavam a ser usados
 
-// Dados estáticos para o gráfico
 const chartData = [
   { day: "Jan 25", value: 1.5 },
   { day: "", value: 0 },
@@ -36,7 +28,6 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState("Duration");
 
-  // Função para desenhar o gráfico com barras vermelhas
   const BarChart = () => {
     const maxBarHeight = 120;
     const barWidth = 14;
@@ -44,7 +35,7 @@ export default function ProfileScreen() {
     return (
       <View className="items-center mt-3">
         <View className="flex-row items-end h-[120px] relative w-full pr-1">
-          {[1, 2, 3, 4, 5].map((_, index) => (
+          {[0, 1, 2, 3, 4].map((index) => (
             <View
               key={index}
               className="absolute left-0 right-0 h-[1px] bg-zinc-800"
@@ -56,7 +47,7 @@ export default function ProfileScreen() {
             {chartData.map((bar, index) => (
               <View
                 key={index}
-                className="bg-[#E31C25] rounded-t-sm" // COR VERMELHA NAS BARRAS
+                className="bg-[#E31C25] rounded-t-sm"
                 style={{
                   width: barWidth,
                   height: (bar.value / 4.5) * maxBarHeight,
@@ -86,7 +77,6 @@ export default function ProfileScreen() {
     );
   };
 
-  // Botões de filtro (Duration, Volume, Reps) - Tipados para TS
   const FilterButton = ({ label }: { label: string }) => {
     const isActive = activeFilter === label;
     return (
@@ -105,7 +95,6 @@ export default function ProfileScreen() {
     );
   };
 
-  // Botões de ação (Statistics, etc.) - Tipados para TS
   const ActionButton = ({
     label,
     onPress,
@@ -114,7 +103,7 @@ export default function ProfileScreen() {
     onPress: () => void;
   }) => (
     <TouchableOpacity
-      onPress={onPress} // Executa a função que passares lá em baixo
+      onPress={onPress}
       activeOpacity={0.7}
       className="bg-[#E31C25] w-[48%] py-3 rounded-full items-center mb-3"
     >
@@ -143,17 +132,15 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <View className="flex-row gap-2">
-              {/* BOTÃO EDITAR CONFIGURADO */}
               <TouchableOpacity
-                onPress={() => router.push("/editprofile")} // Redireciona para editprofile.tsx
+                onPress={() => router.push("/editprofile")}
                 className="bg-zinc-800 w-12 h-12 rounded-full items-center justify-center"
               >
                 <Pencil size={24} color="#FFFFFF" />
               </TouchableOpacity>
 
-              {/* BOTÃO DEFINIÇÕES */}
               <TouchableOpacity
-                onPress={() => router.push("/settings")} // Exemplo para definições
+                onPress={() => router.push("/settings")}
                 className="bg-zinc-800 w-12 h-12 rounded-full items-center justify-center"
               >
                 <Settings size={24} color="#FFFFFF" />
@@ -162,9 +149,8 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* PROFILE INFO - Com espaçamento corrigido */}
+        {/* PROFILE INFO */}
         <View className="px-5 mt-6 flex-row items-center gap-6">
-          {/* Avatar com borda e sombra suave */}
           <View className="shadow-lg">
             <Image
               source={{
@@ -175,14 +161,12 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* Container de Texto com espaçamento interno */}
           <View className="flex-1">
-            {/* Secção de Estatísticas (Joined/Workouts) com gap */}
             <View className="flex-row gap-5">
               <View>
                 <Text className="text-zinc-500 text-xs">Joined</Text>
                 <Text className="text-white font-bold text-sm">
-                  2 month ago
+                  2 months ago
                 </Text>
               </View>
               <View>
@@ -191,7 +175,6 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Nome com margem superior para afastar das estatísticas */}
             <View className="mt-4">
               <Text className="text-white text-2xl font-black leading-7">
                 Diogo
@@ -232,22 +215,19 @@ export default function ProfileScreen() {
         <View className="flex-row flex-wrap justify-between px-5 mt-6">
           <ActionButton
             label="Statistics"
-            onPress={() => router.push("../statistics")}
+            onPress={() => router.push("/statistics")}
           />
-
           <ActionButton
             label="Exercises"
-            onPress={() => router.push("../exercises")}
+            onPress={() => router.push("/exercises")}
           />
-
           <ActionButton
             label="Measures"
-            onPress={() => router.push("../measures")}
+            onPress={() => router.push("/measures")}
           />
-
           <ActionButton
             label="Calendar"
-            onPress={() => router.push("../calendar")}
+            onPress={() => router.push("/calendar")}
           />
         </View>
 
