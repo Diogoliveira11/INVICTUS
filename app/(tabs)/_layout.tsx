@@ -104,6 +104,20 @@ export default function TabsLayout() {
           href: null,
         }}
       />
+
+      <Tabs.Screen
+        name="workout/explore"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="workout/new-routine"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
