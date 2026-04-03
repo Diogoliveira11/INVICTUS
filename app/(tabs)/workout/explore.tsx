@@ -184,7 +184,6 @@ export default function ExploreExercisesPage() {
       <TouchableOpacity
         activeOpacity={0.7}
         className="flex-row items-center py-4 border-b border-zinc-800/50"
-        // No Explore, você pode redirecionar para os detalhes normais do exercício
         onPress={() => router.push(`/exercises/${item.id}`)}
       >
         <View className="w-14 h-14 rounded-full bg-zinc-800 items-center justify-center mr-4 overflow-hidden border border-zinc-700">

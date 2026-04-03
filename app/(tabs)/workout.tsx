@@ -1,14 +1,23 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import * as SQLite from "expo-sqlite";
 import {
+  Edit3,
   FolderPlus,
   List,
   MoreHorizontal,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Modal,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Routine = {
@@ -20,13 +29,17 @@ type Routine = {
 export default function WorkoutTabScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [isOptionsVisible, setIsOptionsVisible] = useState(false);
+  const [selectedRoutineId, setSelectedRoutineId] = useState<number | null>(
+    null,
+  );
 
   const loadRoutines = async () => {
     try {
       const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
 
-      // FORÇAR CRIAÇÃO (Caso o arquivo aberto seja um novo vazio)
       await db.execAsync(`
         PRAGMA foreign_keys = ON;
         CREATE TABLE IF NOT EXISTS routines (
@@ -57,75 +70,57 @@ export default function WorkoutTabScreen() {
     }
   };
 
-  const debugDatabase = async () => {
-    try {
-      const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
-      const tables = await db.getAllAsync<{ name: string }>(
-        "SELECT name FROM sqlite_master WHERE type='table'",
-      );
-      console.log("--- TABELAS ENCONTRADAS NO BANCO ---");
-      console.log(tables.map((t) => t.name));
-
-      const countRoutines = await db.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM routines",
-      );
-      console.log("Total de Rotinas na DB:", countRoutines?.count);
-    } catch (e) {
-      console.error("ERRO NO DIAGNÓSTICO:", e);
-    }
-  };
-
   useFocusEffect(
     useCallback(() => {
-      debugDatabase();
-      loadRoutines(); // Agora ele já encontra a função
+      loadRoutines();
     }, []),
   );
 
-  const handleDelete = async (id: number) => {
-    Alert.alert("Opções", "O que pretendes fazer?", [
-      {
-        text: "Editar",
-        onPress: () =>
-          router.push({
-            pathname: "/workout/new-routine",
-            params: { routineId: id, mode: "edit" },
-          }),
-      },
-      {
-        text: "Apagar",
-        style: "destructive",
-        onPress: async () => {
-          const db = await SQLite.openDatabaseAsync(
-            "inicializedatabase.sqlite",
-          );
-          await db.runAsync(
-            "DELETE FROM routine_exercises WHERE routine_id = ?",
-            [id],
-          );
-          await db.runAsync("DELETE FROM routines WHERE id = ?", [id]);
-          loadRoutines(); // Agora ele já encontra a função
-        },
-      },
-      { text: "Cancelar", style: "cancel" },
-    ]);
+  const openOptions = (id: number) => {
+    setSelectedRoutineId(id);
+    setIsOptionsVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedRoutineId) return;
+    try {
+      const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
+      await db.runAsync("DELETE FROM routine_exercises WHERE routine_id = ?", [
+        selectedRoutineId,
+      ]);
+      await db.runAsync("DELETE FROM routines WHERE id = ?", [
+        selectedRoutineId,
+      ]);
+      setIsOptionsVisible(false);
+      loadRoutines();
+    } catch (e) {
+      console.error("Erro ao apagar:", e);
+    }
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000", paddingTop: insets.top }}>
+      <StatusBar barStyle="light-content" />
+
       <ScrollView className="px-5" showsVerticalScrollIndicator={false}>
         <Text className="text-white text-3xl font-bold mt-4">Workout</Text>
 
-        <TouchableOpacity className="flex-row items-center bg-[#1c1c1e] py-3 px-4 rounded-xl mt-6 border border-zinc-800/50">
-          <Plus size={20} color="#a1a1aa" strokeWidth={3} />
-          <Text className="text-zinc-400 font-semibold ml-3 text-lg">
+        {/* Start Empty Workout - Ajustado para Vermelho conforme pedido */}
+        <TouchableOpacity
+          onPress={() => router.push("/workout/log_workout")}
+          className="flex-row items-center bg-[#1c1c1e] py-4 px-4 rounded-xl mt-6 border border-zinc-800/50"
+        >
+          <Plus size={22} color="#E31C25" strokeWidth={3} />
+          <Text className="text-[#E31C25] font-bold ml-3 text-lg">
             Start Empty Workout
           </Text>
         </TouchableOpacity>
 
         <View className="flex-row justify-between items-center mt-10">
           <Text className="text-white text-2xl font-bold">Routines</Text>
-          <FolderPlus size={26} color="white" />
+          <TouchableOpacity>
+            <FolderPlus size={26} color="white" />
+          </TouchableOpacity>
         </View>
 
         <View className="flex-row gap-3 mt-4">
@@ -137,9 +132,8 @@ export default function WorkoutTabScreen() {
             <Text className="text-white font-bold ml-2">New Routine</Text>
           </TouchableOpacity>
 
-          {/* BOTÃO EXPLORE ATUALIZADO ABAIXO */}
           <TouchableOpacity
-            onPress={() => router.push("/workout/explore")} // Adicionado o redirecionamento
+            onPress={() => router.push("/workout/explore")}
             className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-3 rounded-full"
           >
             <Search size={18} color="white" />
@@ -165,11 +159,20 @@ export default function WorkoutTabScreen() {
                     {item.exercise_list || "No exercises added"}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                  <MoreHorizontal size={22} color="#71717a" />
+                <TouchableOpacity onPress={() => openOptions(item.id)}>
+                  <MoreHorizontal size={24} color="#71717a" />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity className="bg-[#E31C25] w-full py-3 rounded-2xl mt-5 items-center">
+
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/workout/log_workout",
+                    params: { routineId: item.id },
+                  })
+                }
+                className="bg-[#E31C25] w-full py-3 rounded-2xl mt-5 items-center"
+              >
                 <Text className="text-white font-black text-lg">
                   Start Routine
                 </Text>
@@ -178,6 +181,64 @@ export default function WorkoutTabScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* MODAL DE OPÇÕES ESTILIZADO (TEMA ESCURO + VERMELHO) */}
+      <Modal
+        visible={isOptionsVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsOptionsVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setIsOptionsVisible(false)}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)" }}
+          className="justify-end"
+        >
+          <View className="bg-[#1c1c1e] p-6 rounded-t-[40px] border-t border-zinc-800">
+            <View className="w-12 h-1.5 bg-zinc-800 rounded-full self-center mb-8" />
+
+            <Text className="text-zinc-500 text-center text-xs font-bold uppercase tracking-widest mb-6">
+              Routine Options
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => {
+                setIsOptionsVisible(false);
+                router.push({
+                  pathname: "/workout/new-routine",
+                  params: { routineId: selectedRoutineId, mode: "edit" },
+                });
+              }}
+              className="flex-row items-center bg-zinc-900/50 p-5 rounded-2xl mb-3 border border-zinc-800"
+            >
+              <Edit3 size={20} color="white" />
+              <Text className="text-white text-base font-bold ml-4">
+                Edit Routine
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={confirmDelete}
+              className="flex-row items-center bg-[#E31C25]/10 p-5 rounded-2xl mb-8 border border-[#E31C25]/20"
+            >
+              <Trash2 size={20} color="#E31C25" />
+              <Text className="text-[#E31C25] text-base font-bold ml-4">
+                Delete Routine
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsOptionsVisible(false)}
+              className="bg-zinc-800/50 py-4 rounded-2xl mb-4"
+            >
+              <Text className="text-zinc-400 text-base font-bold text-center">
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }

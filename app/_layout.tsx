@@ -7,41 +7,46 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "../global.css";
+// 1. IMPORTA O PROVIDER (ajusta o caminho se a pasta context estiver noutro sítio)
+import { WorkoutProvider } from "./(tabs)/context/workoutcontext";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        {/* Ecrãs de Onboarding e Auth */}
-        <Stack.Screen name="index" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="auth/signup" />
-        <Stack.Screen name="auth/login" />
-        <Stack.Screen name="GenderSelection" />
-        <Stack.Screen name="BirthdaySelection" />
+    // 2. ENVOLVE TUDO COM O WORKOUT PROVIDER
+    <WorkoutProvider>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }}>
+          {/* Ecrãs de Onboarding e Auth */}
+          <Stack.Screen name="index" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="auth/signup" />
+          <Stack.Screen name="auth/login" />
+          <Stack.Screen name="GenderSelection" />
+          <Stack.Screen name="BirthdaySelection" />
 
-        {/* O Grupo das Tabs (Home, Workout, Profile) */}
-        <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+          {/* O Grupo das Tabs (Home, Workout, Profile) */}
+          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
 
-        {/* Ecrãs de Detalhe (Abrem por cima da Home) */}
-        <Stack.Screen
-          name="workouthistory"
-          options={{
-            presentation: "modal", 
-            animation: "slide_from_right", 
-          }}
-        />
-        <Stack.Screen
-          name="volumestats"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_right",
-          }}
-        />
-      </Stack>
-      <StatusBar style="light" />
-    </ThemeProvider>
+          {/* Ecrãs de Detalhe (Abrem por cima da Home) */}
+          <Stack.Screen
+            name="workouthistory"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_right",
+            }}
+          />
+          <Stack.Screen
+            name="volumestats"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_right",
+            }}
+          />
+        </Stack>
+        <StatusBar style="light" />
+      </ThemeProvider>
+    </WorkoutProvider>
   );
 }
