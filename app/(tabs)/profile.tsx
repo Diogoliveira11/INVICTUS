@@ -1,18 +1,18 @@
+import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
+import * as SQLite from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import {
   ArrowRight,
   ChevronDown,
-  Dumbbell,
   Pencil,
-  Settings,
+  Settings
 } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Removido o Dimensions e o width que não estavam a ser usados
-
+// Dados para o gráfico (podes depois calcular isto dinamicamente do DB)
 const chartData = [
   { day: "Jan 25", value: 1.5 },
   { day: "", value: 0 },
@@ -20,13 +20,32 @@ const chartData = [
   { day: "", value: 2.5 },
   { day: "Feb 8", value: 2.8 },
   { day: "", value: 4.2 },
-  { day: "Feb 22", value: 1.8 },
+  { day: "Apr 6", value: 1.8 }, // Ajustado para hoje
 ];
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const [activeFilter, setActiveFilter] = useState("Duration");
+  const [history, setHistory] = useState<any[]>([]);
+
+  // CARREGAR DADOS REAIS DO SQLITE
+  const loadProfileData = useCallback(async () => {
+    try {
+      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
+      const result = await db.getAllAsync<any>(
+        "SELECT * FROM workouts ORDER BY id DESC",
+      );
+      setHistory(result || []);
+    } catch (error) {
+      console.error("Erro ao carregar perfil:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFocused) loadProfileData();
+  }, [isFocused, loadProfileData]);
 
   const BarChart = () => {
     const maxBarHeight = 120;
@@ -118,7 +137,7 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top,
-          paddingBottom: 20,
+          paddingBottom: 100, // Espaço para a Tab Bar
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -136,21 +155,21 @@ export default function ProfileScreen() {
                 onPress={() => router.push("/editprofile")}
                 className="bg-zinc-800 w-12 h-12 rounded-full items-center justify-center"
               >
-                <Pencil size={24} color="#FFFFFF" />
+                <Pencil size={20} color="#FFFFFF" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => router.push("/settings")}
                 className="bg-zinc-800 w-12 h-12 rounded-full items-center justify-center"
               >
-                <Settings size={24} color="#FFFFFF" />
+                <Settings size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
         {/* PROFILE INFO */}
-        <View className="px-5 mt-6 flex-row items-center gap-6">
+        <View className="px-5 mt-4 flex-row items-center gap-6">
           <View className="shadow-lg">
             <Image
               source={{
@@ -164,22 +183,28 @@ export default function ProfileScreen() {
           <View className="flex-1">
             <View className="flex-row gap-5">
               <View>
-                <Text className="text-zinc-500 text-xs">Joined</Text>
-                <Text className="text-white font-bold text-sm">
-                  2 months ago
+                <Text className="text-zinc-500 text-xs uppercase font-bold">
+                  Joined
+                </Text>
+                <Text className="text-white font-black text-sm uppercase">
+                  Apr 2026
                 </Text>
               </View>
               <View>
-                <Text className="text-zinc-500 text-xs">Workouts</Text>
-                <Text className="text-white font-bold text-sm">17</Text>
+                <Text className="text-zinc-500 text-xs uppercase font-bold">
+                  Workouts
+                </Text>
+                <Text className="text-white font-black text-sm">
+                  {history.length}
+                </Text>
               </View>
             </View>
 
             <View className="mt-4">
-              <Text className="text-white text-2xl font-black leading-7">
+              <Text className="text-white text-2xl font-black leading-7 italic uppercase">
                 Diogo
               </Text>
-              <Text className="text-zinc-400 text-xl font-black leading-6">
+              <Text className="text-zinc-400 text-xl font-black leading-6 italic uppercase">
                 Oliveira
               </Text>
             </View>
@@ -187,11 +212,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* CHART CARD */}
-        <View className="bg-zinc-900/40 mx-3 p-4 rounded-3xl mt-5 border border-zinc-900/80">
+        <View className="bg-zinc-900/40 mx-3 p-4 rounded-3xl mt-8 border border-zinc-900/80">
           <View className="flex-row justify-between items-center">
             <View>
               <Text className="text-white font-black text-xl leading-5">
-                2 hours
+                {history.length > 0 ? "Active" : "0 hours"}
               </Text>
               <Text className="text-zinc-400 text-xs">this week</Text>
             </View>
@@ -213,61 +238,69 @@ export default function ProfileScreen() {
 
         {/* ACTION BUTTONS GRID */}
         <View className="flex-row flex-wrap justify-between px-5 mt-6">
-          <ActionButton
-            label="Statistics"
-            onPress={() => router.push("/statistics")}
-          />
-          <ActionButton
-            label="Exercises"
-            onPress={() => router.push("/exercises")}
-          />
-          <ActionButton
-            label="Measures"
-            onPress={() => router.push("/measures")}
-          />
-          <ActionButton
-            label="Calendar"
-            onPress={() => router.push("/calendar")}
-          />
+          <ActionButton label="Statistics" onPress={() => {}} />
+          <ActionButton label="Exercises" onPress={() => {}} />
+          <ActionButton label="Measures" onPress={() => {}} />
+          <ActionButton label="Calendar" onPress={() => {}} />
         </View>
 
-        {/* ACTIVITY SUMMARY */}
-        <TouchableOpacity className="bg-zinc-900 mx-5 p-4 rounded-3xl mt-4 border border-zinc-800">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-white text-sm font-bold uppercase tracking-widest">
-              Chest | Triceps | Lateral Raise
-            </Text>
-            <ArrowRight size={18} color="#E31C25" />
-          </View>
+        {/* ACTIVITY SUMMARY (HISTÓRICO REAL) */}
+        <View className="px-5 mt-8">
+          <Text className="text-white font-black text-lg italic uppercase mb-4 tracking-tighter">
+            Recent Activity
+          </Text>
 
-          <View className="flex-row gap-5 mb-3">
-            <View>
-              <Text className="text-zinc-500 text-[10px]">Duration</Text>
-              <Text className="text-zinc-100 font-bold text-xs">1h 42min</Text>
+          {history.length === 0 ? (
+            <View className="bg-zinc-900/30 p-8 rounded-3xl border border-dashed border-zinc-800 items-center">
+              <Text className="text-zinc-600 font-bold">No workouts yet</Text>
             </View>
-            <View>
-              <Text className="text-zinc-500 text-[10px]">Volume</Text>
-              <Text className="text-zinc-100 font-bold text-xs">5,923 kg</Text>
-            </View>
-            <View>
-              <Text className="text-zinc-500 text-[10px]">Records</Text>
-              <Text className="text-[#FFC107] font-bold text-xs">🏆 2</Text>
-            </View>
-          </View>
+          ) : (
+            history.map((workout) => (
+              <TouchableOpacity
+                key={workout.id}
+                className="bg-zinc-900 p-5 rounded-3xl mb-4 border border-zinc-800"
+              >
+                <View className="flex-row justify-between items-center mb-3">
+                  <Text className="text-white text-sm font-black uppercase tracking-widest">
+                    {workout.name || "Strength Training"}
+                  </Text>
+                  <ArrowRight size={18} color="#E31C25" />
+                </View>
 
-          <View className="flex-row items-center gap-3 mb-2">
-            <Dumbbell size={16} color="#71717A" />
-            <Text className="text-zinc-400 text-xs">
-              5 sets Decline Bench Press (Barbell)
-            </Text>
-          </View>
-          <View className="flex-row items-center gap-3">
-            <Dumbbell size={16} color="#71717A" />
-            <Text className="text-zinc-400 text-xs">
-              4 sets Iso-Lateral Chest Press (Machine)
-            </Text>
-          </View>
-        </TouchableOpacity>
+                <View className="flex-row gap-5">
+                  <View>
+                    <Text className="text-zinc-500 text-[10px] uppercase font-bold">
+                      Duration
+                    </Text>
+                    <Text className="text-zinc-100 font-black text-xs italic">
+                      {workout.duration}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className="text-zinc-500 text-[10px] uppercase font-bold">
+                      Volume
+                    </Text>
+                    <Text className="text-zinc-100 font-black text-xs italic">
+                      {workout.total_volume} kg
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className="text-zinc-500 text-[10px] uppercase font-bold">
+                      Records
+                    </Text>
+                    <Text className="text-[#FFC107] font-black text-xs italic">
+                      🏆 1
+                    </Text>
+                  </View>
+                </View>
+
+                <Text className="text-zinc-600 text-[10px] mt-3 font-bold uppercase">
+                  {workout.date}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
       </ScrollView>
     </View>
   );

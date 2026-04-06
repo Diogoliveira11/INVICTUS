@@ -11,6 +11,7 @@ import {
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
+  Alert,
   Modal,
   ScrollView,
   StatusBar,
@@ -38,22 +39,26 @@ export default function WorkoutTabScreen() {
 
   const loadRoutines = async () => {
     try {
-      const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
+      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
 
+      // Garantir estrutura mínima para não crashar o SELECT
       await db.execAsync(`
         PRAGMA foreign_keys = ON;
         CREATE TABLE IF NOT EXISTS routines (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL
+          name TEXT NOT NULL,
+          created_at TEXT
         );
         CREATE TABLE IF NOT EXISTS routine_exercises (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           routine_id INTEGER,
           exercise_id INTEGER,
-          FOREIGN KEY (routine_id) REFERENCES routines (id)
+          order_index INTEGER,
+          FOREIGN KEY (routine_id) REFERENCES routines (id) ON DELETE CASCADE
         );
       `);
 
+      // Query otimizada para listar nomes dos exercícios no card
       const query = `
         SELECT r.id, r.name, GROUP_CONCAT(e.name, ', ') AS exercise_list
         FROM routines r
@@ -66,7 +71,7 @@ export default function WorkoutTabScreen() {
       const result = await db.getAllAsync<Routine>(query);
       setRoutines(result);
     } catch (e) {
-      console.error("Erro na leitura:", e);
+      console.error("Erro ao carregar rotinas no Index:", e);
     }
   };
 
@@ -83,19 +88,35 @@ export default function WorkoutTabScreen() {
 
   const confirmDelete = async () => {
     if (!selectedRoutineId) return;
-    try {
-      const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
-      await db.runAsync("DELETE FROM routine_exercises WHERE routine_id = ?", [
-        selectedRoutineId,
-      ]);
-      await db.runAsync("DELETE FROM routines WHERE id = ?", [
-        selectedRoutineId,
-      ]);
-      setIsOptionsVisible(false);
-      loadRoutines();
-    } catch (e) {
-      console.error("Erro ao apagar:", e);
-    }
+
+    Alert.alert(
+      "Delete Routine",
+      "Are you sure you want to delete this routine?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
+              // O ON DELETE CASCADE deve tratar as ligações, mas limpamos manual por segurança
+              await db.runAsync(
+                "DELETE FROM routine_exercises WHERE routine_id = ?",
+                [selectedRoutineId],
+              );
+              await db.runAsync("DELETE FROM routines WHERE id = ?", [
+                selectedRoutineId,
+              ]);
+              setIsOptionsVisible(false);
+              loadRoutines();
+            } catch (e) {
+              console.error("Erro ao apagar:", e);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -103,64 +124,74 @@ export default function WorkoutTabScreen() {
       <StatusBar barStyle="light-content" />
 
       <ScrollView className="px-5" showsVerticalScrollIndicator={false}>
-        <Text className="text-white text-3xl font-bold mt-4">Workout</Text>
+        <Text className="text-white text-4xl font-black italic mt-4 uppercase">
+          Workout
+        </Text>
 
-        {/* Start Empty Workout - Ajustado para Vermelho conforme pedido */}
         <TouchableOpacity
           onPress={() => router.push("/workout/log_workout")}
-          className="flex-row items-center bg-[#1c1c1e] py-4 px-4 rounded-xl mt-6 border border-zinc-800/50"
+          className="flex-row items-center bg-zinc-900/30 py-5 px-5 rounded-[25px] mt-8 border border-zinc-800"
         >
-          <Plus size={22} color="#E31C25" strokeWidth={3} />
-          <Text className="text-[#E31C25] font-bold ml-3 text-lg">
+          <Plus size={24} color="#E31C25" strokeWidth={4} />
+          <Text className="text-[#E31C25] font-black ml-4 text-lg uppercase italic">
             Start Empty Workout
           </Text>
         </TouchableOpacity>
 
-        <View className="flex-row justify-between items-center mt-10">
-          <Text className="text-white text-2xl font-bold">Routines</Text>
+        <View className="flex-row justify-between items-center mt-12">
+          <Text className="text-white text-2xl font-black italic uppercase">
+            Routines
+          </Text>
           <TouchableOpacity>
             <FolderPlus size={26} color="white" />
           </TouchableOpacity>
         </View>
 
-        <View className="flex-row gap-3 mt-4">
+        <View className="flex-row gap-3 mt-6">
           <TouchableOpacity
-            onPress={() => router.push("/workout/new-routine")}
-            className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-3 rounded-full"
+            onPress={() => router.push("./workout/new_routine")}
+            className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-4 rounded-2xl"
           >
-            <List size={18} color="white" />
-            <Text className="text-white font-bold ml-2">New Routine</Text>
+            <List size={20} color="white" />
+            <Text className="text-white font-black ml-2 uppercase italic">
+              New Routine
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => router.push("/workout/explore")}
-            className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-3 rounded-full"
+            className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-4 rounded-2xl"
           >
-            <Search size={18} color="white" />
-            <Text className="text-white font-bold ml-2">Explore</Text>
+            <Search size={20} color="white" />
+            <Text className="text-white font-black ml-2 uppercase italic">
+              Explore
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <View className="mt-8 mb-10 gap-y-4">
+        <View className="mt-10 mb-20 gap-y-5">
           {routines.map((item) => (
             <View
               key={item.id}
-              className="bg-[#1c1c1e] p-5 rounded-3xl border border-zinc-800"
+              className="bg-[#121212] p-6 rounded-[35px] border border-zinc-900"
             >
               <View className="flex-row justify-between items-start">
                 <View className="flex-1">
-                  <Text className="text-white text-lg font-bold uppercase">
+                  <Text className="text-white text-xl font-black italic uppercase">
                     {item.name}
                   </Text>
                   <Text
-                    className="text-zinc-500 text-sm mt-1"
-                    numberOfLines={2}
+                    className="text-zinc-500 text-xs font-bold mt-2 uppercase tracking-tight"
+                    numberOfLines={1}
                   >
-                    {item.exercise_list || "No exercises added"}
+                    {item.exercise_list || "No exercises"}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => openOptions(item.id)}>
-                  <MoreHorizontal size={24} color="#71717a" />
+                <TouchableOpacity
+                  onPress={() => openOptions(item.id)}
+                  className="p-1"
+                >
+                  <MoreHorizontal size={26} color="#52525b" />
                 </TouchableOpacity>
               </View>
 
@@ -171,9 +202,9 @@ export default function WorkoutTabScreen() {
                     params: { routineId: item.id },
                   })
                 }
-                className="bg-[#E31C25] w-full py-3 rounded-2xl mt-5 items-center"
+                className="bg-[#E31C25] w-full py-4 rounded-[20px] mt-6 items-center shadow-lg"
               >
-                <Text className="text-white font-black text-lg">
+                <Text className="text-white font-black text-lg uppercase italic">
                   Start Routine
                 </Text>
               </TouchableOpacity>
@@ -182,7 +213,7 @@ export default function WorkoutTabScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL DE OPÇÕES ESTILIZADO (TEMA ESCURO + VERMELHO) */}
+      {/* MODAL DE OPÇÕES */}
       <Modal
         visible={isOptionsVisible}
         transparent={true}
@@ -192,47 +223,42 @@ export default function WorkoutTabScreen() {
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => setIsOptionsVisible(false)}
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)" }}
-          className="justify-end"
+          className="flex-1 justify-end bg-black/80"
         >
-          <View className="bg-[#1c1c1e] p-6 rounded-t-[40px] border-t border-zinc-800">
-            <View className="w-12 h-1.5 bg-zinc-800 rounded-full self-center mb-8" />
-
-            <Text className="text-zinc-500 text-center text-xs font-bold uppercase tracking-widest mb-6">
-              Routine Options
-            </Text>
+          <View className="bg-[#121212] p-8 rounded-t-[45px] border-t border-zinc-800">
+            <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-8" />
 
             <TouchableOpacity
               onPress={() => {
                 setIsOptionsVisible(false);
                 router.push({
-                  pathname: "/workout/new-routine",
+                  pathname: "/workout/new_routine",
                   params: { routineId: selectedRoutineId, mode: "edit" },
                 });
               }}
-              className="flex-row items-center bg-zinc-900/50 p-5 rounded-2xl mb-3 border border-zinc-800"
+              className="flex-row items-center bg-zinc-900/50 p-6 rounded-3xl mb-4 border border-zinc-800"
             >
-              <Edit3 size={20} color="white" />
-              <Text className="text-white text-base font-bold ml-4">
+              <Edit3 size={22} color="white" />
+              <Text className="text-white text-lg font-black ml-4 uppercase italic">
                 Edit Routine
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={confirmDelete}
-              className="flex-row items-center bg-[#E31C25]/10 p-5 rounded-2xl mb-8 border border-[#E31C25]/20"
+              className="flex-row items-center bg-[#E31C25]/10 p-6 rounded-3xl mb-10 border border-[#E31C25]/20"
             >
-              <Trash2 size={20} color="#E31C25" />
-              <Text className="text-[#E31C25] text-base font-bold ml-4">
+              <Trash2 size={22} color="#E31C25" />
+              <Text className="text-[#E31C25] text-lg font-black ml-4 uppercase italic">
                 Delete Routine
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setIsOptionsVisible(false)}
-              className="bg-zinc-800/50 py-4 rounded-2xl mb-4"
+              className="bg-zinc-800/40 py-5 rounded-3xl mb-6"
             >
-              <Text className="text-zinc-400 text-base font-bold text-center">
+              <Text className="text-zinc-500 text-base font-black text-center uppercase">
                 Cancel
               </Text>
             </TouchableOpacity>

@@ -60,7 +60,7 @@ export default function NewRoutineScreen() {
   useEffect(() => {
     if (mode === "edit" && routineId) {
       (async () => {
-        const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
+        const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
         const res = await db.getFirstAsync<{ name: string }>(
           "SELECT name FROM routines WHERE id = ?",
           [Number(routineId)],
@@ -77,7 +77,19 @@ export default function NewRoutineScreen() {
 
   // 2. BUSCAR EXERCÍCIOS PARA O MODAL (LÓGICA DO TEU INDEX)
   const fetchModalExercises = useCallback(async () => {
-    const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
+    const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
+    const checkEx = await db.getFirstAsync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM exercises",
+    );
+    if (checkEx && checkEx.count === 0) {
+      await db.execAsync(`
+        INSERT INTO exercises (name, muscle_group, equipment, image) VALUES 
+        ('Bench Press (Barbell)', 'Chest', 'Barbell', 'assets/exercises_images/barbell_bench_press.png'),
+        ('Decline Bench Press (Barbell)', 'Chest', 'Barbell', 'assets/exercises_images/barbell_decline_bench_press_chest.png'),
+        ('Dumbbell Press', 'Chest', 'Dumbbell', 'assets/exercises_images/dumbbell_press.png');
+      `);
+      console.log("Exercícios inseridos via NewRoutine!");
+    }
     let query =
       "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
     let params: any[] = [];
@@ -106,35 +118,58 @@ export default function NewRoutineScreen() {
 
   // 3. SALVAR TUDO
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert("Aviso", "Nome vazio.");
+    if (!name.trim()) return Alert.alert("Aviso", "Dá um nome à tua rotina.");
+    if (selectedExercises.length === 0)
+      return Alert.alert("Aviso", "Adiciona pelo menos um exercício.");
 
     try {
-      const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
+      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
 
       if (mode === "edit" && routineId) {
-        // ... (teu código de update)
-      } else {
-        // INSERT
-        const res = await db.runAsync(
-          "INSERT INTO routines (name) VALUES (?)",
-          [name],
+        // --- EDIÇÃO ---
+        const rId = Number(routineId);
+
+        // 1. Atualiza o nome
+        await db.runAsync("UPDATE routines SET name = ? WHERE id = ?", [
+          name,
+          rId,
+        ]);
+
+        // 2. Apaga as ligações antigas
+        await db.runAsync(
+          "DELETE FROM routine_exercises WHERE routine_id = ?",
+          [rId],
         );
 
-        // VERIFICAÇÃO NO TERMINAL
-        console.log("ID da Rotina Gravada:", res.lastInsertRowId);
-        console.log("Linhas afetadas:", res.changes);
-
-        for (const ex of selectedExercises) {
+        // 3. Insere as novas ligações usando o rId
+        for (let i = 0; i < selectedExercises.length; i++) {
           await db.runAsync(
-            "INSERT INTO routine_exercises (routine_id, exercise_id) VALUES (?, ?)",
-            [res.lastInsertRowId, ex.id],
+            "INSERT INTO routine_exercises (routine_id, exercise_id, order_index) VALUES (?, ?, ?)",
+            [rId, selectedExercises[i].id, i],
+          );
+        }
+      } else {
+        // --- CRIAÇÃO NOVA ---
+        const res = await db.runAsync(
+          "INSERT INTO routines (name, created_at) VALUES (?, ?)",
+          [name, new Date().toISOString()],
+        );
+
+        const newRoutineId = res.lastInsertRowId;
+
+        for (let i = 0; i < selectedExercises.length; i++) {
+          await db.runAsync(
+            "INSERT INTO routine_exercises (routine_id, exercise_id, order_index) VALUES (?, ?, ?)",
+            [newRoutineId, selectedExercises[i].id, i],
           );
         }
       }
+
+      Alert.alert("Sucesso", "Rotina guardada!");
       router.push("/workout");
     } catch (e) {
       console.error("ERRO AO GRAVAR:", e);
-      Alert.alert("Erro", "Falha ao gravar.");
+      Alert.alert("Erro", "Falha ao gravar na base de dados.");
     }
   };
 

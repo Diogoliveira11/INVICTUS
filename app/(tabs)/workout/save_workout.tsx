@@ -1,7 +1,9 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Camera, ChevronLeft, X } from "lucide-react-native";
-import React, { useState } from "react";
+import { useRouter } from "expo-router";
+import * as SQLite from "expo-sqlite";
+import { ChevronLeft } from "lucide-react-native";
+import React, { useMemo, useState } from "react";
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -10,11 +12,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useWorkout } from "../context/workoutcontext";
 
 export default function SaveWorkoutScreen() {
   const router = useRouter();
-  const { duration, volume, sets, title } = useLocalSearchParams();
+  const { timer, exercises, stopWorkout } = useWorkout();
   const [description, setDescription] = useState("");
+
+  // 1. CÁLCULO DE ESTATÍSTICAS REAIS
+  const stats = useMemo(() => {
+    let totalVolume = 0;
+    let totalSets = 0;
+    exercises.forEach((ex) => {
+      ex.sets.forEach((s) => {
+        if (s.completed) {
+          totalVolume += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+          totalSets++;
+        }
+      });
+    });
+    return { totalVolume, totalSets };
+  }, [exercises]);
 
   const today = new Date().toLocaleDateString("pt-PT", {
     day: "numeric",
@@ -24,96 +42,164 @@ export default function SaveWorkoutScreen() {
     minute: "2-digit",
   });
 
+  // 2. FUNÇÃO PARA SALVAR NA BASE DE DADOS (V2)
+  const handleSave = async () => {
+    if (stats.totalSets === 0) {
+      Alert.alert(
+        "Atenção",
+        "Deves completar pelo menos uma série para guardar o treino!",
+      );
+      return;
+    }
+
+    try {
+      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
+
+      // Inserir o Cabeçalho do Treino
+      const result = await db.runAsync(
+        "INSERT INTO workouts (name, duration, date, total_volume) VALUES (?, ?, ?, ?)",
+        ["Treino Invictus", timer, new Date().toISOString(), stats.totalVolume],
+      );
+
+      const workoutId = result.lastInsertRowId;
+
+      // Inserir as Séries detalhadas
+      for (const ex of exercises) {
+        for (const set of ex.sets) {
+          if (set.completed) {
+            await db.runAsync(
+              "INSERT INTO workout_sets (workout_id, exercise_id, weight, reps, type) VALUES (?, ?, ?, ?, ?)",
+              [
+                workoutId,
+                ex.id,
+                Number(set.weight) || 0,
+                Number(set.reps) || 0,
+                set.type,
+              ],
+            );
+          }
+        }
+      }
+
+      // Limpa o cronómetro e os exercícios da memória global
+      stopWorkout();
+
+      Alert.alert("Sucesso!", "Treino guardado no histórico.", [
+        {
+          text: "Ver Resumo",
+          onPress: () => {
+            // Redireciona para o ecrã do Troféu/Confetes
+            router.replace("/workout/workout_summary");
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error("ERRO AO SALVAR TREINO:", error);
+      Alert.alert("Erro", "Não foi possível comunicar com a base de dados.");
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
 
-      {/* Header */}
+      {/* HEADER */}
       <View className="flex-row items-center justify-between px-4 py-2 border-b border-zinc-900">
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronLeft size={28} color="white" />
         </TouchableOpacity>
-        <Text className="text-white font-bold text-lg">Save</Text>
+        <Text className="text-white font-black text-lg italic uppercase">
+          Finalizar
+        </Text>
         <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: "/workout/workout_summary",
-              params: { volume },
-            })
-          }
+          onPress={handleSave}
           className="bg-[#E31C25] px-6 py-1.5 rounded-full"
         >
-          <Text className="text-white font-bold">Save</Text>
+          <Text className="text-white font-bold">Salvar</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView className="px-6 pt-6">
-        <View className="flex-row justify-between items-center mb-6">
-          <Text className="text-white text-2xl font-bold">
-            {title || "Treino"}
-          </Text>
-          <TouchableOpacity className="bg-zinc-800 p-1 rounded-full">
-            <X size={16} color="zinc-400" />
-          </TouchableOpacity>
-        </View>
+      <ScrollView className="px-6 pt-6" showsVerticalScrollIndicator={false}>
+        <Text className="text-white text-3xl font-black italic mb-8 uppercase tracking-tighter">
+          Resumo do Treino
+        </Text>
 
-        {/* Stats */}
-        <View className="flex-row justify-between mb-8">
+        {/* GRILHA DE STATS */}
+        <View className="flex-row justify-between mb-10 bg-zinc-900/30 p-5 rounded-[30px] border border-zinc-900">
           <View>
-            <Text className="text-zinc-500 text-xs font-bold uppercase">
-              Duration
+            <Text className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">
+              Duração
             </Text>
-            <Text className="text-[#E31C25] text-lg font-bold">
-              {duration || "0min"}
+            <Text className="text-[#E31C25] text-xl font-black italic">
+              {timer}
             </Text>
           </View>
-          <View>
-            <Text className="text-zinc-500 text-xs font-bold uppercase">
+          <View className="items-center">
+            <Text className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">
               Volume
             </Text>
-            <Text className="text-white text-lg font-bold">
-              {volume || "0"} kg
+            <Text className="text-white text-xl font-black italic">
+              {stats.totalVolume} kg
             </Text>
           </View>
-          <View>
-            <Text className="text-zinc-500 text-xs font-bold uppercase">
-              Series
+          <View className="items-end">
+            <Text className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">
+              Séries
             </Text>
-            <Text className="text-white text-lg font-bold">{sets || "0"}</Text>
+            <Text className="text-white text-xl font-black italic">
+              {stats.totalSets}
+            </Text>
           </View>
         </View>
 
-        <View className="border-t border-zinc-900 pt-4 mb-6">
-          <Text className="text-zinc-500 text-xs font-bold uppercase mb-1">
-            When
+        {/* INFO DATA */}
+        <View className="border-t border-zinc-900 pt-6 mb-8">
+          <Text className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">
+            Data do Treino
           </Text>
-          <Text className="text-[#E31C25] font-medium">{today}</Text>
+          <Text className="text-white font-bold text-base">{today}</Text>
         </View>
 
-        {/* Foto Box */}
-        <TouchableOpacity className="w-24 h-24 bg-zinc-900 rounded-xl border border-dashed border-zinc-700 items-center justify-center mb-8">
-          <Camera size={30} color="#71717a" />
-        </TouchableOpacity>
-
-        <View className="border-t border-zinc-900 pt-4">
-          <Text className="text-zinc-500 text-xs font-bold uppercase mb-2">
-            Description
+        {/* NOTAS */}
+        <View className="border-t border-zinc-900 pt-6">
+          <Text className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-3">
+            Notas Pessoais
           </Text>
           <TextInput
-            placeholder="Como correu o treinamento? Coloque algumas notas aqui..."
+            placeholder="Como te sentiste hoje? Notas sobre carga ou cansaço..."
             placeholderTextColor="#3f3f46"
             multiline
             value={description}
             onChangeText={setDescription}
-            className="text-white text-base"
+            className="text-white text-base bg-zinc-900/20 p-4 rounded-2xl border border-zinc-900"
+            style={{ minHeight: 100, textAlignVertical: "top" }}
           />
         </View>
 
+        {/* DESCARTAR */}
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/workout")}
-          className="mt-20 items-center"
+          onPress={() => {
+            Alert.alert(
+              "Descartar Treino?",
+              "Todos os dados deste treino serão perdidos permanentemente.",
+              [
+                { text: "Cancelar", style: "cancel" },
+                {
+                  text: "Descartar",
+                  style: "destructive",
+                  onPress: () => {
+                    stopWorkout();
+                    router.replace("/(tabs)/workout");
+                  },
+                },
+              ],
+            );
+          }}
+          className="mt-20 mb-10 items-center"
         >
-          <Text className="text-red-500 font-bold">Discard Training</Text>
+          <Text className="text-zinc-700 font-black uppercase tracking-widest text-xs">
+            Descartar Treino
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

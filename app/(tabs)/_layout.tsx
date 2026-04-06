@@ -3,7 +3,7 @@ import { Tabs, useRouter } from "expo-router";
 import { ChevronUp, Dumbbell, Home, Trash2 } from "lucide-react-native";
 import React, { useEffect } from "react";
 import { Image, Platform, Text, TouchableOpacity, View } from "react-native";
-import { useWorkout } from "./context/workoutcontext"; // Ajusta o caminho se necessário
+import { useWorkout } from "./context/workoutcontext"; // Confirma se o caminho permanece este
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -11,6 +11,7 @@ export default function TabsLayout() {
     isActive,
     isMinimized,
     timer,
+    restTimer, // Ponto 3: Adicionado para monitorizar o descanso
     lastExercise,
     setIsMinimized,
     stopWorkout,
@@ -69,7 +70,11 @@ export default function TabsLayout() {
           options={{
             tabBarIcon: ({ focused }) => (
               <View
-                className={`w-8 h-8 rounded-full overflow-hidden ${focused ? "border-[2px] border-[#E31C25]" : "border border-zinc-500"}`}
+                className={`w-8 h-8 rounded-full overflow-hidden ${
+                  focused
+                    ? "border-[2px] border-[#E31C25]"
+                    : "border border-zinc-500"
+                }`}
               >
                 <Image
                   source={{
@@ -87,7 +92,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="exercises/[id]" options={{ href: null }} />
         <Tabs.Screen name="createexercise" options={{ href: null }} />
         <Tabs.Screen name="workout/explore" options={{ href: null }} />
-        <Tabs.Screen name="workout/new-routine" options={{ href: null }} />
+        <Tabs.Screen name="workout/new_routine" options={{ href: null }} />
         <Tabs.Screen name="workout/log_workout" options={{ href: null }} />
         <Tabs.Screen name="workout/save_workout" options={{ href: null }} />
         <Tabs.Screen name="workout/workout_summary" options={{ href: null }} />
@@ -97,36 +102,47 @@ export default function TabsLayout() {
       {isActive && isMinimized && (
         <View
           style={{ bottom: Platform.OS === "ios" ? 95 : 80 }}
-          className="absolute left-4 right-4 bg-[#1c1c1e] h-16 rounded-3xl flex-row items-center px-4 border border-zinc-800 shadow-2xl"
+          className="absolute left-4 right-4 bg-[#1c1c1e] rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl"
         >
-          <TouchableOpacity
-            onPress={() => {
-              setIsMinimized(false); // Barra desaparece ao entrar
-              router.push("/workout/log_workout");
-            }}
-            className="w-10 h-10 bg-zinc-800 rounded-full items-center justify-center"
-          >
-            <ChevronUp color="white" size={24} />
-          </TouchableOpacity>
+          {/* Ponto 3: Barra de Rest Timer Visual (opcional no Mini Tracker) */}
+          {restTimer !== null && (
+            <View className="bg-[#E31C25] h-1 w-full absolute top-0" />
+          )}
 
-          <View className="flex-1 ml-4">
-            <View className="flex-row items-center">
-              <View className="w-2 h-2 rounded-full bg-green-500 mr-2" />
-              <Text className="text-white font-bold text-sm">
-                Treinamento {timer}
+          <View className="h-16 flex-row items-center px-4">
+            <TouchableOpacity
+              onPress={() => {
+                setIsMinimized(false); // Barra desaparece ao entrar
+                router.push("/workout/log_workout");
+              }}
+              className="w-10 h-10 bg-zinc-800 rounded-full items-center justify-center"
+            >
+              <ChevronUp color="white" size={24} />
+            </TouchableOpacity>
+
+            <View className="flex-1 ml-4">
+              <View className="flex-row items-center">
+                <View
+                  className={`w-2 h-2 rounded-full mr-2 ${restTimer !== null ? "bg-orange-500" : "bg-green-500"}`}
+                />
+                <Text className="text-white font-bold text-sm">
+                  {restTimer !== null
+                    ? `Descanso: ${restTimer}s`
+                    : `Treino ${timer}`}
+                </Text>
+              </View>
+              <Text className="text-zinc-500 text-xs" numberOfLines={1}>
+                {lastExercise || "Em andamento"}
               </Text>
             </View>
-            <Text className="text-zinc-500 text-xs" numberOfLines={1}>
-              {lastExercise}
-            </Text>
-          </View>
 
-          <TouchableOpacity
-            onPress={stopWorkout}
-            className="w-10 h-10 items-center justify-center bg-red-500/10 rounded-full"
-          >
-            <Trash2 color="#ef4444" size={20} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => stopWorkout(true)} // Ponto 4: Chama com confirmação
+              className="w-10 h-10 items-center justify-center bg-red-500/10 rounded-full"
+            >
+              <Trash2 color="#ef4444" size={20} />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
