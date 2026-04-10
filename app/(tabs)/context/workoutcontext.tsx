@@ -171,7 +171,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         stopWorkout,
         setIsMinimized,
         setLastExercise,
-        setIsActive, // <--- ADICIONA ESTA LINHA AQUI
+        setIsActive,
       }}
     >
       {children}

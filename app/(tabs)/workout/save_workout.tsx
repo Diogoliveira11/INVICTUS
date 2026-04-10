@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { ChevronLeft } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
@@ -16,10 +16,11 @@ import { useWorkout } from "../context/workoutcontext";
 
 export default function SaveWorkoutScreen() {
   const router = useRouter();
+  const db = useSQLiteContext(); // 2. Obter a instância central da BD
   const { timer, exercises, stopWorkout } = useWorkout();
   const [description, setDescription] = useState("");
 
-  // 1. CÁLCULO DE ESTATÍSTICAS REAIS
+  // CÁLCULO DE ESTATÍSTICAS
   const stats = useMemo(() => {
     let totalVolume = 0;
     let totalSets = 0;
@@ -42,7 +43,7 @@ export default function SaveWorkoutScreen() {
     minute: "2-digit",
   });
 
-  // 2. FUNÇÃO PARA SALVAR NA BASE DE DADOS (V2)
+  // FUNÇÃO PARA SALVAR NA BASE DE DADOS
   const handleSave = async () => {
     if (stats.totalSets === 0) {
       Alert.alert(
@@ -53,22 +54,21 @@ export default function SaveWorkoutScreen() {
     }
 
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-
-      // Inserir o Cabeçalho do Treino
+      // 3. Inserir o Cabeçalho do Treino usando a conexão global
       const result = await db.runAsync(
-        "INSERT INTO workouts (name, duration, date, total_volume) VALUES (?, ?, ?, ?)",
-        ["Treino Invictus", timer, new Date().toISOString(), stats.totalVolume],
+        "INSERT INTO workouts (title, date, total_volume) VALUES (?, ?, ?)",
+        ["Treino Invictus", new Date().toISOString(), stats.totalVolume],
       );
 
       const workoutId = result.lastInsertRowId;
 
-      // Inserir as Séries detalhadas
+      // 4. Inserir as Séries detalhadas
+      // Usamos um loop simples; o SQLite Context gere a fila de execução nativa
       for (const ex of exercises) {
         for (const set of ex.sets) {
           if (set.completed) {
             await db.runAsync(
-              "INSERT INTO workout_sets (workout_id, exercise_id, weight, reps, type) VALUES (?, ?, ?, ?, ?)",
+              "INSERT INTO workout_sets (workout_exercisesid, exercisesid, weight, reps, set_type) VALUES (?, ?, ?, ?, ?)",
               [
                 workoutId,
                 ex.id,
@@ -88,7 +88,6 @@ export default function SaveWorkoutScreen() {
         {
           text: "Ver Resumo",
           onPress: () => {
-            // Redireciona para o ecrã do Troféu/Confetes
             router.replace("/workout/workout_summary");
           },
         },

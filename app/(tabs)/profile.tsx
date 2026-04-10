@@ -1,13 +1,8 @@
 import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { StatusBar } from "expo-status-bar";
-import {
-  ArrowRight,
-  ChevronDown,
-  Pencil,
-  Settings
-} from "lucide-react-native";
+import { ChevronDown, Pencil, Settings } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,20 +15,22 @@ const chartData = [
   { day: "", value: 2.5 },
   { day: "Feb 8", value: 2.8 },
   { day: "", value: 4.2 },
-  { day: "Apr 6", value: 1.8 }, // Ajustado para hoje
+  { day: "Apr 6", value: 1.8 },
 ];
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const db = useSQLiteContext(); // 2. Obter a instância central da BD
+
   const [activeFilter, setActiveFilter] = useState("Duration");
   const [history, setHistory] = useState<any[]>([]);
 
-  // CARREGAR DADOS REAIS DO SQLITE
+  // CARREGAR DADOS REAIS DO SQLITE - Sem openDatabaseAsync
   const loadProfileData = useCallback(async () => {
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
+      // 3. Usa o db do contexto diretamente
       const result = await db.getAllAsync<any>(
         "SELECT * FROM workouts ORDER BY id DESC",
       );
@@ -41,7 +38,7 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error("Erro ao carregar perfil:", error);
     }
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     if (isFocused) loadProfileData();
@@ -137,7 +134,7 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top,
-          paddingBottom: 100, // Espaço para a Tab Bar
+          paddingBottom: 100,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -238,68 +235,19 @@ export default function ProfileScreen() {
 
         {/* ACTION BUTTONS GRID */}
         <View className="flex-row flex-wrap justify-between px-5 mt-6">
-          <ActionButton label="Statistics" onPress={() => {}} />
-          <ActionButton label="Exercises" onPress={() => {}} />
+          <ActionButton
+            label="Statistics"
+            onPress={() => router.push("/volumestats")}
+          />
+          <ActionButton
+            label="Exercises"
+            onPress={() => router.push("/exercises")}
+          />
           <ActionButton label="Measures" onPress={() => {}} />
-          <ActionButton label="Calendar" onPress={() => {}} />
-        </View>
-
-        {/* ACTIVITY SUMMARY (HISTÓRICO REAL) */}
-        <View className="px-5 mt-8">
-          <Text className="text-white font-black text-lg italic uppercase mb-4 tracking-tighter">
-            Recent Activity
-          </Text>
-
-          {history.length === 0 ? (
-            <View className="bg-zinc-900/30 p-8 rounded-3xl border border-dashed border-zinc-800 items-center">
-              <Text className="text-zinc-600 font-bold">No workouts yet</Text>
-            </View>
-          ) : (
-            history.map((workout) => (
-              <TouchableOpacity
-                key={workout.id}
-                className="bg-zinc-900 p-5 rounded-3xl mb-4 border border-zinc-800"
-              >
-                <View className="flex-row justify-between items-center mb-3">
-                  <Text className="text-white text-sm font-black uppercase tracking-widest">
-                    {workout.name || "Strength Training"}
-                  </Text>
-                  <ArrowRight size={18} color="#E31C25" />
-                </View>
-
-                <View className="flex-row gap-5">
-                  <View>
-                    <Text className="text-zinc-500 text-[10px] uppercase font-bold">
-                      Duration
-                    </Text>
-                    <Text className="text-zinc-100 font-black text-xs italic">
-                      {workout.duration}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className="text-zinc-500 text-[10px] uppercase font-bold">
-                      Volume
-                    </Text>
-                    <Text className="text-zinc-100 font-black text-xs italic">
-                      {workout.total_volume} kg
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className="text-zinc-500 text-[10px] uppercase font-bold">
-                      Records
-                    </Text>
-                    <Text className="text-[#FFC107] font-black text-xs italic">
-                      🏆 1
-                    </Text>
-                  </View>
-                </View>
-
-                <Text className="text-zinc-600 text-[10px] mt-3 font-bold uppercase">
-                  {workout.date}
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
+          <ActionButton
+            label="Calendar"
+            onPress={() => router.push("/workouthistory")}
+          />
         </View>
       </ScrollView>
     </View>

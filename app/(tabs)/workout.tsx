@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import {
   Edit3,
   FolderPlus,
@@ -30,6 +30,7 @@ type Routine = {
 export default function WorkoutTabScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const db = useSQLiteContext(); // 2. Instância única da BD
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
@@ -37,55 +38,32 @@ export default function WorkoutTabScreen() {
     null,
   );
 
-  const loadRoutines = async () => {
+  const loadRoutines = useCallback(async () => {
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
+      await db.execAsync("PRAGMA foreign_keys = ON;");
 
-      // Garantir estrutura mínima para não crashar o SELECT
-      await db.execAsync(`
-        PRAGMA foreign_keys = ON;
-        CREATE TABLE IF NOT EXISTS routines (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          created_at TEXT
-        );
-        CREATE TABLE IF NOT EXISTS routine_exercises (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          routine_id INTEGER,
-          exercise_id INTEGER,
-          order_index INTEGER,
-          FOREIGN KEY (routine_id) REFERENCES routines (id) ON DELETE CASCADE
-        );
-      `);
-
-      // Query otimizada para listar nomes dos exercícios no card
       const query = `
-        SELECT r.id, r.name, GROUP_CONCAT(e.name, ', ') AS exercise_list
-        FROM routines r
-        LEFT JOIN routine_exercises re ON r.id = re.routine_id
-        LEFT JOIN exercises e ON re.exercise_id = e.id
-        GROUP BY r.id
-        ORDER BY r.id DESC
-      `;
+            SELECT r.id, r.name, GROUP_CONCAT(e.name, ', ') AS exercise_list
+            FROM routines r
+            LEFT JOIN routine_exercises re ON r.id = re.routine_id
+            LEFT JOIN exercises e ON re.exercise_id = e.id
+            GROUP BY r.id
+            ORDER BY r.id DESC
+        `;
 
       const result = await db.getAllAsync<Routine>(query);
       setRoutines(result);
     } catch (e) {
-      console.error("Erro ao carregar rotinas no Index:", e);
+      console.error("Erro ao carregar rotinas:", e);
     }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      loadRoutines();
-    }, []),
-  );
+  }, [db]);
 
   const openOptions = (id: number) => {
     setSelectedRoutineId(id);
     setIsOptionsVisible(true);
   };
 
+  // 4. ELIMINAR ROTINA - Sem openDatabaseAsync
   const confirmDelete = async () => {
     if (!selectedRoutineId) return;
 
@@ -99,12 +77,7 @@ export default function WorkoutTabScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-              // O ON DELETE CASCADE deve tratar as ligações, mas limpamos manual por segurança
-              await db.runAsync(
-                "DELETE FROM routine_exercises WHERE routine_id = ?",
-                [selectedRoutineId],
-              );
+              // O ON DELETE CASCADE na tabela trata as ligações automaticamente
               await db.runAsync("DELETE FROM routines WHERE id = ?", [
                 selectedRoutineId,
               ]);
@@ -112,6 +85,7 @@ export default function WorkoutTabScreen() {
               loadRoutines();
             } catch (e) {
               console.error("Erro ao apagar:", e);
+              Alert.alert("Error", "Could not delete routine.");
             }
           },
         },

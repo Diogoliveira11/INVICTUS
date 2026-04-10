@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import {
   Check,
   ChevronLeft,
@@ -33,7 +33,6 @@ type Exercise = {
   image: string | null;
 };
 
-// Mapa de imagens conforme o teu projeto
 const IMAGE_MAP: { [key: string]: any } = {
   "assets/exercises_images/barbell_decline_bench_press_chest.png": require("../../../assets/exercises_images/barbell_decline_bench_press_chest.png"),
 };
@@ -41,6 +40,7 @@ const IMAGE_MAP: { [key: string]: any } = {
 export default function NewRoutineScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const db = useSQLiteContext(); // 2. Instância central da BD
   const { routineId: rawId, mode: rawMode } = useLocalSearchParams();
 
   const routineId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -49,112 +49,88 @@ export default function NewRoutineScreen() {
   const [name, setName] = useState("");
   const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
 
-  // Estados do Modal (Igual ao teu Index)
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [dbExercises, setDbExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState("");
-  const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
-  const [filterEquipment, setFilterEquipment] = useState<string | null>(null);
 
-  // 1. CARREGAR DADOS DA ROTINA (SE EDIÇÃO)
+  // 1. CARREGAR DADOS DA ROTINA (SE EDIÇÃO) - Sem openDatabaseAsync
   useEffect(() => {
     if (mode === "edit" && routineId) {
       (async () => {
-        const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-        const res = await db.getFirstAsync<{ name: string }>(
-          "SELECT name FROM routines WHERE id = ?",
-          [Number(routineId)],
-        );
-        if (res) setName(res.name);
-        const exes = await db.getAllAsync<Exercise>(
-          `SELECT e.* FROM exercises e JOIN routine_exercises re ON e.id = re.exercise_id WHERE re.routine_id = ?`,
-          [Number(routineId)],
-        );
-        setSelectedExercises(exes);
+        try {
+          const res = await db.getFirstAsync<{ name: string }>(
+            "SELECT name FROM routines WHERE id = ?",
+            [Number(routineId)],
+          );
+          if (res) setName(res.name);
+
+          const exes = await db.getAllAsync<Exercise>(
+            `SELECT e.* FROM exercises e 
+             JOIN routine_exercises re ON e.id = re.exerciseid 
+             WHERE re.routineid = ? 
+             ORDER BY re.index_order ASC`,
+            [Number(routineId)],
+          );
+          setSelectedExercises(exes);
+        } catch (error) {
+          console.error("Erro ao carregar rotina para edição:", error);
+        }
       })();
     }
-  }, [routineId, mode]);
+  }, [routineId, mode, db]);
 
-  // 2. BUSCAR EXERCÍCIOS PARA O MODAL (LÓGICA DO TEU INDEX)
+  // 2. BUSCAR EXERCÍCIOS PARA O MODAL - Sem openDatabaseAsync
   const fetchModalExercises = useCallback(async () => {
-    const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-    const checkEx = await db.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM exercises",
-    );
-    if (checkEx && checkEx.count === 0) {
-      await db.execAsync(`
-        INSERT INTO exercises (name, muscle_group, equipment, image) VALUES 
-        ('Bench Press (Barbell)', 'Chest', 'Barbell', 'assets/exercises_images/barbell_bench_press.png'),
-        ('Decline Bench Press (Barbell)', 'Chest', 'Barbell', 'assets/exercises_images/barbell_decline_bench_press_chest.png'),
-        ('Dumbbell Press', 'Chest', 'Dumbbell', 'assets/exercises_images/dumbbell_press.png');
-      `);
-      console.log("Exercícios inseridos via NewRoutine!");
-    }
-    let query =
-      "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
-    let params: any[] = [];
+    try {
+      let query =
+        "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
+      let params: any[] = [];
 
-    if (search.trim()) {
-      query += " AND name LIKE ?";
-      params.push(`%${search.trim()}%`);
-    }
-    if (filterMuscle) {
-      query += " AND muscle_group = ?";
-      params.push(filterMuscle);
-    }
-    if (filterEquipment) {
-      query += " AND equipment = ?";
-      params.push(filterEquipment);
-    }
+      if (search.trim()) {
+        query += " AND name LIKE ?";
+        params.push(`%${search.trim()}%`);
+      }
 
-    query += " ORDER BY name ASC";
-    const rows = await db.getAllAsync<Exercise>(query, params);
-    setDbExercises(rows);
-  }, [search, filterMuscle, filterEquipment]);
+      query += " ORDER BY name ASC";
+      const rows = await db.getAllAsync<Exercise>(query, params);
+      setDbExercises(rows);
+    } catch (error) {
+      console.error("Erro ao buscar exercícios do modal:", error);
+    }
+  }, [search, db]);
 
   useEffect(() => {
     if (isModalVisible) fetchModalExercises();
   }, [isModalVisible, fetchModalExercises]);
 
-  // 3. SALVAR TUDO
+  // 3. SALVAR TUDO - Sem openDatabaseAsync e com tratamento de erros
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert("Aviso", "Dá um nome à tua rotina.");
     if (selectedExercises.length === 0)
       return Alert.alert("Aviso", "Adiciona pelo menos um exercício.");
 
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-
       if (mode === "edit" && routineId) {
-        // --- EDIÇÃO ---
         const rId = Number(routineId);
-
-        // 1. Atualiza o nome
         await db.runAsync("UPDATE routines SET name = ? WHERE id = ?", [
           name,
           rId,
         ]);
+        await db.runAsync("DELETE FROM routine_exercises WHERE routineid = ?", [
+          rId,
+        ]);
 
-        // 2. Apaga as ligações antigas
-        await db.runAsync(
-          "DELETE FROM routine_exercises WHERE routine_id = ?",
-          [rId],
-        );
-
-        // 3. Insere as novas ligações usando o rId
         for (let i = 0; i < selectedExercises.length; i++) {
           await db.runAsync(
-            "INSERT INTO routine_exercises (routine_id, exercise_id, order_index) VALUES (?, ?, ?)",
+            "INSERT INTO routine_exercises (routinesid, exerciseid, index_order) VALUES (?, ?, ?)",
             [rId, selectedExercises[i].id, i],
           );
         }
       } else {
-        // --- CRIAÇÃO NOVA ---
         const res = await db.runAsync(
-          "INSERT INTO routines (name, created_at) VALUES (?, ?)",
+          "INSERT INTO routines (name) VALUES (?)",
           [name, new Date().toISOString()],
         );
-
         const newRoutineId = res.lastInsertRowId;
 
         for (let i = 0; i < selectedExercises.length; i++) {
@@ -251,7 +227,7 @@ export default function NewRoutineScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL DE SELEÇÃO (ESTILO INDEX EXERCISES) */}
+      {/* MODAL DE SELEÇÃO */}
       <Modal visible={isModalVisible} animationType="slide">
         <SafeAreaView className="flex-1 bg-[#121417]">
           <View className="flex-1 px-6 pt-4">
@@ -267,7 +243,6 @@ export default function NewRoutineScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Barra de Pesquisa */}
             <View className="flex-row items-center bg-[#2D2F33] rounded-xl px-4 h-12 mb-6">
               <Search color="#9ca3af" size={20} className="mr-3" />
               <TextInput
@@ -279,7 +254,6 @@ export default function NewRoutineScreen() {
               />
             </View>
 
-            {/* Lista com o estilo idêntico ao teu renderExerciseItem */}
             <FlatList
               data={dbExercises}
               keyExtractor={(item) => item.id.toString()}

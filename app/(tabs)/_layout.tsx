@@ -11,7 +11,7 @@ export default function TabsLayout() {
     isActive,
     isMinimized,
     timer,
-    restTimer, // Ponto 3: Adicionado para monitorizar o descanso
+    restTimer,
     lastExercise,
     setIsMinimized,
     stopWorkout,

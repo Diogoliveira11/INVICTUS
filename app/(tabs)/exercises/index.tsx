@@ -1,7 +1,5 @@
-import { Asset } from "expo-asset";
-import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite";
 import {
   Check,
   ChevronDown,
@@ -55,12 +53,9 @@ const EQUIPMENT_ICONS: { [key: string]: any } = {
   ),
 };
 
-// --- ALTERAÇÃO AQUI: Adição do dbInitPromise para controle de concorrência ---
-let dbInstance: SQLite.SQLiteDatabase | null = null;
-let dbInitPromise: Promise<SQLite.SQLiteDatabase | null> | null = null;
-
 export default function ExercisesPage() {
   const router = useRouter();
+  const db = useSQLiteContext();
   const [search, setSearch] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,51 +68,7 @@ export default function ExercisesPage() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
 
-  // --- ALTERAÇÃO AQUI: Nova lógica do loadDatabase ---
-  const loadDatabase = useCallback(async () => {
-    // 1. Se já carregou, retorna a instância
-    if (dbInstance) return dbInstance;
-
-    // 2. Se está no meio do processo de carregamento, aguarda a promise terminar
-    if (dbInitPromise) return dbInitPromise;
-
-    // 3. Se não iniciou, cria a promise de inicialização
-    dbInitPromise = (async () => {
-      try {
-        const dbName = "inicializedatabase.sqlite";
-        const dbFile = require("../../../src/inicializedatabase.sqlite");
-        const dbUri = Asset.fromModule(dbFile).uri;
-        const fs: any = FileSystem;
-        const dbInternalPath = `${fs.documentDirectory}SQLite/${dbName}`;
-
-        const sqliteDir = `${fs.documentDirectory}SQLite`;
-        const dirInfo = await FileSystem.getInfoAsync(sqliteDir);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(sqliteDir);
-        }
-
-        const fileInfo = await FileSystem.getInfoAsync(dbInternalPath);
-
-        // Removido o || __DEV__ para evitar corromper o banco com o app rodando
-        if (!fileInfo.exists) {
-          await FileSystem.downloadAsync(dbUri, dbInternalPath);
-        }
-
-        dbInstance = await SQLite.openDatabaseAsync(dbName);
-        return dbInstance;
-      } catch (e) {
-        console.error("Erro ao carregar BD:", e);
-        dbInitPromise = null; // Libera a trava em caso de erro para tentar novamente
-        return null;
-      }
-    })();
-
-    return dbInitPromise;
-  }, []);
-
   const fetchFilterOptions = useCallback(async () => {
-    const db = await loadDatabase();
-    if (!db) return;
     try {
       const muscles = await db.getAllAsync<{ muscle_group: string }>(
         "SELECT DISTINCT muscle_group FROM exercises WHERE muscle_group IS NOT NULL ORDER BY muscle_group ASC",
@@ -131,13 +82,10 @@ export default function ExercisesPage() {
     } catch (e) {
       console.error("Erro ao buscar opções:", e);
     }
-  }, [loadDatabase]);
+  }, [db]);
 
   const fetchExercises = useCallback(async () => {
     try {
-      const db = await loadDatabase();
-      if (!db) return;
-
       let query =
         "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
       let params: any[] = [];
@@ -162,7 +110,7 @@ export default function ExercisesPage() {
     } catch (error) {
       console.error("Erro na Query:", error);
     }
-  }, [search, selectedMuscle, selectedEquipment, loadDatabase]);
+  }, [search, selectedMuscle, selectedEquipment, db]);
 
   useEffect(() => {
     fetchFilterOptions();

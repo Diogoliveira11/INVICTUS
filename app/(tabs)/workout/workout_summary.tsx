@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { Clock, Trophy, Weight, Zap } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
@@ -13,34 +13,35 @@ import {
 
 export default function WorkoutSummaryScreen() {
   const router = useRouter();
+  const db = useSQLiteContext(); // 2. Usar a instância central da BD
   const [data, setData] = useState<any>(null);
 
-  // Buscar o último treino gravado para mostrar os dados reais
+  // Buscar o último treino gravado usando o contexto global
   const fetchSummary = async () => {
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-
-      // Pegar o último treino
+      // 3. Já não usamos SQLite.openDatabaseAsync
+      // Pegar o último treino inserido
       const lastWorkout = await db.getFirstAsync<any>(
         "SELECT * FROM workouts ORDER BY id DESC LIMIT 1",
       );
 
       if (lastWorkout) {
-        // Contar quantas séries foram feitas nesse treino
+        // Contar quantas séries foram feitas nesse treino específico
         const setsResult = await db.getFirstAsync<any>(
           "SELECT COUNT(*) as count FROM workout_sets WHERE workout_id = ?",
           [lastWorkout.id],
         );
-        setData({ ...lastWorkout, setsCount: setsResult.count });
+
+        setData({ ...lastWorkout, setsCount: setsResult?.count || 0 });
       }
     } catch (e) {
-      console.error(e);
+      console.error("Erro ao carregar resumo:", e);
     }
   };
 
   useEffect(() => {
     fetchSummary();
-  }, []);
+  }, [db]); // Adicionado db como dependência
 
   return (
     <SafeAreaView className="flex-1 bg-black">
@@ -60,7 +61,7 @@ export default function WorkoutSummaryScreen() {
           </Text>
         </View>
 
-        {/* Grelha de Stats (Igual ao Hevy) */}
+        {/* Grelha de Stats */}
         <View className="flex-row flex-wrap justify-between mb-8">
           <View className="bg-[#121417] w-[48%] p-6 rounded-[32px] mb-4 border border-zinc-800 items-center">
             <Clock size={24} color="#E31C25" />
@@ -109,7 +110,7 @@ export default function WorkoutSummaryScreen() {
         </View>
       </ScrollView>
 
-      {/* Botão Done */}
+      {/* Botão Concluído */}
       <View className="px-6 mb-10">
         <TouchableOpacity
           onPress={() => router.replace("/(tabs)/workout")}

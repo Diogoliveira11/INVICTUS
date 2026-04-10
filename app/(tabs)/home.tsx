@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { StatusBar } from "expo-status-bar";
 import { ChevronLeft, Clock, Dumbbell } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
@@ -24,9 +24,17 @@ interface Workout {
   total_volume: number;
 }
 
+interface WorkoutExercise {
+  exercise_name: string;
+  total_sets: number;
+  max_reps: number;
+  max_weight: number;
+}
+
 export default function ProgressResult() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const db = useSQLiteContext(); // 2. Usar a instância única da BD
   const { height: screenHeight } = useWindowDimensions();
 
   const [workoutsCount, setWorkoutsCount] = useState(0);
@@ -35,8 +43,12 @@ export default function ProgressResult() {
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [weeklyHistory, setWeeklyHistory] = useState<Workout[]>([]);
 
-  // ESTADO DA ABA
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
+  const [isDetailsVisible, setIsDetailsVisible] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>(
+    [],
+  );
 
   const durationToSeconds = (duration: string) => {
     if (!duration || typeof duration !== "string") return 0;
@@ -46,9 +58,9 @@ export default function ProgressResult() {
     return 0;
   };
 
+  // 3. CARREGAR ESTATÍSTICAS - Sem openDatabaseAsync
   const loadStats = useCallback(async () => {
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
       const now = new Date();
       const firstDay = new Date(
         now.setDate(
@@ -58,6 +70,7 @@ export default function ProgressResult() {
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
+      // Consultas otimizadas usando o contexto global
       const workoutRes = await db.getFirstAsync<{ count: number }>(
         "SELECT COUNT(*) as count FROM workouts WHERE date >= ?",
         [firstDayISO],
@@ -83,9 +96,38 @@ export default function ProgressResult() {
       setTotalHours(Math.floor(totalSeconds / 3600));
       setTotalMinutes(Math.floor((totalSeconds % 3600) / 60));
     } catch (e) {
-      console.error(e);
+      console.error("Erro ao carregar estatísticas:", e);
     }
-  }, []);
+  }, [db]);
+
+  // 4. DETALHES DO TREINO - Sem openDatabaseAsync
+  const loadWorkoutDetails = async (workout: Workout) => {
+    try {
+      const details = await db.getAllAsync<WorkoutExercise>(
+        `SELECT 
+          e.name as exercise_name, 
+          COUNT(ws.id) as total_sets, 
+          MAX(ws.weight) as max_weight, 
+          MAX(ws.reps) as max_reps 
+         FROM workout_sets ws
+         JOIN exercises e ON ws.exercise_id = e.id
+         WHERE ws.workout_id = ?
+         GROUP BY ws.exercise_id`,
+        [workout.id],
+      );
+
+      setSelectedWorkout(workout);
+      setWorkoutExercises(details || []);
+
+      // Fechar histórico e abrir detalhes com delay para animação fluida
+      setIsHistoryVisible(false);
+      setTimeout(() => {
+        setIsDetailsVisible(true);
+      }, 300);
+    } catch (e) {
+      console.error("Erro ao carregar detalhes:", e);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -97,12 +139,10 @@ export default function ProgressResult() {
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar style="light" />
 
-      {/* --- ECRÃ PRINCIPAL --- */}
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header com Foto */}
         <View
           style={{
             height: screenHeight * 0.58,
@@ -120,13 +160,13 @@ export default function ProgressResult() {
           />
           <View className="absolute inset-0 bg-black/30" />
           <View className="absolute bottom-6 w-full items-center">
-            <Text className="text-white text-3xl font-black uppercase tracking-tighter italic">
+            <Text className="text-white text-3xl font-black uppercase italic">
               Progress Result
             </Text>
             <Text className="text-[#E31C25] text-2xl font-black italic mt-1 uppercase">
               Full Stats
             </Text>
-            <View className="mt-4 bg-zinc-900/90 px-10 py-3 rounded-2xl border border-zinc-800 shadow-2xl">
+            <View className="mt-4 bg-zinc-900/90 px-10 py-3 rounded-2xl border border-zinc-800">
               <Text className="text-zinc-200 text-lg font-black italic uppercase">
                 Diogo Oliveira
               </Text>
@@ -134,21 +174,19 @@ export default function ProgressResult() {
           </View>
         </View>
 
-        {/* Zona dos Botões */}
         <View className="flex-row justify-between px-5">
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => setIsHistoryVisible(true)} // ATIVA O MODAL
+            onPress={() => setIsHistoryVisible(true)}
             className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900 shadow-sm"
           >
             <Text className="text-zinc-500 text-[10px] font-black mb-4 uppercase tracking-widest">
               Workouts
             </Text>
-            <View className="w-20 h-20 rounded-full border-[4px] border-[#E31C25] items-center justify-center relative">
-              <View className="absolute w-20 h-20 rounded-full border-[4px] border-zinc-900 -z-10" />
+            <View className="w-20 h-20 rounded-full border-[4px] border-[#E31C25] items-center justify-center">
               <Text className="text-white text-2xl font-black italic">
                 {workoutsCount}
-                <Text className="text-zinc-600 text-2xl">/7</Text>
+                <Text className="text-zinc-600 text-2xl">/15</Text>
               </Text>
             </View>
             <View className="flex-row mt-5 gap-3">
@@ -156,17 +194,13 @@ export default function ProgressResult() {
                 <Text className="text-zinc-300 font-black text-xl italic">
                   {totalHours}
                 </Text>
-                <Text className="text-zinc-600 text-[8px] uppercase font-black">
-                  h
-                </Text>
+                <Text className="text-zinc-600 text-[8px] uppercase">h</Text>
               </View>
               <View className="items-center">
                 <Text className="text-zinc-300 font-black text-xl italic">
                   {totalMinutes}
                 </Text>
-                <Text className="text-zinc-600 text-[8px] uppercase font-black">
-                  min
-                </Text>
+                <Text className="text-zinc-600 text-[8px] uppercase">min</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -193,18 +227,9 @@ export default function ProgressResult() {
             </View>
           </TouchableOpacity>
         </View>
-
-        {/* Frase Motivacional */}
-        <View className="mt-12 px-8 mb-10">
-          <Text className="text-zinc-600 text-center italic leading-5 text-xs font-bold uppercase tracking-tighter">
-            Discipline is the bridge between goals and achievements
-          </Text>
-        </View>
-
-        {/* AQUI NÃO HÁ MAIS NADA! A LISTA DEBAIXO FOI REMOVIDA DAQUI. */}
       </ScrollView>
 
-      {/* --- MODAL (ABA) QUE SÓ APARECE AO CLICAR --- */}
+      {/* MODAL 1: HISTÓRICO */}
       <Modal
         visible={isHistoryVisible}
         animationType="slide"
@@ -228,7 +253,6 @@ export default function ProgressResult() {
               borderColor: "#27272a",
             }}
           >
-            {/* Header da Aba */}
             <View className="flex-row items-center px-8 py-8">
               <TouchableOpacity
                 onPress={() => setIsHistoryVisible(false)}
@@ -236,20 +260,21 @@ export default function ProgressResult() {
               >
                 <ChevronLeft size={20} color="white" />
               </TouchableOpacity>
-              <Text className="text-white text-xl font-black italic uppercase ml-4 tracking-tighter">
+              <Text className="text-white text-xl font-black italic uppercase ml-4">
                 Workout History
               </Text>
             </View>
 
-            {/* LISTA DE TREINOS - EXCLUSIVA DESTA ABA */}
             <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
               {weeklyHistory.map((workout) => (
-                <View
+                <TouchableOpacity
                   key={workout.id}
-                  className="bg-[#121212] p-6 rounded-[35px] mb-4 border border-zinc-900 shadow-sm"
+                  onPress={() => loadWorkoutDetails(workout)}
+                  activeOpacity={0.8}
+                  className="bg-[#121212] p-6 rounded-[35px] mb-4 border border-zinc-900"
                 >
                   <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-[#E31C25] text-[10px] font-black tracking-widest uppercase">
+                    <Text className="text-[#E31C25] text-[10px] font-black uppercase">
                       {new Date(workout.date).toDateString() ===
                       new Date().toDateString()
                         ? "HOJE"
@@ -261,7 +286,7 @@ export default function ProgressResult() {
                       </Text>
                     </View>
                   </View>
-                  <Text className="text-white text-xl font-black italic uppercase mb-4 tracking-tight">
+                  <Text className="text-white text-xl font-black italic uppercase mb-4">
                     {workout.name || "Treino Invictus"}
                   </Text>
                   <View className="flex-row items-center gap-6">
@@ -271,16 +296,83 @@ export default function ProgressResult() {
                         {workout.duration}
                       </Text>
                     </View>
-                    <View className="flex-row items-center">
-                      <View className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2" />
-                      <Text className="text-zinc-500 text-[10px] font-black uppercase italic">
-                        Completed
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL 2: DETALHES */}
+      <Modal
+        visible={isDetailsVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsDetailsVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.95)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              height: "88%",
+              backgroundColor: "#000",
+              borderTopLeftRadius: 45,
+              borderTopRightRadius: 45,
+              borderTopWidth: 1,
+              borderColor: "#27272a",
+            }}
+          >
+            <View className="flex-row items-center px-8 py-8 justify-between">
+              <TouchableOpacity
+                onPress={() => setIsDetailsVisible(false)}
+                className="w-10 h-10 bg-zinc-900 rounded-full items-center justify-center"
+              >
+                <ChevronLeft size={20} color="white" />
+              </TouchableOpacity>
+              <View className="items-center">
+                <Text className="text-white text-lg font-black italic uppercase">
+                  {selectedWorkout?.name || "Detalhes"}
+                </Text>
+                <Text className="text-[#E31C25] text-[10px] font-black uppercase">
+                  Exercise Summary
+                </Text>
+              </View>
+              <View className="w-10" />
+            </View>
+
+            <ScrollView className="px-8" showsVerticalScrollIndicator={false}>
+              {workoutExercises.length === 0 ? (
+                <Text className="text-zinc-700 text-center py-20 font-black italic uppercase">
+                  No exercises found
+                </Text>
+              ) : (
+                workoutExercises.map((ex, index) => (
+                  <View
+                    key={index}
+                    className="flex-row items-center justify-between py-6 border-b border-zinc-900/40"
+                  >
+                    <View className="flex-1">
+                      <Text className="text-white text-base font-black italic uppercase">
+                        {ex.exercise_name}
+                      </Text>
+                      <Text className="text-zinc-500 text-[10px] font-bold uppercase mt-1">
+                        {ex.total_sets} Sets • Max {ex.max_reps} Reps
+                      </Text>
+                    </View>
+                    <View className="bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800">
+                      <Text className="text-[#E31C25] font-black italic">
+                        {ex.max_weight} kg
                       </Text>
                     </View>
                   </View>
-                </View>
-              ))}
-              <View style={{ height: 40 }} />
+                ))
+              )}
             </ScrollView>
           </View>
         </View>

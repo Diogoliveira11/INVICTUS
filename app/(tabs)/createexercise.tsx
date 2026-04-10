@@ -1,21 +1,22 @@
 import { useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { ArrowLeft, Check, Dumbbell, Target } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function CreateExerciseScreen() {
   const router = useRouter();
+  const db = useSQLiteContext(); // 2. Obter a instância central da BD
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,15 +29,12 @@ export default function CreateExerciseScreen() {
 
     setIsSubmitting(true);
     try {
-      const db = await SQLite.openDatabaseAsync("inicializedatabase.sqlite");
-
-      // Insere o novo exercício.
-      // Nota: deixamos o 'image' como null ou um caminho padrão por agora.
+      // 3. Usa o db do contexto diretamente (Sem abrir nova conexão)
+      // Nota: Adicionamos 'is_custom' como 1 para diferenciar dos exercícios padrão
       await db.runAsync(
-        "INSERT INTO exercises (name, muscle_group, image) VALUES (?, ?, ?)",
-        [name, muscleGroup, null],
+        "INSERT INTO exercises (name, muscle_groups, image, is_custom) VALUES (?, ?, ?, ?)",
+        [name, muscleGroup, null, 1],
       );
-
       Alert.alert("Sucesso", "Exercício criado com sucesso!", [
         { text: "OK", onPress: () => router.push("/exercises") },
       ]);
@@ -68,9 +66,9 @@ export default function CreateExerciseScreen() {
           </View>
 
           {/* Formulário */}
-          <View className="space-y-6">
+          <View>
             {/* Input Nome */}
-            <View>
+            <View className="mb-6">
               <View className="flex-row items-center mb-2 gap-2">
                 <Dumbbell size={18} color="#E31C25" />
                 <Text className="text-zinc-400 font-medium">Exercise Name</Text>
@@ -85,7 +83,7 @@ export default function CreateExerciseScreen() {
             </View>
 
             {/* Input Grupo Muscular */}
-            <View className="mt-6">
+            <View className="mb-6">
               <View className="flex-row items-center mb-2 gap-2">
                 <Target size={18} color="#E31C25" />
                 <Text className="text-zinc-400 font-medium">Muscle Group</Text>
@@ -99,7 +97,7 @@ export default function CreateExerciseScreen() {
               />
             </View>
 
-            <View className="mt-10 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+            <View className="mt-4 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
               <Text className="text-zinc-500 text-xs leading-5">
                 * By creating a custom exercise, it will be available in your
                 local library to track your workouts.
@@ -108,7 +106,7 @@ export default function CreateExerciseScreen() {
           </View>
         </ScrollView>
 
-        {/* Botão de Guardar (Fixo no fundo) */}
+        {/* Botão de Guardar */}
         <View className="p-6">
           <TouchableOpacity
             onPress={handleCreate}
@@ -118,8 +116,8 @@ export default function CreateExerciseScreen() {
               isSubmitting ? "bg-zinc-800" : "bg-[#E31C25]"
             }`}
           >
-            <Check color="white" size={20} className="mr-2" />
-            <Text className="text-white font-bold text-lg">
+            <Check color="white" size={20} />
+            <Text className="text-white font-bold text-lg ml-2">
               {isSubmitting ? "Saving..." : "Save Exercise"}
             </Text>
           </TouchableOpacity>

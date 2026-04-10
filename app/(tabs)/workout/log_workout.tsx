@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import {
   Check,
   ChevronDown,
@@ -27,7 +27,6 @@ import {
 } from "react-native";
 import { SetType, useWorkout } from "../context/workoutcontext";
 
-// Mapeamento de imagens (ajusta os caminhos se necessário)
 const IMAGE_MAP: Record<string, any> = {
   "assets/exercises_images/barbell_decline_bench_press_chest.png": require("../../../assets/exercises_images/barbell_decline_bench_press_chest.png"),
 };
@@ -35,6 +34,7 @@ const IMAGE_MAP: Record<string, any> = {
 export default function LogWorkoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const db = useSQLiteContext(); // 2. Instância única da BD
 
   const {
     timer,
@@ -53,38 +53,28 @@ export default function LogWorkoutScreen() {
   const [dbExercises, setDbExercises] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [tempSelected, setTempSelected] = useState<any[]>([]);
-  const [activeSetTypeModal, setActiveSetTypeModal] = useState<{
-    exId: string;
-    setId: string;
-  } | null>(null);
 
-  // 1. FUNÇÃO PARA CARREGAR ROTINA (O QUE ESTAVA A FALHAR)
+  // 3. CARREGAR ROTINA - Removido o openDatabaseAsync
   const initWorkout = useCallback(async () => {
-    // Garante que o ID é uma string e não um array
     const routineId = Array.isArray(params.routineId)
       ? params.routineId[0]
       : params.routineId;
-
     if (!routineId || exercises.length > 0) return;
 
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-
-      // Busca exercícios ligados a esta rotina específica
       const routineExs = await db.getAllAsync<any>(
         `SELECT e.* FROM exercises e 
-         JOIN routine_exercises re ON e.id = re.exercise_id 
-         WHERE re.routine_id = ?
-         ORDER BY re.order_index ASC`,
+         JOIN routine_exercises re ON e.id = re.exerciseid 
+         WHERE re.routineid = ?
+         ORDER BY re.index_order ASC`,
         [routineId],
       );
 
       if (routineExs && routineExs.length > 0) {
         const prepared = await Promise.all(
           routineExs.map(async (ex) => {
-            // Busca performance anterior
             const prevRes = await db.getFirstAsync<any>(
-              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
+              "SELECT weight, reps FROM workout_sets WHERE exerciseid = ? ORDER BY id DESC LIMIT 1",
               [ex.id],
             );
             const prevStr = prevRes
@@ -109,7 +99,6 @@ export default function LogWorkoutScreen() {
           }),
         );
 
-        // @ts-ignore - Força a atualização do contexto
         setExercises(prepared);
         if (!isActive) setIsActive(true);
         setLastExercise(prepared[0]?.name || "Rotina");
@@ -117,16 +106,11 @@ export default function LogWorkoutScreen() {
     } catch (error) {
       console.error("Erro ao carregar rotina:", error);
     }
-  }, [params.routineId, exercises.length]);
+  }, [params.routineId, db, exercises.length]);
 
-  useEffect(() => {
-    initWorkout();
-  }, [initWorkout]);
-
-  // 2. BUSCA EXERCÍCIOS PARA O MODAL (ADD EXERCISE)
+  // 4. BUSCA EXERCÍCIOS PARA O MODAL
   const fetchModalExercises = useCallback(async () => {
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
       const rows = await db.getAllAsync<any>(
         "SELECT * FROM exercises ORDER BY name ASC",
       );
@@ -134,101 +118,22 @@ export default function LogWorkoutScreen() {
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [db]);
 
+  // 5. SETUP INICIAL - Removido openDatabaseAsync e execuções duplicadas
   useEffect(() => {
     const setupAndInit = async () => {
       try {
-        // 1. ABRE O DB APENAS UMA VEZ
-        const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-
-        // 2. CRIA AS TABELAS
-        await db.execAsync(`
-          CREATE TABLE IF NOT EXISTS exercises (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            muscle_group TEXT,
-            equipment TEXT,
-            image TEXT
-          );
-          
-          CREATE TABLE IF NOT EXISTS routines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            created_at TEXT
-          );
-
-          CREATE TABLE IF NOT EXISTS routine_exercises (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            routine_id INTEGER,
-            exercise_id INTEGER,
-            order_index INTEGER,
-            FOREIGN KEY (routine_id) REFERENCES routines (id) ON DELETE CASCADE
-          );
-
-          CREATE TABLE IF NOT EXISTS workout_sets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            workout_id INTEGER,
-            exercise_id INTEGER,
-            weight REAL,
-            reps INTEGER,
-            type TEXT
-          );
-
-          CREATE TABLE IF NOT EXISTS workouts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            duration TEXT,
-            date TEXT,
-            total_volume REAL
-          );
-        `);
-
-        // 3. VERIFICA E INJETA A ROTINA DE TESTE (Sem redeclarar o db)
-        const check = await db.getFirstAsync<{ count: number }>(
-          "SELECT COUNT(*) as count FROM routines",
-        );
-
-        if (check?.count === 0) {
-          const res = await db.runAsync(
-            "INSERT INTO routines (name, created_at) VALUES (?, ?)",
-            ["CHEST", new Date().toISOString()],
-          );
-
-          await db.execAsync(`
-            INSERT INTO routine_exercises (routine_id, exercise_id, order_index) VALUES 
-            (${res.lastInsertRowId}, 1, 1),
-            (${res.lastInsertRowId}, 2, 2),
-            (${res.lastInsertRowId}, 3, 3);
-          `);
-          console.log("Rotina de teste injetada!");
-        }
-
-        // 4. INSERIR EXERCÍCIOS SE ESTIVER VAZIO
-        const checkEx = await db.getFirstAsync<{ count: number }>(
-          "SELECT COUNT(*) as count FROM exercises",
-        );
-
-        if (checkEx && checkEx.count === 0) {
-          await db.execAsync(`
-            INSERT INTO exercises (name, muscle_group, equipment, image) VALUES 
-            ('Bench Press (Barbell)', 'Chest', 'Barbell', 'assets/exercises_images/barbell_bench_press.png'),
-            ('Decline Bench Press (Barbell)', 'Chest', 'Barbell', 'assets/exercises_images/barbell_decline_bench_press_chest.png'),
-            ('Dumbbell Press', 'Chest', 'Dumbbell', 'assets/exercises_images/dumbbell_press.png');
-          `);
-        }
-
-        // 5. FINALIZA INICIALIZAÇÃO
         await fetchModalExercises();
         await initWorkout();
       } catch (error) {
-        console.error("Erro no setup completo:", error);
+        console.error("Erro no setup:", error);
       }
     };
-
     setupAndInit();
-  }, [initWorkout, fetchModalExercises]);
+  }, [db, fetchModalExercises, initWorkout]);
 
+  // 6. CONFIRMAR SELEÇÃO
   const confirmSelection = async () => {
     if (tempSelected.length === 0) {
       setIsModalVisible(false);
@@ -236,12 +141,8 @@ export default function LogWorkoutScreen() {
     }
 
     try {
-      const db = await SQLite.openDatabaseAsync("v2_database.sqlite");
-
-      // 1. Preparar os novos exercícios selecionados no Modal
       const newExs = await Promise.all(
         tempSelected.map(async (ex) => {
-          // Procurar o histórico anterior
           const prevRes = await db.getFirstAsync<any>(
             "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
             [ex.id],
@@ -268,18 +169,13 @@ export default function LogWorkoutScreen() {
         }),
       );
 
-      // 2. Atualizar a lista de exercícios do treino atual
-      // @ts-ignore
       setExercises([...exercises, ...newExs]);
-
-      // 3. Limpar e fechar o modal
       if (!isActive) setIsActive(true);
       setTempSelected([]);
       setIsModalVisible(false);
-      setSearch(""); // Limpa a barra de pesquisa
+      setSearch("");
     } catch (error) {
-      console.error("Erro ao adicionar exercícios:", error);
-      Alert.alert("Erro", "Não foi possível adicionar os exercícios.");
+      console.error("Erro ao adicionar:", error);
     }
   };
 
@@ -470,9 +366,10 @@ export default function LogWorkoutScreen() {
                   className="flex-1 text-white text-base"
                 />
               </View>
-
               <FlatList
-                data={dbExercises}
+                data={dbExercises.filter((ex) =>
+                  ex.name.toLowerCase().includes(search.toLowerCase()),
+                )}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }: any) => {
                   const isSelected = tempSelected.some((e) => e.id === item.id);
