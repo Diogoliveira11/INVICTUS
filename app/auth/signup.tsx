@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient"; // Certifica-te que instalaste
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useState } from "react";
@@ -25,6 +25,7 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSignup = async () => {
     if (!username || !email || !password) {
@@ -39,10 +40,11 @@ export default function SignupScreen() {
         return;
       }
 
-      const result = await signup(db, username, email, password);
+      signup(db, username, email, password);
 
-      // Armazenar dados necessários
-      await AsyncStorage.setItem("userEmail", email);
+      if (rememberMe) {
+        await AsyncStorage.setItem("userEmail", email);
+      }
       await AsyncStorage.setItem("hasOnboarded", "true");
 
       router.push("/gender");
@@ -54,26 +56,16 @@ export default function SignupScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      {/* 1. IMAGEM DE FUNDO (CAMADA 0) */}
       <Image
         source={require("../../assets/images/onboarding1.jpg")}
         style={{ width, height, position: "absolute" }}
         resizeMode="cover"
       />
 
-      {/* 2. Gradiente Ajustado para proteger o topo */}
       <LinearGradient
-        // Adicionamos um tom preto muito suave no topo (0.3 de opacidade)
-        // para dar contraste ao relógio e status bar do telemóvel
         colors={["rgba(0,0,0,0.3)", "transparent", "rgba(0,0,0,0.6)", "#000"]}
         locations={[0, 0.5, 0.6, 1]}
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-        }}
+        style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}
       />
 
       <KeyboardAvoidingView
@@ -93,7 +85,6 @@ export default function SignupScreen() {
             tint="dark"
             className="w-full p-8 rounded-[30px] overflow-hidden border border-white/20"
           >
-            {/* Name Input */}
             <View className="mb-6 border-b border-white/30">
               <Text className="text-white text-xs mb-[-2px]">Name</Text>
               <TextInput
@@ -104,7 +95,6 @@ export default function SignupScreen() {
               />
             </View>
 
-            {/* Email Input */}
             <View className="mb-6 border-b border-white/30">
               <Text className="text-white text-xs mb-[-2px]">Email</Text>
               <TextInput
@@ -117,8 +107,7 @@ export default function SignupScreen() {
               />
             </View>
 
-            {/* Password Input */}
-            <View className="mb-8 border-b border-white/30">
+            <View className="mb-6 border-b border-white/30">
               <Text className="text-white text-xs mb-[-2px]">Password</Text>
               <TextInput
                 className="text-white h-11 text-lg"
@@ -132,6 +121,27 @@ export default function SignupScreen() {
             {error ? (
               <Text className="text-red-400 text-xs mb-3">{error}</Text>
             ) : null}
+
+            {/* Remember Me */}
+            <View className="flex-row justify-between items-center mb-6">
+              <TouchableOpacity
+                onPress={() => setRememberMe(!rememberMe)}
+                className="flex-row items-center"
+              >
+                <View
+                  className={`w-5 h-5 rounded border mr-2 ${
+                    rememberMe ? "bg-white" : "border-white/40"
+                  }`}
+                >
+                  {rememberMe && (
+                    <Text className="text-black text-center text-xs">✓</Text>
+                  )}
+                </View>
+                <Text className="text-white text-xs opacity-70">
+                  Remember me
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               className="bg-white h-[56px] rounded-full justify-center items-center"

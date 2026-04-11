@@ -7,7 +7,6 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   SafeAreaView,
   Text,
   TouchableOpacity,
@@ -75,16 +74,23 @@ export default function BirthdaySelection() {
     selectedValue,
     onValueChange,
   }: ScrollColumnProps) => {
+    const initialIndex =
+      data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0;
+
     return (
-      <View className="flex-1 items-center justify-center">
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        {/* Retângulo cinzento */}
         <View
           pointerEvents="none"
-          className="absolute bg-[#2D2F33] rounded-xl z-0"
           style={{
+            position: "absolute",
             height: ITEM_HEIGHT - 12,
             width: "80%",
+            backgroundColor: "#2D2F33",
+            borderRadius: 12,
             top: "50%",
             marginTop: -(ITEM_HEIGHT - 12) / 2,
+            zIndex: 0,
           }}
         />
         <FlatList
@@ -93,19 +99,17 @@ export default function BirthdaySelection() {
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           snapToAlignment="center"
-          decelerationRate={Platform.OS === "ios" ? "normal" : 0.9}
+          decelerationRate="fast"
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-          onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
             const y = e.nativeEvent.contentOffset.y;
             const index = Math.round(y / ITEM_HEIGHT);
-            if (data[index] && data[index] !== selectedValue) {
+            if (data[index]) {
               onValueChange(data[index]);
             }
           }}
-          initialScrollIndex={
-            data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0
-          }
+          initialScrollIndex={initialIndex}
           getItemLayout={(_, index) => ({
             length: ITEM_HEIGHT,
             offset: ITEM_HEIGHT * index,
@@ -113,15 +117,20 @@ export default function BirthdaySelection() {
           })}
           renderItem={({ item }) => (
             <View
-              style={{ height: ITEM_HEIGHT }}
-              className="justify-center items-center"
+              style={{
+                height: ITEM_HEIGHT,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
             >
               <Text
-                className={`text-center ${
-                  selectedValue === item
-                    ? "text-white font-bold text-2xl"
-                    : "text-gray-500 text-lg opacity-40"
-                }`}
+                style={{
+                  color: selectedValue === item ? "#fff" : "#6b7280",
+                  fontSize: selectedValue === item ? 22 : 18,
+                  fontWeight: selectedValue === item ? "700" : "400",
+                  opacity: selectedValue === item ? 1 : 0.4,
+                  textAlign: "center",
+                }}
               >
                 {item}
               </Text>
@@ -133,23 +142,54 @@ export default function BirthdaySelection() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#121417]">
-      <View className="flex-1 px-6 py-8 justify-between">
-        <View className="items-center mt-5">
-          <Text className="text-3xl font-bold text-white text-center italic">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#121417" }}>
+      <View
+        style={{
+          flex: 1,
+          paddingHorizontal: 24,
+          paddingVertical: 32,
+          justifyContent: "space-between",
+        }}
+      >
+        <View style={{ alignItems: "center", marginTop: 20 }}>
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: "700",
+              color: "#fff",
+              textAlign: "center",
+              fontStyle: "italic",
+            }}
+          >
             Insert your birth date!
           </Text>
-          <Text className="text-sm text-gray-400 text-center mt-2 px-5">
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#9ca3af",
+              textAlign: "center",
+              marginTop: 8,
+              paddingHorizontal: 20,
+            }}
+          >
             This helps us tailor your workout plan to your age
           </Text>
         </View>
 
-        <View className="flex-1 justify-center my-8">
-          <View className="flex-row w-full mb-4">
+        <View style={{ flex: 1, justifyContent: "center", marginVertical: 32 }}>
+          <View
+            style={{ flexDirection: "row", width: "100%", marginBottom: 16 }}
+          >
             {["Day", "Month", "Year"].map((label) => (
               <Text
                 key={label}
-                className="flex-1 text-white text-lg font-medium text-center"
+                style={{
+                  flex: 1,
+                  color: "#fff",
+                  fontSize: 18,
+                  fontWeight: "500",
+                  textAlign: "center",
+                }}
               >
                 {label}
               </Text>
@@ -157,19 +197,31 @@ export default function BirthdaySelection() {
           </View>
 
           <View
-            style={{ height: ITEM_HEIGHT * 5 }}
-            className="justify-center items-center w-full"
+            style={{
+              height: ITEM_HEIGHT * 5,
+              justifyContent: "center",
+              alignItems: "center",
+              width: "100%",
+            }}
           >
+            {/* Linhas vermelhas */}
             <View
               pointerEvents="none"
-              className="absolute w-full border-t-2 border-b-2 border-[#E31C25] z-10"
               style={{
+                position: "absolute",
+                width: "100%",
                 height: ITEM_HEIGHT,
                 top: "50%",
                 marginTop: -ITEM_HEIGHT / 2,
+                borderTopWidth: 2,
+                borderBottomWidth: 2,
+                borderColor: "#E31C25",
+                zIndex: 10,
               }}
             />
-            <View className="flex-row w-full h-full">
+            <View
+              style={{ flexDirection: "row", width: "100%", height: "100%" }}
+            >
               <ScrollColumn
                 data={days}
                 selectedValue={day}
@@ -189,19 +241,49 @@ export default function BirthdaySelection() {
           </View>
         </View>
 
-        <View className="flex-row justify-between items-center mb-2">
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
+          }}
+        >
           <TouchableOpacity
-            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
+            style={{
+              backgroundColor: "#2D2F33",
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
             onPress={() => router.back()}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
+            style={{
+              backgroundColor: "#E31C25",
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 16,
+              paddingHorizontal: 32,
+              borderRadius: 999,
+            }}
             onPress={handleNext}
           >
-            <Text className="text-white text-lg font-bold mr-2">Next</Text>
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 18,
+                fontWeight: "700",
+                marginRight: 8,
+              }}
+            >
+              Next
+            </Text>
             <ChevronRight color="white" size={20} />
           </TouchableOpacity>
         </View>

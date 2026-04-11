@@ -8,7 +8,8 @@ export default function SplashScreen() {
 
   useEffect(() => {
     const checkSession = async () => {
-      // Aguarda 2 segundos (splash)
+      // REMOVER DEPOIS DE TESTAR await AsyncStorage.clear();
+
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       try {
@@ -16,13 +17,10 @@ export default function SplashScreen() {
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
 
         if (userEmail) {
-          // Tem sessão guardada → vai direto para o home
           router.replace("/(tabs)/home");
         } else if (!hasOnboarded) {
-          // 1ª vez → onboarding
           router.replace("/onboarding");
         } else {
-          // Já fez onboarding mas não tem sessão → login
           router.replace("/auth/login");
         }
       } catch (e) {

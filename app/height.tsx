@@ -2,17 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   SafeAreaView,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { updateUserHeight } from "../src/database";
 
@@ -66,12 +65,8 @@ export default function HeightSelection() {
   const handleNext = async () => {
     try {
       const userEmail = await AsyncStorage.getItem("userEmail");
-      let heightValue = "";
-      if (unit === "CM") {
-        heightValue = `${cmValue} cm`;
-      } else {
-        heightValue = `${ftValue}'${inValue}''`;
-      }
+      const heightValue =
+        unit === "CM" ? `${cmValue} cm` : `${ftValue}'${inValue}''`;
       await updateUserHeight(db, userEmail!, heightValue);
       router.push("/workoutschedule");
     } catch (e) {
@@ -85,37 +80,44 @@ export default function HeightSelection() {
     onValueChange,
     unitLabel,
   }: ScrollColumnProps) => {
+    const flatListRef = useRef<FlatList>(null);
+    const initialIndex =
+      data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0;
+
     return (
-      <View className="flex-1 items-center justify-center">
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        {/* Retângulo cinzento centrado */}
         <View
           pointerEvents="none"
-          className="absolute bg-[#2D2F33] rounded-2xl z-0"
           style={{
+            position: "absolute",
             height: ITEM_HEIGHT - 10,
             width: "92%",
+            backgroundColor: "#2D2F33",
+            borderRadius: 16,
             top: "50%",
             marginTop: -(ITEM_HEIGHT - 10) / 2,
+            zIndex: 0,
           }}
         />
         <FlatList
+          ref={flatListRef}
           data={data}
           keyExtractor={(item) => item}
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           snapToAlignment="center"
-          decelerationRate={Platform.OS === "ios" ? "normal" : 0.9}
+          decelerationRate="fast"
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-          onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
             const y = e.nativeEvent.contentOffset.y;
             const index = Math.round(y / ITEM_HEIGHT);
-            if (data[index] && data[index] !== selectedValue) {
+            if (data[index]) {
               onValueChange(data[index]);
             }
           }}
-          initialScrollIndex={
-            data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0
-          }
+          initialScrollIndex={initialIndex}
           getItemLayout={(_, index) => ({
             length: ITEM_HEIGHT,
             offset: ITEM_HEIGHT * index,
@@ -123,18 +125,25 @@ export default function HeightSelection() {
           })}
           renderItem={({ item }) => (
             <View
-              style={{ height: ITEM_HEIGHT }}
-              className="justify-center items-center"
+              style={{
+                height: ITEM_HEIGHT,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
             >
               <Text
-                className={`text-center ${
-                  selectedValue === item
-                    ? "text-white font-bold text-4xl"
-                    : "text-gray-500 text-xl opacity-20"
-                }`}
+                style={{
+                  color: selectedValue === item ? "#fff" : "#6b7280",
+                  fontSize: selectedValue === item ? 36 : 20,
+                  fontWeight: selectedValue === item ? "700" : "400",
+                  opacity: selectedValue === item ? 1 : 0.3,
+                  textAlign: "center",
+                }}
               >
                 {item}
-                <Text className="text-lg font-normal">{unitLabel || ""}</Text>
+                <Text style={{ fontSize: 18, fontWeight: "400" }}>
+                  {unitLabel || ""}
+                </Text>
               </Text>
             </View>
           )}
