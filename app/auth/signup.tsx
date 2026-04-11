@@ -1,19 +1,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient"; // Certifica-te que instalaste
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useState } from "react";
 import {
+  Dimensions,
   Image,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { checkEmailExists, signup } from "../../src/database";
+
+const { width, height } = Dimensions.get("window");
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -29,58 +32,83 @@ export default function SignupScreen() {
       return;
     }
 
-    const exists = await checkEmailExists(db, email);
-    if (exists) {
-      setError("Email already registered.");
-      return;
+    try {
+      const exists = await checkEmailExists(db, email);
+      if (exists) {
+        setError("Email already registered.");
+        return;
+      }
+
+      const result = await signup(db, username, email, password);
+
+      // Armazenar dados necessários
+      await AsyncStorage.setItem("userEmail", email);
+      await AsyncStorage.setItem("hasOnboarded", "true");
+
+      router.push("/gender");
+    } catch (e) {
+      console.error("Erro no signup:", e);
+      setError("An error occurred during signup.");
     }
-
-    const result = signup(db, username, email, password);
-    console.log("Resultado do signup:", result);
-    console.log("lastInsertRowId:", (result as any).lastInsertRowId);
-    const userId = (result as any).lastInsertRowId;
-    console.log("userId a guardar:", userId);
-    await AsyncStorage.setItem("userEmail", email);
-
-    await AsyncStorage.setItem("userEmail", email);
-    await AsyncStorage.setItem("hasOnboarded", "true");
-
-    router.push("/gender");
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
+      {/* 1. IMAGEM DE FUNDO (CAMADA 0) */}
       <Image
         source={require("../../assets/images/onboarding1.jpg")}
-        style={StyleSheet.absoluteFillObject}
+        style={{ width, height, position: "absolute" }}
         resizeMode="cover"
       />
+
+      {/* 2. Gradiente Ajustado para proteger o topo */}
+      <LinearGradient
+        // Adicionamos um tom preto muito suave no topo (0.3 de opacidade)
+        // para dar contraste ao relógio e status bar do telemóvel
+        colors={["rgba(0,0,0,0.3)", "transparent", "rgba(0,0,0,0.6)", "#000"]}
+        locations={[0, 0.5, 0.6, 1]}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+        }}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <View className="flex-1 justify-center items-center px-6 bg-black/40">
-          <Text className="text-white text-5xl font-bold mb-10 italic">
-            Signup
+        <View className="flex-1 justify-center items-center px-6">
+          <Text
+            className="text-white text-5xl font-bold mb-10 text-center"
+            style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
+          >
+            Sign up
           </Text>
+
           <BlurView
-            intensity={60}
+            intensity={80}
             tint="dark"
             className="w-full p-8 rounded-[30px] overflow-hidden border border-white/20"
           >
+            {/* Name Input */}
             <View className="mb-6 border-b border-white/30">
-              <Text className="text-white text-xs mb-[-4px]">Name</Text>
+              <Text className="text-white text-xs mb-[-2px]">Name</Text>
               <TextInput
-                className="text-white h-12 text-lg"
+                className="text-white h-11 text-lg"
                 placeholderTextColor="#888"
                 value={username}
                 onChangeText={setUsername}
               />
             </View>
+
+            {/* Email Input */}
             <View className="mb-6 border-b border-white/30">
-              <Text className="text-white text-xs mb-[-4px]">Email</Text>
+              <Text className="text-white text-xs mb-[-2px]">Email</Text>
               <TextInput
-                className="text-white h-12 text-lg"
+                className="text-white h-11 text-lg"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholderTextColor="#888"
@@ -88,32 +116,39 @@ export default function SignupScreen() {
                 onChangeText={setEmail}
               />
             </View>
+
+            {/* Password Input */}
             <View className="mb-8 border-b border-white/30">
-              <Text className="text-white text-xs mb-[-4px]">Password</Text>
+              <Text className="text-white text-xs mb-[-2px]">Password</Text>
               <TextInput
-                className="text-white h-12 text-lg"
+                className="text-white h-11 text-lg"
                 secureTextEntry
                 placeholderTextColor="#888"
                 value={password}
                 onChangeText={setPassword}
               />
             </View>
+
             {error ? (
               <Text className="text-red-400 text-xs mb-3">{error}</Text>
             ) : null}
+
             <TouchableOpacity
               className="bg-white h-[56px] rounded-full justify-center items-center"
               onPress={handleSignup}
             >
-              <Text className="text-black font-bold text-lg">SIGN UP</Text>
+              <Text className="text-black font-bold text-lg uppercase">
+                Sign Up
+              </Text>
             </TouchableOpacity>
           </BlurView>
+
           <TouchableOpacity
             onPress={() => router.push("/auth/login")}
             className="mt-8"
           >
             <Text className="text-white text-sm">
-              Already have an account?{" "}
+              {"Already have an account? "}
               <Text className="font-bold underline">Login</Text>
             </Text>
           </TouchableOpacity>

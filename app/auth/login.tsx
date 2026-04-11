@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient"; // Certifica-te que instalaste
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useState } from "react";
@@ -7,7 +8,6 @@ import {
   Dimensions,
   Image,
   Platform,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -30,14 +30,10 @@ export default function LoginScreen() {
       setError("Please fill in all fields.");
       return;
     }
-
     const user = (await login(db, email, password)) as any;
-
     if (user) {
       setError("");
-      if (rememberMe) {
-        await AsyncStorage.setItem("userEmail", email);
-      }
+      if (rememberMe) await AsyncStorage.setItem("userEmail", email);
       await AsyncStorage.setItem("hasOnboarded", "true");
       router.replace("/(tabs)/home");
     } else {
@@ -47,18 +43,32 @@ export default function LoginScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
+      {/* 1. IMAGEM DE FUNDO (CAMADA 0) */}
       <Image
         source={require("../../assets/images/onboarding3.png")}
-        style={StyleSheet.absoluteFillObject}
+        style={{ width, height, position: "absolute" }}
         resizeMode="cover"
       />
 
-      <View className="flex-1 justify-center items-center px-6 bg-black/30">
+      {/* 2. GRADIENTE (CAMADA 1) - Colocado de forma a não tapar o conteúdo */}
+      <LinearGradient
+        colors={["transparent", "rgba(0,0,0,0.6)", "rgba(0,0,0,0.9)"]}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: height * 0.5,
+        }}
+      />
+
+      {/* 3. CONTEÚDO (CAMADA 2) */}
+      <View className="flex-1 justify-center px-6">
         <Text
           className="text-white text-5xl font-bold mb-10 text-center"
           style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
         >
-          Login
+          Log in
         </Text>
 
         <BlurView
@@ -66,12 +76,13 @@ export default function LoginScreen() {
           tint="dark"
           className="w-full p-8 rounded-[30px] overflow-hidden border border-white/20"
         >
-          <Text className="text-white text-2xl font-bold mb-6 text-left">
+          <Text className="text-white text-2xl font-bold mb-6">
             Welcome Back
           </Text>
 
+          {/* Email Input */}
           <View className="mb-5 border-b border-white/30">
-            <Text className="text-white text-xs mb-[-2px]">Email</Text>
+            <Text className="text-white text-xs">Email</Text>
             <TextInput
               className="text-white h-11 text-lg"
               placeholderTextColor="#ccc"
@@ -82,8 +93,9 @@ export default function LoginScreen() {
             />
           </View>
 
+          {/* Password Input */}
           <View className="mb-5 border-b border-white/30">
-            <Text className="text-white text-xs mb-[-2px]">Password</Text>
+            <Text className="text-white text-xs">Password</Text>
             <TextInput
               className="text-white h-11 text-lg"
               secureTextEntry
@@ -97,29 +109,23 @@ export default function LoginScreen() {
             <Text className="text-red-400 text-xs mb-3">{error}</Text>
           ) : null}
 
-          {/* Remember Me + Forgot Password */}
           <View className="flex-row justify-between items-center mb-6">
             <TouchableOpacity
               onPress={() => setRememberMe(!rememberMe)}
-              className="flex-row items-center gap-2"
+              className="flex-row items-center"
             >
               <View
-                className={`w-5 h-5 rounded border ${
-                  rememberMe ? "bg-white border-white" : "border-white/40"
-                } items-center justify-center`}
+                className={`w-5 h-5 rounded border mr-2 ${rememberMe ? "bg-white" : "border-white/40"}`}
               >
                 {rememberMe && (
-                  <Text className="text-black text-xs font-bold">✓</Text>
+                  <Text className="text-black text-center text-xs">✓</Text>
                 )}
               </View>
               <Text className="text-white text-xs opacity-70">Remember me</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity>
-              <Text className="text-white text-xs opacity-70">
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
+            <Text className="text-white text-xs opacity-70">
+              Forgot Password?
+            </Text>
           </View>
 
           <TouchableOpacity
@@ -132,9 +138,10 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </BlurView>
 
+        {/* Botão de Sign Up fora do BlurView */}
         <TouchableOpacity
           onPress={() => router.push("/auth/signup")}
-          className="mt-8"
+          className="mt-8 items-center"
         >
           <Text className="text-white text-sm">
             {"Don't have an account? "}
