@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
@@ -43,6 +44,12 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (isFocused) loadProfileData();
   }, [isFocused, loadProfileData]);
+
+  // Substitui a função do botão Log out:
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("userEmail");
+    router.replace("/auth/login");
+  };
 
   const BarChart = () => {
     const maxBarHeight = 120;
@@ -141,7 +148,7 @@ export default function ProfileScreen() {
         {/* HEADER */}
         <View className="flex-row justify-end items-center px-5 py-4">
           <View className="flex-row items-center gap-2">
-            <TouchableOpacity onPress={() => console.log("Sign Out")}>
+            <TouchableOpacity onPress={handleLogout}>
               <Text className="text-[#E31C25] font-semibold text-base pr-3">
                 Log out
               </Text>

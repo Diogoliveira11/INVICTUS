@@ -12,10 +12,10 @@ export default function SplashScreen() {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       try {
-        const userId = await AsyncStorage.getItem("userId");
+        const userEmail = await AsyncStorage.getItem("userEmail");
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
 
-        if (userId) {
+        if (userEmail) {
           // Tem sessão guardada → vai direto para o home
           router.replace("/(tabs)/home");
         } else if (!hasOnboarded) {

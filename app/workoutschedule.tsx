@@ -1,4 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -8,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { getUserByEmail, updateUserWeeklyGoal } from "../src/database";
 
 const DAYS = [
   { id: "Mon", label: "Monday" },
@@ -21,11 +24,9 @@ const DAYS = [
 
 export default function WorkOutSchedule() {
   const router = useRouter();
-
-  // Estado para armazenar os dias selecionados
+  const db = useSQLiteContext();
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
-  // Lógica: Se o array estiver vazio, o botão fica desativado
   const isNextDisabled = selectedDays.length === 0;
 
   const toggleDay = (dayId: string) => {
@@ -36,10 +37,23 @@ export default function WorkOutSchedule() {
     }
   };
 
+  const handleNext = async () => {
+    try {
+      const userEmail = await AsyncStorage.getItem("userEmail");
+      await updateUserWeeklyGoal(db, userEmail!, selectedDays.length);
+
+      const user = await getUserByEmail(db, userEmail!);
+      console.log("Utilizador completo:", user);
+
+      router.replace("/(tabs)/home");
+    } catch (e) {
+      console.error("Erro:", e);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-6 py-8 justify-between">
-        {/* Header */}
         <View className="items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center italic">
             {"What's your workout plan?"}
@@ -49,7 +63,6 @@ export default function WorkOutSchedule() {
           </Text>
         </View>
 
-        {/* Days List */}
         <ScrollView className="my-6" showsVerticalScrollIndicator={false}>
           <View>
             {DAYS.map((day) => {
@@ -68,8 +81,6 @@ export default function WorkOutSchedule() {
                   >
                     {day.label}
                   </Text>
-
-                  {/* Círculo de Seleção */}
                   <View
                     className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
                       isSelected
@@ -87,9 +98,7 @@ export default function WorkOutSchedule() {
           </View>
         </ScrollView>
 
-        {/* Footer Navigation */}
         <View className="flex-row justify-between items-center mb-2">
-          {/* Botão Back */}
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
             onPress={() => router.back()}
@@ -97,13 +106,12 @@ export default function WorkOutSchedule() {
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
-          {/* Botão Next */}
           <TouchableOpacity
             disabled={isNextDisabled}
             className={`${
               isNextDisabled ? "bg-gray-700" : "bg-[#E31C25]"
             } flex-row items-center py-4 px-8 rounded-full`}
-            onPress={() => router.push("/home")}
+            onPress={handleNext}
           >
             <Text
               className={`text-lg font-bold mr-2 ${

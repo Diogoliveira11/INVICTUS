@@ -1,4 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -11,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { updateUserBirthday } from "../src/database";
 
 const ITEM_HEIGHT = 60;
 
@@ -22,6 +25,7 @@ interface ScrollColumnProps {
 
 export default function BirthdaySelection() {
   const router = useRouter();
+  const db = useSQLiteContext();
 
   const today = new Date();
   const monthsNames = [
@@ -54,6 +58,18 @@ export default function BirthdaySelection() {
     (maxAllowedYear - i).toString(),
   );
 
+  const handleNext = async () => {
+    try {
+      const userEmail = await AsyncStorage.getItem("userEmail");
+      const monthIndex = monthsNames.indexOf(month) + 1;
+      const birthday = `${year}-${String(monthIndex).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      await updateUserBirthday(db, userEmail!, birthday);
+      router.push("/weight");
+    } catch (e) {
+      console.error("Erro ao guardar birthday:", e);
+    }
+  };
+
   const ScrollColumn = ({
     data,
     selectedValue,
@@ -61,7 +77,6 @@ export default function BirthdaySelection() {
   }: ScrollColumnProps) => {
     return (
       <View className="flex-1 items-center justify-center">
-        {/* Fundo oval do item selecionado */}
         <View
           pointerEvents="none"
           className="absolute bg-[#2D2F33] rounded-xl z-0"
@@ -72,7 +87,6 @@ export default function BirthdaySelection() {
             marginTop: -(ITEM_HEIGHT - 12) / 2,
           }}
         />
-
         <FlatList
           data={data}
           keyExtractor={(item) => item}
@@ -103,7 +117,11 @@ export default function BirthdaySelection() {
               className="justify-center items-center"
             >
               <Text
-                className={`text-center ${selectedValue === item ? "text-white font-bold text-2xl" : "text-gray-500 text-lg opacity-40"}`}
+                className={`text-center ${
+                  selectedValue === item
+                    ? "text-white font-bold text-2xl"
+                    : "text-gray-500 text-lg opacity-40"
+                }`}
               >
                 {item}
               </Text>
@@ -117,7 +135,6 @@ export default function BirthdaySelection() {
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-6 py-8 justify-between">
-        {/* Header */}
         <View className="items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center italic">
             Insert your birth date!
@@ -127,9 +144,7 @@ export default function BirthdaySelection() {
           </Text>
         </View>
 
-        {/* Picker Central */}
         <View className="flex-1 justify-center my-8">
-          {/* Labels */}
           <View className="flex-row w-full mb-4">
             {["Day", "Month", "Year"].map((label) => (
               <Text
@@ -145,7 +160,6 @@ export default function BirthdaySelection() {
             style={{ height: ITEM_HEIGHT * 5 }}
             className="justify-center items-center w-full"
           >
-            {/* Linhas de seleção vermelhas - Usando posicionamento absoluto para evitar que o FlatList as empurre */}
             <View
               pointerEvents="none"
               className="absolute w-full border-t-2 border-b-2 border-[#E31C25] z-10"
@@ -155,7 +169,6 @@ export default function BirthdaySelection() {
                 marginTop: -ITEM_HEIGHT / 2,
               }}
             />
-
             <View className="flex-row w-full h-full">
               <ScrollColumn
                 data={days}
@@ -176,7 +189,6 @@ export default function BirthdaySelection() {
           </View>
         </View>
 
-        {/* Footer Navigation */}
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
@@ -187,7 +199,7 @@ export default function BirthdaySelection() {
 
           <TouchableOpacity
             className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
-            onPress={() => router.push("/weight")}
+            onPress={handleNext}
           >
             <Text className="text-white text-lg font-bold mr-2">Next</Text>
             <ChevronRight color="white" size={20} />

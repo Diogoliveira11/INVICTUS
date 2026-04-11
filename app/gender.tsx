@@ -1,19 +1,31 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { ChevronRight, Mars, Venus } from "lucide-react-native";
 import React, { useState } from "react";
 import { SafeAreaView, Text, TouchableOpacity, View } from "react-native";
+import { updateUserGender } from "../src/database";
 
 export default function GenderSelection() {
   const [gender, setGender] = useState<"male" | "female" | null>(null);
   const router = useRouter();
+  const db = useSQLiteContext();
 
-  // Variável booleana para verificar se algo foi selecionado
   const isReady = gender !== null;
+
+  const handleNext = async () => {
+    try {
+      const userEmail = await AsyncStorage.getItem("userEmail");
+      await updateUserGender(db, userEmail!, gender!);
+      router.push("/birthday");
+    } catch (e) {
+      console.error("Erro ao guardar gender:", e);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-[30px] justify-between py-[50px]">
-        {/* Header */}
         <View className="items-center mt-10">
           <Text className="text-white text-[28px] font-bold text-center italic">
             Tell us about yourself!
@@ -23,9 +35,7 @@ export default function GenderSelection() {
           </Text>
         </View>
 
-        {/* Selection Area */}
         <View className="items-center" style={{ gap: 40 }}>
-          {/* Male Button */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setGender("male")}
@@ -39,7 +49,6 @@ export default function GenderSelection() {
             </Text>
           </TouchableOpacity>
 
-          {/* Female Button */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setGender("female")}
@@ -54,15 +63,11 @@ export default function GenderSelection() {
           </TouchableOpacity>
         </View>
 
-        {/* Footer Navigation */}
         <View className="flex-row justify-end items-center mb-2">
-          {/* Botão Next com Validação */}
           <TouchableOpacity
-            // 1. Desativa o clique se isReady for false
             disabled={!isReady}
             activeOpacity={0.8}
-            onPress={() => router.push("/birthday")}
-            // 2. Muda o estilo baseado na seleção
+            onPress={handleNext}
             className={`flex-row items-center py-4 px-8 rounded-full ${
               isReady ? "bg-[#E31C25]" : "bg-zinc-800 opacity-50"
             }`}

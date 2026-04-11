@@ -105,14 +105,14 @@ export default function ProgressResult() {
     try {
       const details = await db.getAllAsync<WorkoutExercise>(
         `SELECT 
-          e.name as exercise_name, 
-          COUNT(ws.id) as total_sets, 
-          MAX(ws.weight) as max_weight, 
-          MAX(ws.reps) as max_reps 
-         FROM workout_sets ws
-         JOIN exercises e ON ws.exercise_id = e.id
-         WHERE ws.workout_id = ?
-         GROUP BY ws.exercise_id`,
+            e.name as exercise_name, 
+            COUNT(ws.id) as total_sets, 
+            MAX(ws.weight) as max_weight, 
+            MAX(ws.reps) as max_reps 
+          FROM workout_sets ws
+          JOIN exercises e ON ws.exercise_id = e.id
+          WHERE ws.workout_id = ?
+          GROUP BY ws.exercise_id`,
         [workout.id],
       );
 

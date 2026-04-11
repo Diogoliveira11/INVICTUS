@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -29,14 +30,22 @@ export default function SignupScreen() {
     }
 
     const exists = await checkEmailExists(db, email);
-
     if (exists) {
       setError("Email already registered.");
       return;
     }
 
-    signup(db, username, email, password);
-    router.push("/auth/login");
+    const result = signup(db, username, email, password);
+    console.log("Resultado do signup:", result);
+    console.log("lastInsertRowId:", (result as any).lastInsertRowId);
+    const userId = (result as any).lastInsertRowId;
+    console.log("userId a guardar:", userId);
+    await AsyncStorage.setItem("userEmail", email);
+
+    await AsyncStorage.setItem("userEmail", email);
+    await AsyncStorage.setItem("hasOnboarded", "true");
+
+    router.push("/gender");
   };
 
   return (
@@ -46,7 +55,6 @@ export default function SignupScreen() {
         style={StyleSheet.absoluteFillObject}
         resizeMode="cover"
       />
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -55,7 +63,6 @@ export default function SignupScreen() {
           <Text className="text-white text-5xl font-bold mb-10 italic">
             Signup
           </Text>
-
           <BlurView
             intensity={60}
             tint="dark"
@@ -70,7 +77,6 @@ export default function SignupScreen() {
                 onChangeText={setUsername}
               />
             </View>
-
             <View className="mb-6 border-b border-white/30">
               <Text className="text-white text-xs mb-[-4px]">Email</Text>
               <TextInput
@@ -82,7 +88,6 @@ export default function SignupScreen() {
                 onChangeText={setEmail}
               />
             </View>
-
             <View className="mb-8 border-b border-white/30">
               <Text className="text-white text-xs mb-[-4px]">Password</Text>
               <TextInput
@@ -93,11 +98,9 @@ export default function SignupScreen() {
                 onChangeText={setPassword}
               />
             </View>
-
             {error ? (
               <Text className="text-red-400 text-xs mb-3">{error}</Text>
             ) : null}
-
             <TouchableOpacity
               className="bg-white h-[56px] rounded-full justify-center items-center"
               onPress={handleSignup}
@@ -105,7 +108,6 @@ export default function SignupScreen() {
               <Text className="text-black font-bold text-lg">SIGN UP</Text>
             </TouchableOpacity>
           </BlurView>
-
           <TouchableOpacity
             onPress={() => router.push("/auth/login")}
             className="mt-8"

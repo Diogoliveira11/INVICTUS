@@ -23,10 +23,13 @@ async function loadDatabase(): Promise<void> {
     intermediates: true,
   });
 
-  await FileSystem.downloadAsync(
-    Asset.fromModule(require("../src/inicializedatabase.sqlite")).uri,
-    dbPath,
-  );
+  const fileInfo = await FileSystem.getInfoAsync(dbPath);
+  if (!fileInfo.exists) {
+    await FileSystem.downloadAsync(
+      Asset.fromModule(require("../src/inicializedatabase.sqlite")).uri,
+      dbPath,
+    );
+  }
 }
 
 export default function RootLayout() {

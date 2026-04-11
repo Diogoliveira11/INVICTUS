@@ -1,4 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
@@ -12,9 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { updateUserHeight } from "../src/database";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-// Ajustado para 70 para um equilíbrio melhor
 const ITEM_HEIGHT = 70;
 
 interface ScrollColumnProps {
@@ -26,8 +28,8 @@ interface ScrollColumnProps {
 
 export default function HeightSelection() {
   const router = useRouter();
+  const db = useSQLiteContext();
   const [unit, setUnit] = useState<"CM" | "FT">("CM");
-
   const [cmValue, setCmValue] = useState("170");
   const [ftValue, setFtValue] = useState("5");
   const [inValue, setInValue] = useState("7");
@@ -61,6 +63,22 @@ export default function HeightSelection() {
     setUnit(newUnit);
   };
 
+  const handleNext = async () => {
+    try {
+      const userEmail = await AsyncStorage.getItem("userEmail");
+      let heightValue = "";
+      if (unit === "CM") {
+        heightValue = `${cmValue} cm`;
+      } else {
+        heightValue = `${ftValue}'${inValue}''`;
+      }
+      await updateUserHeight(db, userEmail!, heightValue);
+      router.push("/workoutschedule");
+    } catch (e) {
+      console.error("Erro ao guardar height:", e);
+    }
+  };
+
   const ScrollColumn = ({
     data,
     selectedValue,
@@ -79,7 +97,6 @@ export default function HeightSelection() {
             marginTop: -(ITEM_HEIGHT - 10) / 2,
           }}
         />
-
         <FlatList
           data={data}
           keyExtractor={(item) => item}
@@ -112,7 +129,7 @@ export default function HeightSelection() {
               <Text
                 className={`text-center ${
                   selectedValue === item
-                    ? "text-white font-bold text-4xl" // TAMANHO EQUILIBRADO
+                    ? "text-white font-bold text-4xl"
                     : "text-gray-500 text-xl opacity-20"
                 }`}
               >
@@ -170,7 +187,6 @@ export default function HeightSelection() {
                 width: unit === "CM" ? "45%" : "100%",
               }}
             />
-
             <View className="flex-row w-full h-full justify-center">
               {unit === "CM" ? (
                 <View style={{ width: SCREEN_WIDTH * 0.45 }}>
@@ -200,7 +216,6 @@ export default function HeightSelection() {
           </View>
         </View>
 
-        {/* Switcher */}
         <View className="items-center mb-6">
           <View className="flex-row bg-[#2D2F33] rounded-full p-1 w-52">
             <TouchableOpacity
@@ -226,7 +241,6 @@ export default function HeightSelection() {
           </View>
         </View>
 
-        {/* Footer */}
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
@@ -237,7 +251,7 @@ export default function HeightSelection() {
 
           <TouchableOpacity
             className="bg-[#E31C25] flex-row items-center py-4 px-8 rounded-full"
-            onPress={() => router.push("/goal")}
+            onPress={handleNext}
           >
             <Text className="text-white text-lg font-bold mr-2">Next</Text>
             <ChevronRight color="white" size={20} />

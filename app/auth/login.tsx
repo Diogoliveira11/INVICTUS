@@ -36,7 +36,7 @@ export default function LoginScreen() {
     if (user) {
       setError("");
       if (rememberMe) {
-        await AsyncStorage.setItem("userId", String(user.id));
+        await AsyncStorage.setItem("userEmail", email);
       }
       await AsyncStorage.setItem("hasOnboarded", "true");
       router.replace("/(tabs)/home");
@@ -141,8 +141,6 @@ export default function LoginScreen() {
             <Text className="font-bold underline">Sign up!</Text>
           </Text>
         </TouchableOpacity>
-
-        <Text className="text-white/40 mt-6 text-xs italic">Need Help?</Text>
       </View>
     </View>
   );
