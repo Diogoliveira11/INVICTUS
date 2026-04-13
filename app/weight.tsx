@@ -4,6 +4,7 @@ import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -101,13 +102,30 @@ export default function WeightSelection() {
 
   const handleNext = async () => {
     try {
+      // 1. Recuperar o email do Storage
       const userEmail = await AsyncStorage.getItem("userEmail");
+
+      if (!userEmail) {
+        console.error(
+          "❌ [Onboarding] Erro: userEmail não encontrado no Weight!",
+        );
+        Alert.alert("Error", "User session lost. Please sign up again.");
+        router.replace("/auth/signup");
+        return;
+      }
+
+      // 2. Normalizar o peso para salvar sempre em KG (opcional, dependendo da tua lógica)
       const weightToSave =
         unit === "KG" ? weight : Math.round(weight / 2.20462);
-      await updateUserWeight(db, userEmail!, weightToSave);
+
+      // 3. Atualizar na SQLite
+      await updateUserWeight(db, userEmail, weightToSave);
+
+      // 4. Próximo ecrã
       router.push("/height");
     } catch (e) {
-      console.error("Erro ao guardar weight:", e);
+      console.error("❌ [Onboarding] Erro ao guardar weight:", e);
+      Alert.alert("Error", "Could not save weight.");
     }
   };
 

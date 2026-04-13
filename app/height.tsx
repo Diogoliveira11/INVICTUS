@@ -2,8 +2,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
+  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -11,7 +12,7 @@ import {
   SafeAreaView,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { updateUserHeight } from "../src/database";
 
@@ -64,13 +65,30 @@ export default function HeightSelection() {
 
   const handleNext = async () => {
     try {
+      // 1. Recuperar o email do utilizador
       const userEmail = await AsyncStorage.getItem("userEmail");
+
+      if (!userEmail) {
+        console.error(
+          "❌ [Onboarding] Erve: userEmail não encontrado no Height!",
+        );
+        Alert.alert("Error", "User session lost. Please sign up again.");
+        router.replace("/auth/signup");
+        return;
+      }
+
+      // 2. Formatar o valor da altura
       const heightValue =
         unit === "CM" ? `${cmValue} cm` : `${ftValue}'${inValue}''`;
-      await updateUserHeight(db, userEmail!, heightValue);
+
+      // 3. Atualizar na SQLite (Verás o log no terminal)
+      await updateUserHeight(db, userEmail, heightValue);
+
+      // 4. Próxima etapa
       router.push("/workoutschedule");
     } catch (e) {
-      console.error("Erro ao guardar height:", e);
+      console.error("❌ [Onboarding] Erro ao guardar height:", e);
+      Alert.alert("Error", "Could not save height.");
     }
   };
 
@@ -80,13 +98,11 @@ export default function HeightSelection() {
     onValueChange,
     unitLabel,
   }: ScrollColumnProps) => {
-    const flatListRef = useRef<FlatList>(null);
     const initialIndex =
       data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0;
 
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        {/* Retângulo cinzento centrado */}
         <View
           pointerEvents="none"
           style={{
@@ -101,7 +117,6 @@ export default function HeightSelection() {
           }}
         />
         <FlatList
-          ref={flatListRef}
           data={data}
           keyExtractor={(item) => item}
           showsVerticalScrollIndicator={false}

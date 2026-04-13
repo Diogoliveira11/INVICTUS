@@ -4,13 +4,20 @@ import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { getUserByEmail, updateUserWeeklyGoal } from "../src/database";
+
+// ADICIONE 'printDatabaseStats' AQUI NAS IMPORTS:
+import {
+  getUserByEmail,
+  printDatabaseStats,
+  updateUserWeeklyGoal,
+} from "../src/database";
 
 const DAYS = [
   { id: "Mon", label: "Monday" },
@@ -40,14 +47,29 @@ export default function WorkOutSchedule() {
   const handleNext = async () => {
     try {
       const userEmail = await AsyncStorage.getItem("userEmail");
-      await updateUserWeeklyGoal(db, userEmail!, selectedDays.length);
 
-      const user = await getUserByEmail(db, userEmail!);
-      console.log("Utilizador completo:", user);
+      if (!userEmail) {
+        console.error("❌ [Schedule] Erro: userEmail não encontrado!");
+        Alert.alert("Error", "Session expired. Please sign up again.");
+        router.replace("/auth/signup");
+        return;
+      }
 
+      // Atualiza a meta
+      await updateUserWeeklyGoal(db, userEmail, selectedDays.length);
+
+      // Mostra os dados do utilizador atual
+      const user = await getUserByEmail(db, userEmail);
+      console.log("🚀 [FINAL] Dados guardados:", user);
+
+      // MOSTRA O TOTAL DE UTILIZADORES NO TERMINAL
+      await printDatabaseStats(db);
+
+      await AsyncStorage.setItem("hasOnboarded", "true");
       router.replace("/(tabs)/home");
-    } catch (e) {
-      console.error("Erro:", e);
+    } catch (e: any) {
+      console.error("❌ [Schedule] Erro:", e.message);
+      Alert.alert("Error", "Failed to save your schedule.");
     }
   };
 
@@ -75,18 +97,12 @@ export default function WorkOutSchedule() {
                   className="flex-row justify-between items-center py-5 border-b border-[#2D2F33]"
                 >
                   <Text
-                    className={`text-lg ${
-                      isSelected ? "text-white font-bold" : "text-gray-500"
-                    }`}
+                    className={`text-lg ${isSelected ? "text-white font-bold" : "text-gray-500"}`}
                   >
                     {day.label}
                   </Text>
                   <View
-                    className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-                      isSelected
-                        ? "border-[#E31C25] bg-[#E31C25]/20"
-                        : "border-gray-600 bg-transparent"
-                    }`}
+                    className={`w-6 h-6 rounded-full border-2 items-center justify-center ${isSelected ? "border-[#E31C25] bg-[#E31C25]/20" : "border-gray-600 bg-transparent"}`}
                   >
                     {isSelected && (
                       <View className="w-2.5 h-2.5 rounded-full bg-[#E31C25]" />
@@ -108,17 +124,13 @@ export default function WorkOutSchedule() {
 
           <TouchableOpacity
             disabled={isNextDisabled}
-            className={`${
-              isNextDisabled ? "bg-gray-700" : "bg-[#E31C25]"
-            } flex-row items-center py-4 px-8 rounded-full`}
+            className={`${isNextDisabled ? "bg-gray-700" : "bg-[#E31C25]"} flex-row items-center py-4 px-8 rounded-full`}
             onPress={handleNext}
           >
             <Text
-              className={`text-lg font-bold mr-2 ${
-                isNextDisabled ? "text-gray-400" : "text-white"
-              }`}
+              className={`text-lg font-bold mr-2 ${isNextDisabled ? "text-gray-400" : "text-white"}`}
             >
-              Next
+              Finish
             </Text>
             <ChevronRight color={isNextDisabled ? "#999" : "white"} size={20} />
           </TouchableOpacity>

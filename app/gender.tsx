@@ -3,7 +3,13 @@ import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { ChevronRight, Mars, Venus } from "lucide-react-native";
 import React, { useState } from "react";
-import { SafeAreaView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { updateUserGender } from "../src/database";
 
 export default function GenderSelection() {
@@ -14,18 +20,37 @@ export default function GenderSelection() {
   const isReady = gender !== null;
 
   const handleNext = async () => {
+    if (!gender) return;
+
     try {
+      // 1. Recuperar o email guardado durante o Signup
       const userEmail = await AsyncStorage.getItem("userEmail");
-      await updateUserGender(db, userEmail!, gender!);
+
+      if (!userEmail) {
+        console.error(
+          "❌ [Onboarding] Erro: userEmail não encontrado no Storage!",
+        );
+        Alert.alert("Error", "User session not found. Please sign up again.");
+        router.replace("/auth/signup");
+        return;
+      }
+
+      // 2. Atualizar na Base de Dados SQLite
+      // O log aparecerá no terminal do VS Code graças à função logDB no teu database.ts
+      await updateUserGender(db, userEmail, gender);
+
+      // 3. Avançar para o próximo ecrã
       router.push("/birthday");
     } catch (e) {
-      console.error("Erro ao guardar gender:", e);
+      console.error("❌ [Onboarding] Erro ao guardar gender:", e);
+      Alert.alert("Error", "Failed to save your selection. Try again.");
     }
   };
 
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-[30px] justify-between py-[50px]">
+        {/* Header */}
         <View className="items-center mt-10">
           <Text className="text-white text-[28px] font-bold text-center italic">
             Tell us about yourself!
@@ -35,6 +60,7 @@ export default function GenderSelection() {
           </Text>
         </View>
 
+        {/* Selection Cards */}
         <View className="items-center" style={{ gap: 40 }}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -63,6 +89,7 @@ export default function GenderSelection() {
           </TouchableOpacity>
         </View>
 
+        {/* Next Button */}
         <View className="flex-row justify-end items-center mb-2">
           <TouchableOpacity
             disabled={!isReady}

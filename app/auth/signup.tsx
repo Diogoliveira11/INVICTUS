@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useState } from "react";
 import {
+  Alert,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -28,29 +29,42 @@ export default function SignupScreen() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleSignup = async () => {
+    // Validação básica
     if (!username || !email || !password) {
       setError("Please fill in all fields.");
       return;
     }
 
     try {
+      // 1. Verificar se o email já existe
       const exists = await checkEmailExists(db, email);
       if (exists) {
         setError("Email already registered.");
         return;
       }
 
-      signup(db, username, email, password);
+      // 2. Criar o utilizador na base de dados SQLite
+      // O log de sucesso aparecerá no teu terminal do VS Code
+      await signup(db, username, email, password);
 
+      // 3. CORREÇÃO CRÍTICA: Guardar o email no Storage
+      // Precisamos disto para que o Gender, Birthday, etc., saibam QUEM atualizar
+      await AsyncStorage.setItem("userEmail", email);
+
+      // Se o utilizador quiser ser lembrado para o futuro login
       if (rememberMe) {
-        await AsyncStorage.setItem("userEmail", email);
+        await AsyncStorage.setItem("rememberUser", "true");
       }
-      await AsyncStorage.setItem("hasOnboarded", "true");
 
+      // 4. Marcar início do onboarding
+      await AsyncStorage.setItem("hasOnboarded", "false");
+
+      // 5. Navegar para o próximo passo (Gender)
       router.push("/gender");
     } catch (e) {
-      console.error("Erro no signup:", e);
+      console.error("❌ [Signup] Erro fatal:", e);
       setError("An error occurred during signup.");
+      Alert.alert("Error", "Could not create account. Please try again.");
     }
   };
 
@@ -122,19 +136,21 @@ export default function SignupScreen() {
               <Text className="text-red-400 text-xs mb-3">{error}</Text>
             ) : null}
 
-            {/* Remember Me */}
+            {/* Remember Me Toggle */}
             <View className="flex-row justify-between items-center mb-6">
               <TouchableOpacity
                 onPress={() => setRememberMe(!rememberMe)}
                 className="flex-row items-center"
               >
                 <View
-                  className={`w-5 h-5 rounded border mr-2 ${
-                    rememberMe ? "bg-white" : "border-white/40"
+                  className={`w-5 h-5 rounded border mr-2 items-center justify-center ${
+                    rememberMe
+                      ? "bg-[#E31C25] border-[#E31C25]"
+                      : "border-white/40"
                   }`}
                 >
                   {rememberMe && (
-                    <Text className="text-black text-center text-xs">✓</Text>
+                    <Text className="text-white text-[10px]">✓</Text>
                   )}
                 </View>
                 <Text className="text-white text-xs opacity-70">
@@ -144,7 +160,7 @@ export default function SignupScreen() {
             </View>
 
             <TouchableOpacity
-              className="bg-white h-[56px] rounded-full justify-center items-center"
+              className="bg-white h-[56px] rounded-full justify-center items-center active:opacity-80"
               onPress={handleSignup}
             >
               <Text className="text-black font-bold text-lg uppercase">

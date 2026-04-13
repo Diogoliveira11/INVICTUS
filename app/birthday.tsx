@@ -4,6 +4,7 @@ import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
 import {
+  Alert,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -59,13 +60,28 @@ export default function BirthdaySelection() {
 
   const handleNext = async () => {
     try {
+      // 1. Recuperar o email do utilizador logado
       const userEmail = await AsyncStorage.getItem("userEmail");
+
+      if (!userEmail) {
+        console.error("❌ [Onboarding] Erro: userEmail não encontrado!");
+        Alert.alert("Error", "User session lost. Please sign up again.");
+        router.replace("/auth/signup");
+        return;
+      }
+
+      // 2. Formatar a data (YYYY-MM-DD)
       const monthIndex = monthsNames.indexOf(month) + 1;
       const birthday = `${year}-${String(monthIndex).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      await updateUserBirthday(db, userEmail!, birthday);
+
+      // 3. Gravar na SQLite (O log aparecerá no teu terminal)
+      await updateUserBirthday(db, userEmail, birthday);
+
+      // 4. Navegar para o próximo passo
       router.push("/weight");
     } catch (e) {
-      console.error("Erro ao guardar birthday:", e);
+      console.error("❌ [Onboarding] Erro ao guardar birthday:", e);
+      Alert.alert("Error", "Could not save your birthday.");
     }
   };
 
@@ -79,7 +95,6 @@ export default function BirthdaySelection() {
 
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        {/* Retângulo cinzento */}
         <View
           pointerEvents="none"
           style={{
@@ -204,7 +219,6 @@ export default function BirthdaySelection() {
               width: "100%",
             }}
           >
-            {/* Linhas vermelhas */}
             <View
               pointerEvents="none"
               style={{
