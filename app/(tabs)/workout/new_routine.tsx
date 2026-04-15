@@ -162,7 +162,7 @@ export default function NewRoutineScreen() {
 
       {/* HEADER PRINCIPAL */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-zinc-900">
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace("/workout")}>
           <ChevronLeft size={28} color="#E31C25" />
         </TouchableOpacity>
         <Text className="text-white text-[17px] font-bold">

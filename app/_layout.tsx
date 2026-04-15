@@ -13,22 +13,43 @@ import { Suspense, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import "../global.css";
 
+// Importa os contextos
 import { WorkoutProvider } from "./(tabs)/context/workoutcontext";
+
+// Se decidires criar o MinimizedWorkout num ficheiro separado (recomendado):
+// import { MinimizedWorkout } from "../components/MinimizedWorkout";
 
 async function loadDatabase(): Promise<void> {
   const dbName = "inicializedatabase.sqlite";
   const dbPath = `${FileSystem.documentDirectory}SQLite/${dbName}`;
 
-  await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}SQLite`, {
-    intermediates: true,
-  });
+  // Cria a pasta SQLite se não existir
+  const dirInfo = await FileSystem.getInfoAsync(
+    `${FileSystem.documentDirectory}SQLite`,
+  );
+  if (!dirInfo.exists) {
+    await FileSystem.makeDirectoryAsync(
+      `${FileSystem.documentDirectory}SQLite`,
+      {
+        intermediates: true,
+      },
+    );
+  }
 
   const fileInfo = await FileSystem.getInfoAsync(dbPath);
+
+  // IMPORTANTE: Se o ficheiro não existe, copia-o dos assets.
+  // Se quiseres forçar a atualização sempre que mudares o ficheiro no PC,
+  // apaga a app do telemóvel e instala de novo.
   if (!fileInfo.exists) {
-    await FileSystem.downloadAsync(
-      Asset.fromModule(require("../src/inicializedatabase.sqlite")).uri,
-      dbPath,
-    );
+    const asset = await Asset.fromModule(
+      require("../src/inicializedatabase.sqlite"),
+    ).downloadAsync();
+    await FileSystem.copyAsync({
+      from: asset.localUri!,
+      to: dbPath,
+    });
+    console.log("✅ Base de dados copiada para o sistema de ficheiros.");
   }
 }
 
@@ -39,9 +60,10 @@ export default function RootLayout() {
   useEffect(() => {
     loadDatabase()
       .then(() => setDbReady(true))
-      .catch((e) => console.error("Erro ao carregar BD:", e));
+      .catch((e) => console.error("❌ Erro ao inicializar a App:", e));
   }, []);
 
+  // Ecrã de carregamento inicial enquanto a BD é preparada
   if (!dbReady) {
     return (
       <View
@@ -77,39 +99,57 @@ export default function RootLayout() {
           <ThemeProvider
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
           >
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="gender" options={{ gestureEnabled: false }} />
-              <Stack.Screen
-                name="birthday"
-                options={{ gestureEnabled: false }}
-              />
-              <Stack.Screen name="weight" options={{ gestureEnabled: false }} />
-              <Stack.Screen name="height" options={{ gestureEnabled: false }} />
-              <Stack.Screen
-                name="workoutschedule"
-                options={{ gestureEnabled: false }}
-              />
-              <Stack.Screen name="index" />
-              <Stack.Screen name="onboarding" />
-              <Stack.Screen name="auth/signup" />
-              <Stack.Screen name="auth/login" />
-              <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-              <Stack.Screen
-                name="workouthistory"
-                options={{
-                  presentation: "modal",
-                  animation: "slide_from_right",
-                }}
-              />
-              <Stack.Screen
-                name="volumestats"
-                options={{
-                  presentation: "modal",
-                  animation: "slide_from_right",
-                }}
-              />
-            </Stack>
-            <StatusBar style="light" />
+            <View style={{ flex: 1 }}>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="onboarding" />
+                <Stack.Screen name="auth/signup" />
+                <Stack.Screen name="auth/login" />
+                <Stack.Screen
+                  name="gender"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="birthday"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="weight"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="height"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="workoutschedule"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="(tabs)"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="workouthistory"
+                  options={{
+                    presentation: "modal",
+                    animation: "slide_from_right",
+                  }}
+                />
+                <Stack.Screen
+                  name="volumestats"
+                  options={{
+                    presentation: "modal",
+                    animation: "slide_from_right",
+                  }}
+                />
+              </Stack>
+
+              {/* Se o MinimizedWorkout estiver noutro ficheiro, ele aparece aqui para flutuar sobre a app */}
+              {/* <MinimizedWorkout /> */}
+
+              <StatusBar style="light" />
+            </View>
           </ThemeProvider>
         </WorkoutProvider>
       </SQLiteProvider>

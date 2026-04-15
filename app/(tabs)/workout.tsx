@@ -1,15 +1,15 @@
+import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
+import { useSQLiteContext } from "expo-sqlite";
 import {
   Edit3,
-  FolderPlus,
   List,
   MoreHorizontal,
   Plus,
   Search,
   Trash2,
 } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Modal,
@@ -30,7 +30,8 @@ type Routine = {
 export default function WorkoutTabScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const db = useSQLiteContext(); // 2. Instância única da BD
+  const db = useSQLiteContext();
+  const isFocused = useIsFocused();
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
@@ -42,28 +43,48 @@ export default function WorkoutTabScreen() {
     try {
       await db.execAsync("PRAGMA foreign_keys = ON;");
 
+      // Query ajustada para os nomes exatos das tuas colunas:
+      // exerciseid e routinesid
       const query = `
-            SELECT r.id, r.name, GROUP_CONCAT(e.name, ', ') AS exercise_list
-            FROM routines r
-            LEFT JOIN routine_exercises re ON r.id = re.routine_id
-            LEFT JOIN exercises e ON re.exercise_id = e.id
-            GROUP BY r.id
-            ORDER BY r.id DESC
-        `;
+          SELECT 
+            r.id, 
+            r.name, 
+            (SELECT GROUP_CONCAT(e.name, ', ') 
+             FROM exercises e 
+             JOIN routine_exercises re ON e.id = re.exerciseid 
+             WHERE re.routinesid = r.id) AS exercise_list
+          FROM routines r
+          ORDER BY r.id DESC
+      `;
 
       const result = await db.getAllAsync<Routine>(query);
       setRoutines(result);
     } catch (e) {
       console.error("Erro ao carregar rotinas:", e);
+
+      // Fallback caso a tabela de ligação ainda dê problemas
+      try {
+        const simpleResult = await db.getAllAsync<Routine>(
+          "SELECT id, name FROM routines ORDER BY id DESC",
+        );
+        setRoutines(simpleResult);
+      } catch (innerError) {
+        console.error("Erro no fallback:", innerError);
+      }
     }
   }, [db]);
+
+  useEffect(() => {
+    if (isFocused) {
+      loadRoutines();
+    }
+  }, [isFocused, loadRoutines]);
 
   const openOptions = (id: number) => {
     setSelectedRoutineId(id);
     setIsOptionsVisible(true);
   };
 
-  // 4. ELIMINAR ROTINA - Sem openDatabaseAsync
   const confirmDelete = async () => {
     if (!selectedRoutineId) return;
 
@@ -77,7 +98,6 @@ export default function WorkoutTabScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // O ON DELETE CASCADE na tabela trata as ligações automaticamente
               await db.runAsync("DELETE FROM routines WHERE id = ?", [
                 selectedRoutineId,
               ]);
@@ -112,13 +132,11 @@ export default function WorkoutTabScreen() {
           </Text>
         </TouchableOpacity>
 
+        {/* CABEÇALHO SEM O ÍCONE DE FOLDER */}
         <View className="flex-row justify-between items-center mt-12">
           <Text className="text-white text-2xl font-black italic uppercase">
             Routines
           </Text>
-          <TouchableOpacity>
-            <FolderPlus size={26} color="white" />
-          </TouchableOpacity>
         </View>
 
         <View className="flex-row gap-3 mt-6">
@@ -187,7 +205,6 @@ export default function WorkoutTabScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL DE OPÇÕES */}
       <Modal
         visible={isOptionsVisible}
         transparent={true}

@@ -1,22 +1,18 @@
-import { Asset } from "expo-asset";
-import * as FileSystem from "expo-file-system/legacy";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import * as SQLite from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite";
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
-  Dumbbell,
   Search,
   Target,
-  X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -36,33 +32,10 @@ type Exercise = {
   image: string | null;
 };
 
-// Ajuste nos caminhos se o arquivo estiver em app/workout/explore.tsx
-const IMAGE_MAP: { [key: string]: any } = {
-  "assets/exercises_images/barbell_decline_bench_press_chest.png": require("../../../assets/exercises_images/barbell_decline_bench_press_chest.png"),
-};
-
-const EQUIPMENT_ICONS: { [key: string]: any } = {
-  Barbell: <Dumbbell size={24} color="white" />,
-  Dumbbell: <Dumbbell size={20} color="white" />,
-  Machine: (
-    <View
-      style={{
-        width: 24,
-        height: 24,
-        borderWidth: 2,
-        borderColor: "white",
-        borderRadius: 4,
-      }}
-    />
-  ),
-};
-
-// Singleton para o banco de dados
-let dbInstance: SQLite.SQLiteDatabase | null = null;
-let dbInitPromise: Promise<SQLite.SQLiteDatabase | null> | null = null;
-
 export default function ExploreExercisesPage() {
   const router = useRouter();
+  const db = useSQLiteContext();
+
   const [search, setSearch] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,45 +48,8 @@ export default function ExploreExercisesPage() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
 
-  const loadDatabase = useCallback(async () => {
-    if (dbInstance) return dbInstance;
-    if (dbInitPromise) return dbInitPromise;
-
-    dbInitPromise = (async () => {
-      try {
-        const dbName = "inicializedatabase.sqlite";
-        // Ajuste no require do banco se necessário
-        const dbFile = require("../../../src/inicializedatabase.sqlite");
-        const dbUri = Asset.fromModule(dbFile).uri;
-        const fs: any = FileSystem;
-        const dbInternalPath = `${fs.documentDirectory}SQLite/${dbName}`;
-
-        const sqliteDir = `${fs.documentDirectory}SQLite`;
-        const dirInfo = await FileSystem.getInfoAsync(sqliteDir);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(sqliteDir);
-        }
-
-        const fileInfo = await FileSystem.getInfoAsync(dbInternalPath);
-        if (!fileInfo.exists) {
-          await FileSystem.downloadAsync(dbUri, dbInternalPath);
-        }
-
-        dbInstance = await SQLite.openDatabaseAsync(dbName);
-        return dbInstance;
-      } catch (e) {
-        console.error("Erro ao carregar BD Explore:", e);
-        dbInitPromise = null;
-        return null;
-      }
-    })();
-
-    return dbInitPromise;
-  }, []);
-
+  // 1. Carregar as opções de filtro
   const fetchFilterOptions = useCallback(async () => {
-    const db = await loadDatabase();
-    if (!db) return;
     try {
       const muscles = await db.getAllAsync<{ muscle_group: string }>(
         "SELECT DISTINCT muscle_group FROM exercises WHERE muscle_group IS NOT NULL ORDER BY muscle_group ASC",
@@ -125,18 +61,17 @@ export default function ExploreExercisesPage() {
       );
       setEquipmentOptions(equipment.map((e) => e.equipment));
     } catch (e) {
-      console.error("Erro ao buscar filtros Explore:", e);
+      console.error("Erro ao carregar filtros:", e);
     }
-  }, [loadDatabase]);
+  }, [db]);
 
+  // 2. Carregar os exercícios filtrados
   const fetchExercises = useCallback(async () => {
+    setLoading(true);
     try {
-      const db = await loadDatabase();
-      if (!db) return;
-
       let query =
         "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
-      let params: any[] = [];
+      const params: any[] = [];
 
       if (search.trim()) {
         query += " AND name LIKE ?";
@@ -154,182 +89,169 @@ export default function ExploreExercisesPage() {
       query += " ORDER BY name ASC";
       const allRows = await db.getAllAsync<Exercise>(query, params);
       setExercises(allRows);
-      setLoading(false);
     } catch (error) {
-      console.error("Erro na Query Explore:", error);
+      console.error("Erro ao carregar exercícios:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [search, selectedMuscle, selectedEquipment, loadDatabase]);
+  }, [db, search, selectedMuscle, selectedEquipment]);
 
   useEffect(() => {
     fetchFilterOptions();
-    fetchExercises();
-  }, [fetchFilterOptions, fetchExercises]);
+  }, [fetchFilterOptions]);
 
-  const openFilterModal = (type: "muscle" | "equipment") => {
-    setModalType(type);
-    setIsModalVisible(true);
-  };
+  useEffect(() => {
+    fetchExercises();
+  }, [fetchExercises]);
 
   const selectFilterOption = (option: string | null) => {
-    modalType === "muscle"
-      ? setSelectedMuscle(option)
-      : setSelectedEquipment(option);
+    if (modalType === "muscle") setSelectedMuscle(option);
+    else setSelectedEquipment(option);
     setIsModalVisible(false);
   };
 
   const renderExerciseItem = ({ item }: { item: Exercise }) => {
-    const imageSource = item.image ? IMAGE_MAP[item.image] : null;
-
     return (
       <TouchableOpacity
         activeOpacity={0.7}
         className="flex-row items-center py-4 border-b border-zinc-800/50"
         onPress={() => router.push(`/exercises/${item.id}`)}
       >
-        <View className="w-14 h-14 rounded-full bg-zinc-800 items-center justify-center mr-4 overflow-hidden border border-zinc-700">
-          {imageSource ? (
+        {/* ESPAÇO DA IMAGEM */}
+        <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
+          {item.image ? (
             <Image
-              source={imageSource}
+              source={{ uri: item.image }}
               className="w-full h-full"
-              resizeMode="cover"
+              contentFit="cover"
+              transition={200}
             />
           ) : (
-            <Text className="text-zinc-500 text-[10px] font-bold">IMG</Text>
+            // Se o exercício não tiver imagem na base de dados, mostra o ícone reserva
+            <Target size={26} color="#E31C25" />
           )}
         </View>
 
         <View className="flex-1">
-          <Text className="text-white text-[16px] font-medium leading-tight">
+          <Text className="text-white text-[16px] font-bold uppercase italic">
             {item.name}
           </Text>
-          <Text className="text-gray-400 text-sm mt-1">
+          <Text className="text-zinc-500 text-xs mt-1 uppercase font-medium">
             {item.muscle_group} • {item.equipment}
           </Text>
         </View>
 
-        <ChevronRight color="#52525b" size={20} />
+        <ChevronRight color="#3f3f46" size={20} />
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#121417]">
+    <SafeAreaView className="flex-1 bg-[#000]">
       <StatusBar barStyle="light-content" />
-      <View className="flex-1 px-6 pt-4">
-        {/* Header - Voltar para o Workout */}
-        <View className="flex-row items-center justify-between mb-6">
-          <TouchableOpacity
-            onPress={() => router.push("/(tabs)/workout")}
-            className="p-2 -ml-2"
-          >
-            <ArrowLeft color="white" size={24} />
+      <View className="flex-1 px-5 pt-4">
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-5 py-4 border-b border-zinc-900">
+          <TouchableOpacity onPress={() => router.replace("/workout")}>
+            <ChevronLeft size={28} color="#E31C25" />
           </TouchableOpacity>
-          <Text className="text-white text-xl font-semibold">Explore</Text>
+          <Text className="text-white text-2xl font-black uppercase italic">
+            Explore
+          </Text>
           <View className="w-10" />
         </View>
 
         {/* Search Bar */}
-        <View className="flex-row items-center bg-[#2D2F33] rounded-xl px-4 h-12 mb-4">
-          <Search color="#9ca3af" size={20} className="mr-3" />
+        <View className="flex-row items-center bg-zinc-900/50 rounded-2xl px-4 h-14 mb-4 border border-zinc-800">
+          <Search color="#52525b" size={20} className="mr-3" />
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search all exercises"
-            placeholderTextColor="#9ca3af"
-            className="flex-1 text-white text-base"
+            placeholder="Search exercises..."
+            placeholderTextColor="#52525b"
+            className="flex-1 text-white text-base font-bold italic"
             selectionColor="#E31C25"
           />
         </View>
 
-        {/* Filtros */}
-        <View className="flex-row justify-between mb-8 gap-x-4">
+        {/* Filters */}
+        <View className="flex-row justify-between mb-8 gap-x-3">
           <TouchableOpacity
-            onPress={() => openFilterModal("equipment")}
-            className={`flex-1 flex-row items-center justify-center rounded-full py-3 px-4 ${selectedEquipment ? "bg-[#E31C25]" : "bg-[#2D2F33]"}`}
+            onPress={() => {
+              setModalType("equipment");
+              setIsModalVisible(true);
+            }}
+            className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedEquipment ? "bg-[#E31C25]" : "bg-zinc-900"}`}
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[13px] font-medium mr-2"
+              className="text-white text-[10px] font-black uppercase italic mr-2"
             >
               {selectedEquipment || "Equipment"}
             </Text>
-            <ChevronDown
-              color={selectedEquipment ? "white" : "#9ca3af"}
-              size={18}
-            />
+            <ChevronDown color="white" size={14} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => openFilterModal("muscle")}
-            className={`flex-1 flex-row items-center justify-center rounded-full py-3 px-4 ${selectedMuscle ? "bg-[#E31C25]" : "bg-[#2D2F33]"}`}
+            onPress={() => {
+              setModalType("muscle");
+              setIsModalVisible(true);
+            }}
+            className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedMuscle ? "bg-[#E31C25]" : "bg-zinc-900"}`}
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[13px] font-medium mr-2"
+              className="text-white text-[10px] font-black uppercase italic mr-2"
             >
               {selectedMuscle || "Muscles"}
             </Text>
-            <ChevronDown
-              color={selectedMuscle ? "white" : "#9ca3af"}
-              size={18}
-            />
+            <ChevronDown color="white" size={14} />
           </TouchableOpacity>
         </View>
 
         {loading ? (
-          <View className="flex-1 justify-center items-center">
-            <ActivityIndicator color="#E31C25" />
-          </View>
+          <ActivityIndicator color="#E31C25" size="large" className="mt-20" />
         ) : (
           <FlatList
             data={exercises}
             renderItem={renderExerciseItem}
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 30 }}
             ListEmptyComponent={
-              <View className="flex-1 justify-center items-center mt-20">
-                <Text className="text-zinc-500">No exercises found.</Text>
-              </View>
+              <Text className="text-zinc-600 text-center mt-20 uppercase font-bold italic">
+                No exercises found
+              </Text>
             }
           />
         )}
       </View>
 
-      {/* Modal de Filtros (Bottom Sheet) */}
+      {/* Modal de Filtros */}
       <Modal visible={isModalVisible} transparent animationType="slide">
         <TouchableWithoutFeedback onPress={() => setIsModalVisible(false)}>
-          <View className="flex-1 bg-black/60 justify-end">
+          <View className="flex-1 bg-black/80 justify-end">
             <TouchableWithoutFeedback>
-              <View className="bg-[#1C1C1E] rounded-t-3xl min-h-[50%] p-6 border-t border-zinc-800">
-                <View className="flex-row items-center justify-between mb-8">
-                  <Text className="text-white text-xl font-bold">
-                    {modalType === "muscle" ? "Muscles" : "Equipment"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setIsModalVisible(false)}
-                    className="bg-zinc-800 p-1.5 rounded-full"
-                  >
-                    <X color="#9ca3af" size={20} />
-                  </TouchableOpacity>
-                </View>
+              <View className="bg-[#121212] rounded-t-[40px] min-h-[50%] p-8 border-t border-zinc-800">
+                <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
+                <Text className="text-white text-xl font-black uppercase italic mb-6">
+                  {modalType === "muscle" ? "Muscles" : "Equipment"}
+                </Text>
+
                 <ScrollView showsVerticalScrollIndicator={false}>
                   <TouchableOpacity
                     onPress={() => selectFilterOption(null)}
-                    className="flex-row items-center py-4 border-b border-zinc-800/60"
+                    className="flex-row items-center py-4 border-b border-zinc-900"
                   >
-                    <View className="w-12 h-12 rounded-full bg-zinc-800 items-center justify-center mr-4 border border-zinc-700">
-                      <View className="w-6 h-6 border-2 border-white/50 rounded-sm" />
-                    </View>
-                    <Text className="text-white text-lg flex-1 font-medium">
-                      All {modalType === "muscle" ? "Muscles" : "Equipment"}
+                    <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                      All
                     </Text>
                     {(modalType === "muscle"
-                      ? selectedMuscle
-                      : selectedEquipment) === null && (
-                      <Check color="#E31C25" size={22} />
+                      ? !selectedMuscle
+                      : !selectedEquipment) && (
+                      <Check color="#E31C25" size={24} />
                     )}
                   </TouchableOpacity>
+
                   {(modalType === "muscle"
                     ? muscleOptions
                     : equipmentOptions
@@ -337,24 +259,15 @@ export default function ExploreExercisesPage() {
                     <TouchableOpacity
                       key={opt}
                       onPress={() => selectFilterOption(opt)}
-                      className="flex-row items-center py-4 border-b border-zinc-800/60"
+                      className="flex-row items-center py-4 border-b border-zinc-900"
                     >
-                      <View className="w-12 h-12 rounded-full bg-black items-center justify-center mr-4 overflow-hidden border border-zinc-700">
-                        {modalType === "equipment" && EQUIPMENT_ICONS[opt] ? (
-                          EQUIPMENT_ICONS[opt]
-                        ) : modalType === "muscle" ? (
-                          <Target size={24} color="white" />
-                        ) : (
-                          <Dumbbell size={24} color="white" />
-                        )}
-                      </View>
-                      <Text className="text-white text-lg flex-1 font-medium">
+                      <Text className="text-white text-lg flex-1 font-bold italic uppercase">
                         {opt}
                       </Text>
                       {(modalType === "muscle"
                         ? selectedMuscle
                         : selectedEquipment) === opt && (
-                        <Check color="#E31C25" size={22} />
+                        <Check color="#E31C25" size={24} />
                       )}
                     </TouchableOpacity>
                   ))}
