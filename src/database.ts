@@ -88,27 +88,29 @@ export const updateEmail = async (
 
 export const updatePassword = async (
   db: SQLiteDatabase,
-  email: string, // Usamos o email como identificador único do user logado
+  email: string,
   currentPass: string,
   newPass: string,
 ) => {
-  // 1. Validar se a nova é igual à atual
   if (currentPass === newPass) {
     return { success: false, message: "New password must be different" };
   }
 
   try {
-    // 2. Tentar o update apenas se o email e a password atual coincidirem
     const result = await db.runAsync(
       "UPDATE users SET pass = ? WHERE email = ? AND pass = ?",
       [newPass, email, currentPass],
     );
 
     if (result.changes > 0) {
-      logDB("UPDATE (Password)", [""], true);
+      logDB("UPDATE (Password)", [email], true);
       return { success: true };
     } else {
-      logDB("UPDATE (Password)", [""], false);
+      // Se chegou aqui, ou o email não existe ou a pass atual está errada
+      console.log(
+        `⚠️ Falha no Update: Email ${email} não encontrado ou senha incorreta.`,
+      );
+      logDB("UPDATE (Password)", [email], false);
       return { success: false, message: "Current password is incorrect" };
     }
   } catch (e) {

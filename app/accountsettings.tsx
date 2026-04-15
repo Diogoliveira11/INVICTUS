@@ -53,6 +53,7 @@ export default function AccountSettingsScreen() {
   // Captura parâmetros da rota (ex: se passaste o email no login)
   const params = useLocalSearchParams();
   const userEmail = params.email as string;
+  console.log("📧 Email recebido nas configurações:", userEmail); // ADICIONE ESTE LOG
 
   // Estados dos Modais
   const [isUserModalVisible, setIsUserModalVisible] = useState(false);
@@ -126,6 +127,7 @@ export default function AccountSettingsScreen() {
   };
 
   const handleUpdatePass = async () => {
+    console.log("DEBUG: Tentando atualizar para o email:", userEmail);
     if (!password || !newVal) {
       setErrorMessage("Please fill in all fields.");
       return;

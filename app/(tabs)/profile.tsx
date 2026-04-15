@@ -1,14 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
-import { useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
+import { useLocalSearchParams, useRouter } from "expo-router"; // Adicionado useLocalSearchParams
+import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { ChevronDown, Pencil, Settings } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Dados para o gráfico (podes depois calcular isto dinamicamente do DB)
+// Dados para o gráfico
 const chartData = [
   { day: "Jan 25", value: 1.5 },
   { day: "", value: 0 },
@@ -23,15 +23,28 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
-  const db = useSQLiteContext(); // 2. Obter a instância central da BD
+  const db = useSQLiteContext();
+
+  // 1. Mover os params para DENTRO do componente
+  const params = useLocalSearchParams();
+  const [userEmail, setUserEmail] = useState<string>(params.email as string);
 
   const [activeFilter, setActiveFilter] = useState("Duration");
   const [history, setHistory] = useState<any[]>([]);
 
-  // CARREGAR DADOS REAIS DO SQLITE - Sem openDatabaseAsync
+  // Tenta recuperar o email do AsyncStorage se o params falhar
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!userEmail) {
+        const storedEmail = await AsyncStorage.getItem("userEmail");
+        if (storedEmail) setUserEmail(storedEmail);
+      }
+    };
+    checkEmail();
+  }, [userEmail]);
+
   const loadProfileData = useCallback(async () => {
     try {
-      // 3. Usa o db do contexto diretamente
       const result = await db.getAllAsync<any>(
         "SELECT * FROM workouts ORDER BY id DESC",
       );
@@ -45,7 +58,6 @@ export default function ProfileScreen() {
     if (isFocused) loadProfileData();
   }, [isFocused, loadProfileData]);
 
-  // Substitui a função do botão Log out:
   const handleLogout = async () => {
     await AsyncStorage.removeItem("userEmail");
     router.replace("/auth/login");
@@ -163,8 +175,12 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => router.push("/settings")}
-                className="bg-zinc-800 w-12 h-12 rounded-full items-center justify-center"
+                onPress={() =>
+                  router.push({
+                    pathname: "/settings",
+                    params: { email: userEmail },
+                  })
+                }
               >
                 <Settings size={20} color="#FFFFFF" />
               </TouchableOpacity>
@@ -205,11 +221,11 @@ export default function ProfileScreen() {
             </View>
 
             <View className="mt-4">
-              <Text className="text-white text-2xl font-black leading-7 italic uppercase">
-                Diogo
+              <Text className="text-white text-2xl font-black italic uppercase">
+                DIOGO
               </Text>
-              <Text className="text-zinc-400 text-xl font-black leading-6 italic uppercase">
-                Oliveira
+              <Text className="text-zinc-400 text-xl font-black italic uppercase">
+                OLIVEIRA
               </Text>
             </View>
           </View>

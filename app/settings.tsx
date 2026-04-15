@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router"; // Adicionado useLocalSearchParams
 import { StatusBar } from "expo-status-bar";
 import {
   ArrowLeft,
@@ -13,28 +13,23 @@ import {
   Ruler,
   Share,
   Star,
-  User
+  User,
 } from "lucide-react-native";
 import React from "react";
-import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Componente para cada linha de configuração
-const SettingItem = ({ 
-  icon: Icon, 
-  label, 
-  onPress 
-}: { 
-  icon: any, 
-  label: string, 
-  onPress?: () => void 
+const SettingItem = ({
+  icon: Icon,
+  label,
+  onPress,
+}: {
+  icon: any;
+  label: string;
+  onPress?: () => void;
 }) => (
-  <TouchableOpacity 
+  <TouchableOpacity
     onPress={onPress}
     className="flex-row items-center justify-between py-4 border-b border-zinc-900/50"
   >
@@ -59,12 +54,16 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  // Captura o email que veio da tela anterior (ex: Profile ou Home)
+  const params = useLocalSearchParams();
+  const userEmail = params.email as string;
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar style="light" />
 
       {/* HEADER */}
-      <View 
+      <View
         style={{ paddingTop: insets.top + 10 }}
         className="flex-row items-center px-5 pb-4 border-b border-zinc-900"
       >
@@ -77,19 +76,29 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        
         {/* ACCOUNT SECTION */}
         <SectionTitle title="Account" />
         <View className="px-5">
-          <SettingItem icon={User} label="Account" 
-          onPress={() => router.push("/accountsettings")}/>
+          <SettingItem
+            icon={User}
+            label="Account"
+            onPress={() =>
+              router.push({
+                pathname: "/accountsettings",
+                params: { email: userEmail }, // Passa o email para a próxima tela
+              })
+            }
+          />
         </View>
 
         {/* PREFERENCES SECTION */}
         <SectionTitle title="Preferences" />
         <View className="px-5">
-          <SettingItem icon={Dumbbell} label="Workouts" 
-           onPress={() => router.push("/workoutsettings")}/>
+          <SettingItem
+            icon={Dumbbell}
+            label="Workouts"
+            onPress={() => router.push("/workoutsettings")}
+          />
 
           <SettingItem icon={Ruler} label="Units" />
           <SettingItem icon={Globe} label="Language" />
@@ -113,15 +122,16 @@ export default function SettingsScreen() {
         </View>
 
         {/* LOGOUT BUTTON */}
-        <TouchableOpacity 
+        <TouchableOpacity
           className="mt-10 mb-10 items-center justify-center py-4"
-          onPress={() => console.log("Logout triggered")}
+          onPress={() => {
+            console.log("Logout triggered");
+            // Aqui você voltaria para o login, por exemplo:
+            // router.replace("/auth/login");
+          }}
         >
-          <Text className="text-[#E31C25] font-bold text-xl">
-            Logout
-          </Text>
+          <Text className="text-[#E31C25] font-bold text-xl">Logout</Text>
         </TouchableOpacity>
-
       </ScrollView>
     </View>
   );
