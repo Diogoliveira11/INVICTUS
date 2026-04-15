@@ -102,29 +102,30 @@ export default function WeightSelection() {
 
   const handleNext = async () => {
     try {
-      // 1. Recuperar o email do Storage
       const userEmail = await AsyncStorage.getItem("userEmail");
 
       if (!userEmail) {
-        console.error(
-          "❌ [Onboarding] Erro: userEmail não encontrado no Weight!",
-        );
-        Alert.alert("Error", "User session lost. Please sign up again.");
+        Alert.alert("Error", "User session lost.");
         router.replace("/auth/signup");
         return;
       }
 
-      // 2. Normalizar o peso para salvar sempre em KG (opcional, dependendo da tua lógica)
-      const weightToSave =
-        unit === "KG" ? weight : Math.round(weight / 2.20462);
+      // --- AQUI ESTÁ A CORREÇÃO ---
+      // Em vez de converter, guardamos o valor que está no estado 'weight'
+      // que já é o valor correto baseado na unidade selecionada.
+      const weightToSave = weight;
 
-      // 3. Atualizar na SQLite
+      console.log(`Peso a guardar: ${weightToSave} ${unit}`);
+
+      // Atualiza na SQLite com o valor real (70 se for KG, 154 se for LB)
       await updateUserWeight(db, userEmail, weightToSave);
 
-      // 4. Próximo ecrã
-      router.push("/height");
+      // IMPORTANTE: Guarda também a unidade no Storage para saberes ler depois
+      await AsyncStorage.setItem("userUnit", unit);
+
+      router.replace("/height");
     } catch (e) {
-      console.error("❌ [Onboarding] Erro ao guardar weight:", e);
+      console.error("❌ Erro ao guardar weight:", e);
       Alert.alert("Error", "Could not save weight.");
     }
   };
@@ -217,7 +218,7 @@ export default function WeightSelection() {
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
-            onPress={() => router.back()}
+            onPress={() => router.push("/birthday")}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>

@@ -30,14 +30,31 @@ export default function LoginScreen() {
       setError("Please fill in all fields.");
       return;
     }
-    const user = (await login(db, email, password)) as any;
-    if (user) {
-      setError("");
-      if (rememberMe) await AsyncStorage.setItem("userEmail", email);
-      await AsyncStorage.setItem("hasOnboarded", "true");
-      router.replace("/(tabs)/home");
-    } else {
-      setError("Invalid email or password.");
+
+    try {
+      // 1. Verificar se este email já é o que está guardado no dispositivo
+      const storedEmail = await AsyncStorage.getItem("userEmail");
+
+      if (storedEmail === email.toLowerCase().trim()) {
+        setError("You are already logged into this account.");
+        // Opcional: router.replace("/(tabs)/home"); se quiseres apenas mandá-lo para dentro
+        return;
+      }
+
+      const user = (await login(db, email, password)) as any;
+
+      if (user) {
+        setError("");
+        // Guardamos sempre o email para futuras verificações ou "Remember me"
+        await AsyncStorage.setItem("userEmail", email.toLowerCase().trim());
+        await AsyncStorage.setItem("hasOnboarded", "true");
+        await AsyncStorage.setItem("profileComplete", "true");
+        router.replace("/(tabs)/home");
+      } else {
+        setError("Invalid email or password.");
+      }
+    } catch (e) {
+      setError("An error occurred during login.");
     }
   };
 

@@ -78,6 +78,17 @@ export default function RootLayout() {
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
           >
             <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="gender" options={{ gestureEnabled: false }} />
+              <Stack.Screen
+                name="birthday"
+                options={{ gestureEnabled: false }}
+              />
+              <Stack.Screen name="weight" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="height" options={{ gestureEnabled: false }} />
+              <Stack.Screen
+                name="workoutschedule"
+                options={{ gestureEnabled: false }}
+              />
               <Stack.Screen name="index" />
               <Stack.Screen name="onboarding" />
               <Stack.Screen name="auth/signup" />

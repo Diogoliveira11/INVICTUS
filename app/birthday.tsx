@@ -78,7 +78,7 @@ export default function BirthdaySelection() {
       await updateUserBirthday(db, userEmail, birthday);
 
       // 4. Navegar para o próximo passo
-      router.push("/weight");
+      router.replace("/weight");
     } catch (e) {
       console.error("❌ [Onboarding] Erro ao guardar birthday:", e);
       Alert.alert("Error", "Could not save your birthday.");
@@ -272,7 +272,7 @@ export default function BirthdaySelection() {
               justifyContent: "center",
               alignItems: "center",
             }}
-            onPress={() => router.back()}
+            onPress={() => router.push("/gender")}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>

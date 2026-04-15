@@ -12,7 +12,6 @@ import {
   View,
 } from "react-native";
 
-// ADICIONE 'printDatabaseStats' AQUI NAS IMPORTS:
 import {
   getUserByEmail,
   printDatabaseStats,
@@ -66,6 +65,7 @@ export default function WorkOutSchedule() {
       await printDatabaseStats(db);
 
       await AsyncStorage.setItem("hasOnboarded", "true");
+      await AsyncStorage.setItem("profileComplete", "true");
       router.replace("/(tabs)/home");
     } catch (e: any) {
       console.error("❌ [Schedule] Erro:", e.message);
@@ -117,7 +117,7 @@ export default function WorkOutSchedule() {
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
-            onPress={() => router.back()}
+            onPress={() => router.push("/height")}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>

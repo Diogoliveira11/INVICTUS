@@ -1,9 +1,9 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
+import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { ChevronLeft, Clock, Dumbbell } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
-
 import {
   Image,
   Modal,
@@ -34,7 +34,7 @@ interface WorkoutExercise {
 export default function ProgressResult() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const db = useSQLiteContext(); // 2. Usar a instância única da BD
+  const db = useSQLiteContext();
   const { height: screenHeight } = useWindowDimensions();
 
   const [workoutsCount, setWorkoutsCount] = useState(0);
@@ -50,6 +50,23 @@ export default function ProgressResult() {
     [],
   );
 
+  // 1. GUARDIÃO DE PERFIL (Proteção extra)
+  useFocusEffect(
+    useCallback(() => {
+      const checkProfile = async () => {
+        const complete = await AsyncStorage.getItem("profileComplete");
+        const email = await AsyncStorage.getItem("userEmail");
+
+        if (!email) {
+          router.replace("/auth/login");
+        } else if (complete !== "true") {
+          router.replace("/gender");
+        }
+      };
+      checkProfile();
+    }, []),
+  );
+
   const durationToSeconds = (duration: string) => {
     if (!duration || typeof duration !== "string") return 0;
     const parts = duration.split(":").map(Number);
@@ -58,7 +75,7 @@ export default function ProgressResult() {
     return 0;
   };
 
-  // 3. CARREGAR ESTATÍSTICAS - Sem openDatabaseAsync
+  // 2. CARREGAR ESTATÍSTICAS
   const loadStats = useCallback(async () => {
     try {
       const now = new Date();
@@ -70,7 +87,6 @@ export default function ProgressResult() {
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
-      // Consultas otimizadas usando o contexto global
       const workoutRes = await db.getFirstAsync<{ count: number }>(
         "SELECT COUNT(*) as count FROM workouts WHERE date >= ?",
         [firstDayISO],
@@ -100,7 +116,6 @@ export default function ProgressResult() {
     }
   }, [db]);
 
-  // 4. DETALHES DO TREINO - Sem openDatabaseAsync
   const loadWorkoutDetails = async (workout: Workout) => {
     try {
       const details = await db.getAllAsync<WorkoutExercise>(
@@ -118,12 +133,8 @@ export default function ProgressResult() {
 
       setSelectedWorkout(workout);
       setWorkoutExercises(details || []);
-
-      // Fechar histórico e abrir detalhes com delay para animação fluida
       setIsHistoryVisible(false);
-      setTimeout(() => {
-        setIsDetailsVisible(true);
-      }, 300);
+      setTimeout(() => setIsDetailsVisible(true), 300);
     } catch (e) {
       console.error("Erro ao carregar detalhes:", e);
     }
@@ -138,7 +149,6 @@ export default function ProgressResult() {
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar style="light" />
-
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
@@ -174,11 +184,11 @@ export default function ProgressResult() {
           </View>
         </View>
 
-        <View className="flex-row justify-between px-5">
+        <View className="flex-row justify-between px-5 mt-4">
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setIsHistoryVisible(true)}
-            className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900 shadow-sm"
+            className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900"
           >
             <Text className="text-zinc-500 text-[10px] font-black mb-4 uppercase tracking-widest">
               Workouts
@@ -207,7 +217,7 @@ export default function ProgressResult() {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900 shadow-sm"
+            className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900"
           >
             <Text className="text-zinc-500 text-[10px] font-black mb-4 uppercase tracking-widest">
               Total Volume
@@ -233,7 +243,7 @@ export default function ProgressResult() {
       <Modal
         visible={isHistoryVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setIsHistoryVisible(false)}
       >
         <View
@@ -264,38 +274,27 @@ export default function ProgressResult() {
                 Workout History
               </Text>
             </View>
-
             <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
               {weeklyHistory.map((workout) => (
                 <TouchableOpacity
                   key={workout.id}
                   onPress={() => loadWorkoutDetails(workout)}
-                  activeOpacity={0.8}
                   className="bg-[#121212] p-6 rounded-[35px] mb-4 border border-zinc-900"
                 >
-                  <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-[#E31C25] text-[10px] font-black uppercase">
-                      {new Date(workout.date).toDateString() ===
-                      new Date().toDateString()
-                        ? "HOJE"
-                        : "ESTA SEMANA"}
-                    </Text>
-                    <View className="bg-[#E31C25]/10 px-3 py-1 rounded-full border border-[#E31C25]/20">
-                      <Text className="text-[#E31C25] text-[10px] font-black italic">
-                        {Math.floor(workout.total_volume / 15 + 150)} KCAL
-                      </Text>
-                    </View>
-                  </View>
+                  <Text className="text-[#E31C25] text-[10px] font-black uppercase mb-2">
+                    {new Date(workout.date).toDateString() ===
+                    new Date().toDateString()
+                      ? "HOJE"
+                      : "ESTA SEMANA"}
+                  </Text>
                   <Text className="text-white text-xl font-black italic uppercase mb-4">
                     {workout.name || "Treino Invictus"}
                   </Text>
-                  <View className="flex-row items-center gap-6">
-                    <View className="flex-row items-center">
-                      <Clock size={14} color="#52525b" />
-                      <Text className="text-zinc-400 text-xs font-black ml-2 italic">
-                        {workout.duration}
-                      </Text>
-                    </View>
+                  <View className="flex-row items-center">
+                    <Clock size={14} color="#52525b" />
+                    <Text className="text-zinc-400 text-xs font-black ml-2 italic">
+                      {workout.duration}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -308,7 +307,7 @@ export default function ProgressResult() {
       <Modal
         visible={isDetailsVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setIsDetailsVisible(false)}
       >
         <View
@@ -335,44 +334,32 @@ export default function ProgressResult() {
               >
                 <ChevronLeft size={20} color="white" />
               </TouchableOpacity>
-              <View className="items-center">
-                <Text className="text-white text-lg font-black italic uppercase">
-                  {selectedWorkout?.name || "Detalhes"}
-                </Text>
-                <Text className="text-[#E31C25] text-[10px] font-black uppercase">
-                  Exercise Summary
-                </Text>
-              </View>
-              <View className="w-10" />
+              <Text className="text-white text-lg font-black italic uppercase">
+                {selectedWorkout?.name || "Detalhes"}
+              </Text>
+              <View style={{ width: 40 }} />
             </View>
-
             <ScrollView className="px-8" showsVerticalScrollIndicator={false}>
-              {workoutExercises.length === 0 ? (
-                <Text className="text-zinc-700 text-center py-20 font-black italic uppercase">
-                  No exercises found
-                </Text>
-              ) : (
-                workoutExercises.map((ex, index) => (
-                  <View
-                    key={index}
-                    className="flex-row items-center justify-between py-6 border-b border-zinc-900/40"
-                  >
-                    <View className="flex-1">
-                      <Text className="text-white text-base font-black italic uppercase">
-                        {ex.exercise_name}
-                      </Text>
-                      <Text className="text-zinc-500 text-[10px] font-bold uppercase mt-1">
-                        {ex.total_sets} Sets • Max {ex.max_reps} Reps
-                      </Text>
-                    </View>
-                    <View className="bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800">
-                      <Text className="text-[#E31C25] font-black italic">
-                        {ex.max_weight} kg
-                      </Text>
-                    </View>
+              {workoutExercises.map((ex, index) => (
+                <View
+                  key={index}
+                  className="flex-row items-center justify-between py-6 border-b border-zinc-900/40"
+                >
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-black italic uppercase">
+                      {ex.exercise_name}
+                    </Text>
+                    <Text className="text-zinc-500 text-[10px] font-bold uppercase mt-1">
+                      {ex.total_sets} Sets • Max {ex.max_reps} Reps
+                    </Text>
                   </View>
-                ))
-              )}
+                  <View className="bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800">
+                    <Text className="text-[#E31C25] font-black italic">
+                      {ex.max_weight} kg
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </ScrollView>
           </View>
         </View>

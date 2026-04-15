@@ -1,13 +1,119 @@
 import { SQLiteDatabase } from "expo-sqlite";
 
-// Função para exibir logs no terminal do VS Code
 const logDB = (operation: string, params: any[], success: boolean) => {
   if (success) {
-    console.log(
-      `✅ [DB SUCCESS] ${operation} | Params: ${JSON.stringify(params)}`,
-    );
+    // USE CRASE ` EM VEZ DE '
+    console.log(`✅ [DB SUCCESS] ${operation}`);
   } else {
-    console.error(`❌ [DB ERROR] ${operation} falhou!`);
+    console.log(`⚠️ [DB INFO] ${operation} - Nenhuma alteração.`);
+  }
+};
+
+// --- FUNÇÕES PARA ACCOUNT SETTINGS ---
+// --- FUNÇÃO PARA ALTERAR USERNAME ---
+
+export const updateUsername = async (
+  db: SQLiteDatabase,
+  currentUsername: string,
+  pass: string,
+  newUsername: string,
+) => {
+  if (currentUsername.toLowerCase() === newUsername.toLowerCase()) {
+    return { success: false, message: "You must insert a different username" };
+  }
+
+  const params = [newUsername, currentUsername, pass];
+  try {
+    const result = await db.runAsync(
+      "UPDATE users SET username = ? WHERE username = ? AND pass = ?",
+      params,
+    );
+
+    if (result.changes > 0) {
+      logDB("UPDATE (Username)", params, true);
+      return { success: true };
+    } else {
+      logDB("UPDATE (Username)", params, false);
+      return { success: false, message: "Username or password are incorrect" };
+    }
+  } catch (e) {
+    console.log("❌ Erro SQL:", e);
+    return { success: false, message: "This username is already taken." };
+  }
+};
+// --- FUNÇÃO PARA ALTERAR EMAIL ---
+
+export const updateEmail = async (
+  db: SQLiteDatabase,
+  currentEmail: string,
+  pass: string,
+  newEmail: string,
+) => {
+  // 1. Validar se o novo é igual ao antigo introduzido no formulário
+  if (currentEmail.toLowerCase() === newEmail.toLowerCase()) {
+    return { success: false, message: "You must insert a different email" };
+  }
+
+  try {
+    // 2. VERIFICAÇÃO CRÍTICA: O novo email já existe na BD?
+    const emailExists = await db.getFirstAsync(
+      "SELECT id FROM users WHERE email = ? AND email != ?",
+      [newEmail.toLowerCase(), currentEmail.toLowerCase()],
+    );
+
+    if (emailExists) {
+      return { success: false, message: "This email is already registered" };
+    }
+
+    // 3. Tentar o update validando email atual e password
+    const result = await db.runAsync(
+      "UPDATE users SET email = ? WHERE email = ? AND pass = ?",
+      [newEmail.toLowerCase(), currentEmail.toLowerCase(), pass],
+    );
+
+    if (result.changes > 0) {
+      logDB("UPDATE (Email)", [newEmail], true);
+      return { success: true };
+    } else {
+      logDB("UPDATE (Email)", [currentEmail], false);
+      return { success: false, message: "Current email or password incorrect" };
+    }
+  } catch (e) {
+    console.log("❌ Erro SQL:", e);
+    return { success: false, message: "A database error occurred." };
+  }
+};
+
+// --- FUNÇÃO PARA ALTERAR PASSWORD ---
+
+export const updatePassword = async (
+  db: SQLiteDatabase,
+  email: string, // Usamos o email como identificador único do user logado
+  currentPass: string,
+  newPass: string,
+) => {
+  // 1. Validar se a nova é igual à atual
+  if (currentPass === newPass) {
+    return { success: false, message: "New password must be different" };
+  }
+
+  try {
+    // 2. Tentar o update apenas se o email e a password atual coincidirem
+    const result = await db.runAsync(
+      "UPDATE users SET pass = ? WHERE email = ? AND pass = ?",
+      [newPass, email, currentPass],
+    );
+
+    if (result.changes > 0) {
+      logDB("UPDATE (Password)", [""], true);
+      return { success: true };
+    } else {
+      logDB("UPDATE (Password)", [""], false);
+      return { success: false, message: "Current password is incorrect" };
+    }
+  } catch (e) {
+    console.log("❌ Erro SQL Password:", e);
+    return { success: false, message: "A database error occurred." };
   }
 };
 

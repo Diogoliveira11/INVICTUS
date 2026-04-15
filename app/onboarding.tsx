@@ -41,7 +41,7 @@ export default function OnboardingScreen() {
     if (index < slides.length - 1) {
       setIndex(index + 1);
     } else {
-      router.push("/auth/signup");
+      router.replace("/auth/signup");
     }
   };
 

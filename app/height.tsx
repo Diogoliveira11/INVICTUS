@@ -65,27 +65,36 @@ export default function HeightSelection() {
 
   const handleNext = async () => {
     try {
-      // 1. Recuperar o email do utilizador
       const userEmail = await AsyncStorage.getItem("userEmail");
 
       if (!userEmail) {
-        console.error(
-          "❌ [Onboarding] Erve: userEmail não encontrado no Height!",
-        );
         Alert.alert("Error", "User session lost. Please sign up again.");
         router.replace("/auth/signup");
         return;
       }
 
-      // 2. Formatar o valor da altura
-      const heightValue =
-        unit === "CM" ? `${cmValue} cm` : `${ftValue}'${inValue}''`;
+      // 1. Determinar o valor a guardar baseado na unidade
+      // Se for CM, guardamos o número (ex: 175)
+      // Se for FT, guardamos como "5.7" ou algo similar que a tua lógica de leitura entenda
+      let heightToSave: string;
+      if (unit === "CM") {
+        heightToSave = cmValue;
+      } else {
+        // Guardamos no formato "Pés.Polegadas" (ex: 5.11)
+        // ou podes converter para polegadas totais se preferires
+        heightToSave = `${ftValue}.${inValue}`;
+      }
 
-      // 3. Atualizar na SQLite (Verás o log no terminal)
-      await updateUserHeight(db, userEmail, heightValue);
+      console.log(`Altura a guardar: ${heightToSave} ${unit}`);
 
-      // 4. Próxima etapa
-      router.push("/workoutschedule");
+      // 2. Atualizar na SQLite (Valor numérico ou string representativa)
+      // Nota: Certifica-te que o teu database.ts aceita o tipo de dado enviado
+      await updateUserHeight(db, userEmail, heightToSave);
+
+      // 3. Persistir a unidade no AsyncStorage para saberes como ler este valor na Home
+      await AsyncStorage.setItem("userHeightUnit", unit);
+
+      router.replace("/workoutschedule");
     } catch (e) {
       console.error("❌ [Onboarding] Erro ao guardar height:", e);
       Alert.alert("Error", "Could not save height.");
@@ -268,7 +277,7 @@ export default function HeightSelection() {
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
-            onPress={() => router.back()}
+            onPress={() => router.push("/weight")}
           >
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>

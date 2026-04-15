@@ -40,7 +40,7 @@ export default function GenderSelection() {
       await updateUserGender(db, userEmail, gender);
 
       // 3. Avançar para o próximo ecrã
-      router.push("/birthday");
+      router.replace("/birthday");
     } catch (e) {
       console.error("❌ [Onboarding] Erro ao guardar gender:", e);
       Alert.alert("Error", "Failed to save your selection. Try again.");
