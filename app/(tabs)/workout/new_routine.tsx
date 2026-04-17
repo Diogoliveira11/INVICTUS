@@ -1,5 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
+import { useSQLiteContext } from "expo-sqlite";
 import {
   Check,
   ChevronLeft,
@@ -13,7 +14,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
-  Image,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -33,14 +33,10 @@ type Exercise = {
   image: string | null;
 };
 
-const IMAGE_MAP: { [key: string]: any } = {
-  "assets/exercises_images/barbell_decline_bench_press_chest.png": require("../../../assets/exercises_images/barbell_decline_bench_press_chest.png"),
-};
-
 export default function NewRoutineScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const db = useSQLiteContext(); // 2. Instância central da BD
+  const db = useSQLiteContext();
   const { routineId: rawId, mode: rawMode } = useLocalSearchParams();
 
   const routineId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -48,12 +44,11 @@ export default function NewRoutineScreen() {
 
   const [name, setName] = useState("");
   const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
-
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [dbExercises, setDbExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState("");
 
-  // 1. CARREGAR DADOS DA ROTINA (SE EDIÇÃO) - Sem openDatabaseAsync
+  // 1. CARREGAR DADOS SE FOR EDIÇÃO
   useEffect(() => {
     if (mode === "edit" && routineId) {
       (async () => {
@@ -64,11 +59,12 @@ export default function NewRoutineScreen() {
           );
           if (res) setName(res.name);
 
+          // Corrigido para routineid e exerciseid
           const exes = await db.getAllAsync<Exercise>(
             `SELECT e.* FROM exercises e 
-             JOIN routine_exercises re ON e.id = re.exerciseid 
-             WHERE re.routineid = ? 
-             ORDER BY re.index_order ASC`,
+              JOIN routine_exercises re ON e.id = re.exercise_id 
+              WHERE re.routine_id = ? 
+              ORDER BY re.index_order ASC`,
             [Number(routineId)],
           );
           setSelectedExercises(exes);
@@ -79,23 +75,21 @@ export default function NewRoutineScreen() {
     }
   }, [routineId, mode, db]);
 
-  // 2. BUSCAR EXERCÍCIOS PARA O MODAL - Sem openDatabaseAsync
+  // 2. BUSCAR EXERCÍCIOS PARA O MODAL
   const fetchModalExercises = useCallback(async () => {
     try {
       let query =
         "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
       let params: any[] = [];
-
       if (search.trim()) {
         query += " AND name LIKE ?";
         params.push(`%${search.trim()}%`);
       }
-
       query += " ORDER BY name ASC";
       const rows = await db.getAllAsync<Exercise>(query, params);
       setDbExercises(rows);
     } catch (error) {
-      console.error("Erro ao buscar exercícios do modal:", error);
+      console.error("Erro modal:", error);
     }
   }, [search, db]);
 
@@ -103,49 +97,69 @@ export default function NewRoutineScreen() {
     if (isModalVisible) fetchModalExercises();
   }, [isModalVisible, fetchModalExercises]);
 
-  // 3. SALVAR TUDO - Sem openDatabaseAsync e com tratamento de erros
+  // 3. FUNÇÃO SALVAR (CORRIGIDA)
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert("Aviso", "Dá um nome à tua rotina.");
     if (selectedExercises.length === 0)
-      return Alert.alert("Aviso", "Adiciona pelo menos um exercício.");
+      return Alert.alert("Aviso", "Adiciona exercícios.");
 
     try {
+      // 1. Buscar o ID do utilizador logado para a coluna 'usersid'
+      const email = await AsyncStorage.getItem("userEmail");
+      const userRow = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM users WHERE email = ?",
+        [email],
+      );
+      const userId = userRow?.id || 1; // Fallback para ID 1 se não encontrar
+
+      let currentRoutineId: number;
+
       if (mode === "edit" && routineId) {
-        const rId = Number(routineId);
+        currentRoutineId = Number(routineId);
+
+        // UPDATE: Nome da rotina
         await db.runAsync("UPDATE routines SET name = ? WHERE id = ?", [
           name,
-          rId,
-        ]);
-        await db.runAsync("DELETE FROM routine_exercises WHERE routineid = ?", [
-          rId,
+          currentRoutineId,
         ]);
 
-        for (let i = 0; i < selectedExercises.length; i++) {
-          await db.runAsync(
-            "INSERT INTO routine_exercises (routinesid, exerciseid, index_order) VALUES (?, ?, ?)",
-            [rId, selectedExercises[i].id, i],
-          );
-        }
-      } else {
-        const res = await db.runAsync(
-          "INSERT INTO routines (name) VALUES (?)",
-          [name, new Date().toISOString()],
+        // DELETE: Exercícios antigos desta rotina (Coluna na tua imagem: routinesid)
+        await db.runAsync(
+          "DELETE FROM routine_exercises WHERE routine_id = ?",
+          [currentRoutineId],
         );
-        const newRoutineId = res.lastInsertRowId;
+      } else {
+        // INSERT: Nova rotina (Colunas: name, usersid)
+        // Nota: Não passamos o 'id' para ele auto-incrementar
+        const result = await db.runAsync(
+          "INSERT INTO routines (name, user_id) VALUES (?, ?)",
+          [name, userId],
+        );
+        currentRoutineId = result.lastInsertRowId;
+      }
 
-        for (let i = 0; i < selectedExercises.length; i++) {
-          await db.runAsync(
-            "INSERT INTO routine_exercises (routine_id, exercise_id, order_index) VALUES (?, ?, ?)",
-            [newRoutineId, selectedExercises[i].id, i],
-          );
-        }
+      // INSERT: Tabela de ligação (Colunas na tua imagem: exerciseid, routinesid, index_order)
+      for (let i = 0; i < selectedExercises.length; i++) {
+        await db.runAsync(
+          "INSERT INTO routine_exercises (exercise_id, routine_id, index_order) VALUES (?, ?, ?)",
+          [selectedExercises[i].id, currentRoutineId, i],
+        );
       }
 
       Alert.alert("Sucesso", "Rotina guardada!");
-      router.push("/workout");
-    } catch (e) {
+      router.replace("/workout");
+    } catch (e: any) {
       console.error("ERRO AO GRAVAR:", e);
-      Alert.alert("Erro", "Falha ao gravar na base de dados.");
+
+      // TRATAMENTO DO ERRO ESPECÍFICO DO ID
+      if (e.message.includes("routines.id")) {
+        Alert.alert(
+          "Erro de Estrutura",
+          "A tua tabela 'routines' no HeidiSQL não tem o AUTOINCREMENT ativo na coluna ID. Precisas de marcar essa opção no HeidiSQL e reinstalar a app.",
+        );
+      } else {
+        Alert.alert("Erro", "Falha ao gravar na base de dados.");
+      }
     }
   };
 
@@ -160,16 +174,18 @@ export default function NewRoutineScreen() {
     <View style={{ flex: 1, backgroundColor: "#000", paddingTop: insets.top }}>
       <StatusBar barStyle="light-content" />
 
-      {/* HEADER PRINCIPAL */}
+      {/* HEADER */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-zinc-900">
-        <TouchableOpacity onPress={() => router.replace("/workout")}>
+        <TouchableOpacity onPress={() => router.back()}>
           <ChevronLeft size={28} color="#E31C25" />
         </TouchableOpacity>
-        <Text className="text-white text-[17px] font-bold">
+        <Text className="text-white text-lg font-black uppercase italic">
           {mode === "edit" ? "Edit Routine" : "New Routine"}
         </Text>
         <TouchableOpacity onPress={handleSave}>
-          <Text className="text-[#E31C25] text-lg font-bold">Save</Text>
+          <Text className="text-[#E31C25] text-lg font-black uppercase italic">
+            Save
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -179,37 +195,29 @@ export default function NewRoutineScreen() {
           placeholderTextColor="#52525b"
           value={name}
           onChangeText={setName}
-          className="text-white text-3xl font-bold border-b border-zinc-800 pb-3"
+          className="text-white text-3xl font-black italic border-b border-zinc-800 pb-3 uppercase"
         />
 
         <View className="mt-8">
-          <Text className="text-zinc-500 font-bold uppercase mb-4 tracking-widest text-xs">
-            Exercises
+          <Text className="text-zinc-500 font-black uppercase mb-4 tracking-widest text-xs italic">
+            Exercises ({selectedExercises.length})
           </Text>
+
           {selectedExercises.map((ex) => (
             <View
               key={ex.id}
-              className="flex-row items-center bg-[#1c1c1e] p-4 rounded-2xl mb-3 border border-zinc-800"
+              className="flex-row items-center bg-zinc-900/50 p-4 rounded-2xl mb-3 border border-zinc-800"
             >
               <GripVertical size={20} color="#3f3f46" />
-              <View className="w-10 h-10 rounded-full bg-zinc-800 ml-3 overflow-hidden border border-zinc-700">
-                {ex.image ? (
-                  <Image
-                    source={IMAGE_MAP[ex.image]}
-                    className="w-full h-full"
-                  />
-                ) : null}
+              <View className="flex-1 ml-3">
+                <Text className="text-white font-bold uppercase italic">
+                  {ex.name}
+                </Text>
+                <Text className="text-zinc-500 text-xs uppercase">
+                  {ex.muscle_group}
+                </Text>
               </View>
-              <Text className="text-white flex-1 ml-3 font-semibold">
-                {ex.name}
-              </Text>
-              <TouchableOpacity
-                onPress={() =>
-                  setSelectedExercises((prev) =>
-                    prev.filter((e) => e.id !== ex.id),
-                  )
-                }
-              >
+              <TouchableOpacity onPress={() => toggleSelection(ex)}>
                 <Trash2 size={20} color="#ef4444" />
               </TouchableOpacity>
             </View>
@@ -217,10 +225,10 @@ export default function NewRoutineScreen() {
 
           <TouchableOpacity
             onPress={() => setIsModalVisible(true)}
-            className="flex-row items-center justify-center bg-zinc-900/50 border-2 border-dashed border-zinc-800 py-5 rounded-2xl mt-2"
+            className="flex-row items-center justify-center bg-zinc-900/30 border-2 border-dashed border-zinc-800 py-6 rounded-2xl mt-2"
           >
-            <Plus size={22} color="#E31C25" strokeWidth={3} />
-            <Text className="text-zinc-400 font-bold ml-2 text-lg">
+            <Plus size={22} color="#E31C25" />
+            <Text className="text-zinc-400 font-black ml-2 text-lg uppercase italic">
               Add Exercises
             </Text>
           </TouchableOpacity>
@@ -229,35 +237,36 @@ export default function NewRoutineScreen() {
 
       {/* MODAL DE SELEÇÃO */}
       <Modal visible={isModalVisible} animationType="slide">
-        <SafeAreaView className="flex-1 bg-[#121417]">
+        <SafeAreaView className="flex-1 bg-[#000]">
           <View className="flex-1 px-6 pt-4">
             <View className="flex-row items-center justify-between mb-6">
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                 <X color="white" size={26} />
               </TouchableOpacity>
-              <Text className="text-white text-xl font-semibold">
-                Exercises
+              <Text className="text-white text-xl font-black uppercase italic">
+                Select Exercises
               </Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <Text className="text-[#E31C25] text-lg font-bold">Done</Text>
+                <Text className="text-[#E31C25] text-lg font-black uppercase italic">
+                  Done
+                </Text>
               </TouchableOpacity>
             </View>
 
-            <View className="flex-row items-center bg-[#2D2F33] rounded-xl px-4 h-12 mb-6">
-              <Search color="#9ca3af" size={20} className="mr-3" />
+            <View className="flex-row items-center bg-zinc-900 rounded-xl px-4 h-12 mb-6 border border-zinc-800">
+              <Search color="#52525b" size={20} className="mr-3" />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search exercise"
-                placeholderTextColor="#9ca3af"
-                className="flex-1 text-white text-base"
+                placeholder="Search exercise..."
+                placeholderTextColor="#52525b"
+                className="flex-1 text-white font-bold italic"
               />
             </View>
 
             <FlatList
               data={dbExercises}
               keyExtractor={(item) => item.id.toString()}
-              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
                 const isSelected = selectedExercises.some(
                   (e) => e.id === item.id,
@@ -265,31 +274,22 @@ export default function NewRoutineScreen() {
                 return (
                   <TouchableOpacity
                     onPress={() => toggleSelection(item)}
-                    className="flex-row items-center py-4 border-b border-zinc-800/50"
+                    className="flex-row items-center py-4 border-b border-zinc-900"
                   >
-                    <View className="w-14 h-14 rounded-full bg-zinc-800 items-center justify-center mr-4 overflow-hidden border border-zinc-700">
-                      {item.image ? (
-                        <Image
-                          source={IMAGE_MAP[item.image]}
-                          className="w-full h-full"
-                          resizeMode="cover"
-                        />
-                      ) : null}
-                    </View>
                     <View className="flex-1">
                       <Text
-                        className={`text-[16px] font-medium ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+                        className={`text-base font-black italic uppercase ${isSelected ? "text-[#E31C25]" : "text-white"}`}
                       >
                         {item.name}
                       </Text>
-                      <Text className="text-gray-400 text-sm mt-1">
-                        {item.muscle_group} • {item.equipment}
+                      <Text className="text-zinc-500 text-xs uppercase italic">
+                        {item.muscle_group}
                       </Text>
                     </View>
                     {isSelected ? (
                       <Check color="#E31C25" size={22} />
                     ) : (
-                      <Plus color="#52525b" size={22} />
+                      <Plus color="#3f3f46" size={22} />
                     )}
                   </TouchableOpacity>
                 );

@@ -38,9 +38,6 @@ async function loadDatabase(): Promise<void> {
 
   const fileInfo = await FileSystem.getInfoAsync(dbPath);
 
-  // IMPORTANTE: Se o ficheiro não existe, copia-o dos assets.
-  // Se quiseres forçar a atualização sempre que mudares o ficheiro no PC,
-  // apaga a app do telemóvel e instala de novo.
   if (!fileInfo.exists) {
     const asset = await Asset.fromModule(
       require("../src/inicializedatabase.sqlite"),
@@ -49,7 +46,7 @@ async function loadDatabase(): Promise<void> {
       from: asset.localUri!,
       to: dbPath,
     });
-    console.log("✅ Base de dados copiada para o sistema de ficheiros.");
+    console.log("Base de dados copiada para o sistema de ficheiros.");
   }
 }
 

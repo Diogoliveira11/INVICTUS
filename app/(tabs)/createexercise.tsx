@@ -32,7 +32,7 @@ export default function CreateExerciseScreen() {
       // 3. Usa o db do contexto diretamente (Sem abrir nova conexão)
       // Nota: Adicionamos 'is_custom' como 1 para diferenciar dos exercícios padrão
       await db.runAsync(
-        "INSERT INTO exercises (name, muscle_groups, image, is_custom) VALUES (?, ?, ?, ?)",
+        "INSERT INTO exercises (name, muscle_group, image, is_custom) VALUES (?, ?, ?, ?)",
         [name, muscleGroup, null, 1],
       );
       Alert.alert("Sucesso", "Exercício criado com sucesso!", [

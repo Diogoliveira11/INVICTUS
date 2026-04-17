@@ -51,8 +51,8 @@ export default function WorkoutTabScreen() {
             r.name, 
             (SELECT GROUP_CONCAT(e.name, ', ') 
              FROM exercises e 
-             JOIN routine_exercises re ON e.id = re.exerciseid 
-             WHERE re.routinesid = r.id) AS exercise_list
+             JOIN routine_exercises re ON e.id = re.exercise_id 
+             WHERE re.routine_id = r.id) AS exercise_list
           FROM routines r
           ORDER BY r.id DESC
       `;

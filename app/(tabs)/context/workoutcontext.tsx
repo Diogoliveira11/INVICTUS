@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Alert, Vibration } from "react-native";
+import { Alert } from "react-native";
 
 export type SetType = "W" | "1" | "F" | "D";
-export type SetEntry = {
+
+export type WorkoutSet = {
   id: string;
   type: SetType;
   weight: string;
@@ -10,11 +11,14 @@ export type SetEntry = {
   completed: boolean;
   previous?: string;
 };
+
 export type ActiveExercise = {
-  logId: string;
   id: number;
+  logId: string;
   name: string;
-  sets: SetEntry[];
+  notes?: string;
+  rest_time: number;
+  sets: WorkoutSet[];
 };
 
 type WorkoutContextType = {
@@ -23,12 +27,12 @@ type WorkoutContextType = {
   timer: string;
   restTimer: number | null;
   exercises: ActiveExercise[];
-  lastExercise: string; // Adiciona se faltar
+  lastExercise: string;
   setExercises: React.Dispatch<React.SetStateAction<ActiveExercise[]>>;
   updateSet: (
-    exLogId: string,
+    exerciseLogId: string,
     setId: string,
-    field: "weight" | "reps",
+    field: "weight" | "reps" | "type",
     value: string,
   ) => void;
   toggleSetCompleted: (exLogId: string, setId: string) => void;
@@ -36,7 +40,7 @@ type WorkoutContextType = {
   setIsMinimized: (val: boolean) => void;
   setLastExercise: (val: string) => void;
   stopWorkout: (confirm?: boolean) => void;
-  startWorkout: (name: string) => void; //
+  startWorkout: (name: string) => void;
 };
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -47,57 +51,63 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [exercises, setExercises] = useState<ActiveExercise[]>([]);
   const [lastExercise, setLastExercise] = useState("");
   const [seconds, setSeconds] = useState(0);
-  const [timer, setTimer] = useState("00:00");
   const [restTimer, setRestTimer] = useState<number | null>(null);
 
-  // Cronómetro de Treino
+  // --- Cronómetro de Treino (Lógica de contagem) ---
   useEffect(() => {
     let interval: any;
     if (isActive) {
-      interval = setInterval(() => setSeconds((prev) => prev + 1), 1000);
-    } else {
-      setSeconds(0);
-      clearInterval(interval);
+      interval = setInterval(() => {
+        setSeconds((prev) => prev + 1);
+      }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isActive]);
+  }, [isActive]); // <-- Importante ter o isActive aqui
+  // --- Formatação do tempo para exibição (Cálculo derivado) ---
+  const formatTime = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
 
-  // Cronómetro de Descanso (Regressivo)
+    const hDisplay = hrs > 0 ? `${hrs}:` : "";
+    const mDisplay = mins < 10 && hrs > 0 ? `0${mins}:` : `${mins}:`;
+    const sDisplay = secs < 10 ? `0${secs}` : `${secs}`;
+
+    // Se não tiver horas, garante que mostra 00:00 em vez de 0:00
+    const finalMins = hrs === 0 && mins < 10 ? `0${mins}` : mins;
+
+    return `${hrs > 0 ? hrs + ":" : ""}${hrs > 0 && mins < 10 ? "0" + mins : finalMins}:${secs < 10 ? "0" + secs : secs}`;
+  };
+
+  // Esta é a variável que será enviada pelo Contexto
+  const displayTimer = formatTime(seconds);
+
+  // --- Cronómetro de Descanso (Regressivo) ---
   useEffect(() => {
     let interval: any;
     if (restTimer !== null && restTimer > 0) {
-      interval = setInterval(
-        () => setRestTimer((prev) => (prev !== null ? prev - 1 : null)),
-        1000,
-      );
+      interval = setInterval(() => {
+        setRestTimer((prev) => (prev !== null ? prev - 1 : null));
+      }, 1000);
     } else if (restTimer === 0) {
-      Vibration.vibrate([0, 500, 200, 500]);
       setRestTimer(null);
     }
     return () => clearInterval(interval);
   }, [restTimer]);
 
-  useEffect(() => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    setTimer(`${m}:${s}`);
-  }, [seconds]);
-
   const updateSet = (
-    exLogId: string,
+    exerciseLogId: string,
     setId: string,
-    field: "weight" | "reps",
+    field: "weight" | "reps" | "type",
     value: string,
   ) => {
     setExercises((prev) =>
       prev.map((ex) =>
-        ex.logId === exLogId
+        ex.logId === exerciseLogId
           ? {
               ...ex,
-              sets: ex.sets.map((s) =>
-                s.id === setId ? { ...s, [field]: value } : s,
+              sets: ex.sets.map((set) =>
+                set.id === setId ? { ...set, [field]: value } : set,
               ),
             }
           : ex,
@@ -114,7 +124,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             sets: ex.sets.map((s) => {
               if (s.id === setId) {
                 const newState = !s.completed;
-                if (newState) setRestTimer(90); // Ativa descanso de 90s ao marcar como feito
+                // Ativa o descanso específico do exercício se ele existir e for maior que zero
+                if (newState && ex.rest_time > 0) {
+                  setRestTimer(ex.rest_time);
+                }
                 return { ...s, completed: newState };
               }
               return s;
@@ -160,7 +173,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       value={{
         isActive,
         isMinimized,
-        timer,
+        timer: displayTimer, // Enviamos a string formatada aqui
         restTimer,
         exercises,
         lastExercise,

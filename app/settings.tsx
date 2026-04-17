@@ -85,7 +85,7 @@ export default function SettingsScreen() {
             onPress={() =>
               router.push({
                 pathname: "/accountsettings",
-                params: { email: userEmail }, // Passa o email para a próxima tela
+                params: { email: userEmail },
               })
             }
           />

@@ -110,7 +110,6 @@ export default function WeightSelection() {
         return;
       }
 
-      // --- AQUI ESTÁ A CORREÇÃO ---
       // Em vez de converter, guardamos o valor que está no estado 'weight'
       // que já é o valor correto baseado na unidade selecionada.
       const weightToSave = weight;

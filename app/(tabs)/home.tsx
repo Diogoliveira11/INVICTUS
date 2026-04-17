@@ -37,12 +37,18 @@ export default function ProgressResult() {
   const db = useSQLiteContext();
   const { height: screenHeight } = useWindowDimensions();
 
+  // Estados de Estatísticas
   const [workoutsCount, setWorkoutsCount] = useState(0);
   const [totalVolume, setTotalVolume] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [weeklyHistory, setWeeklyHistory] = useState<Workout[]>([]);
 
+  // Estados Dinâmicos do Utilizador
+  const [userName, setUserName] = useState("Invictus User");
+  const [weeklyGoal, setWeeklyGoal] = useState(0);
+
+  // Estados de UI
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
@@ -50,22 +56,35 @@ export default function ProgressResult() {
     [],
   );
 
-  // 1. GUARDIÃO DE PERFIL (Proteção extra)
-  useFocusEffect(
-    useCallback(() => {
-      const checkProfile = async () => {
-        const complete = await AsyncStorage.getItem("profileComplete");
-        const email = await AsyncStorage.getItem("userEmail");
+  // 1. CARREGAR DADOS DO PERFIL E CONFIGURAÇÕES
+  const loadUserData = useCallback(async () => {
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      const complete = await AsyncStorage.getItem("profileComplete");
 
-        if (!email) {
-          router.replace("/auth/login");
-        } else if (complete !== "true") {
-          router.replace("/gender");
-        }
-      };
-      checkProfile();
-    }, []),
-  );
+      if (!email) {
+        router.replace("/auth/login");
+        return;
+      }
+      if (complete !== "true") {
+        router.replace("/gender");
+        return;
+      }
+
+      // Buscar Nome e Meta Semanal na BD
+      const userRow = await db.getFirstAsync<{
+        username: string;
+        weekly_goal: number;
+      }>("SELECT username, weekly_goal FROM users WHERE email = ?", [email]);
+
+      if (userRow) {
+        setUserName(userRow.username);
+        setWeeklyGoal(userRow.weekly_goal || 0);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar dados do perfil:", e);
+    }
+  }, [db]);
 
   const durationToSeconds = (duration: string) => {
     if (!duration || typeof duration !== "string") return 0;
@@ -75,15 +94,15 @@ export default function ProgressResult() {
     return 0;
   };
 
-  // 2. CARREGAR ESTATÍSTICAS
+  // 2. CARREGAR ESTATÍSTICAS DOS TREINOS
   const loadStats = useCallback(async () => {
     try {
       const now = new Date();
-      const firstDay = new Date(
-        now.setDate(
-          now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1),
-        ),
-      );
+      // Calcular início da semana (Segunda-feira)
+      const firstDay = new Date(now);
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      firstDay.setDate(diff);
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
@@ -140,10 +159,12 @@ export default function ProgressResult() {
     }
   };
 
+  // Executar ao focar no ecrã
   useFocusEffect(
     useCallback(() => {
+      loadUserData();
       loadStats();
-    }, [loadStats]),
+    }, [loadUserData, loadStats, db, router]),
   );
 
   return (
@@ -153,6 +174,7 @@ export default function ProgressResult() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* HEADER COM IMAGEM E NOME DINÂMICO */}
         <View
           style={{
             height: screenHeight * 0.58,
@@ -169,6 +191,7 @@ export default function ProgressResult() {
             resizeMode="cover"
           />
           <View className="absolute inset-0 bg-black/30" />
+
           <View className="absolute bottom-6 w-full items-center">
             <Text className="text-white text-3xl font-black uppercase italic">
               Progress Result
@@ -176,15 +199,18 @@ export default function ProgressResult() {
             <Text className="text-[#E31C25] text-2xl font-black italic mt-1 uppercase">
               Full Stats
             </Text>
+
             <View className="mt-4 bg-zinc-900/90 px-10 py-3 rounded-2xl border border-zinc-800">
               <Text className="text-zinc-200 text-lg font-black italic uppercase">
-                Diogo Oliveira
+                {userName}
               </Text>
             </View>
           </View>
         </View>
 
+        {/* CARDS DE ESTATÍSTICAS */}
         <View className="flex-row justify-between px-5 mt-4">
+          {/* WORKOUTS E META SEMANAL */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setIsHistoryVisible(true)}
@@ -196,7 +222,9 @@ export default function ProgressResult() {
             <View className="w-20 h-20 rounded-full border-[4px] border-[#E31C25] items-center justify-center">
               <Text className="text-white text-2xl font-black italic">
                 {workoutsCount}
-                <Text className="text-zinc-600 text-2xl">/15</Text>
+                <Text className="text-zinc-600 text-2xl">
+                  /{weeklyGoal || 0}
+                </Text>
               </Text>
             </View>
             <View className="flex-row mt-5 gap-3">
@@ -215,10 +243,8 @@ export default function ProgressResult() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900"
-          >
+          {/* VOLUME TOTAL */}
+          <View className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900">
             <Text className="text-zinc-500 text-[10px] font-black mb-4 uppercase tracking-widest">
               Total Volume
             </Text>
@@ -232,20 +258,15 @@ export default function ProgressResult() {
                   : totalVolume}
               </Text>
               <Text className="text-zinc-500 text-[10px] font-black uppercase mt-1">
-                Kg Lifted
+                Weight Lifted
               </Text>
             </View>
-          </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
-      {/* MODAL 1: HISTÓRICO */}
-      <Modal
-        visible={isHistoryVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setIsHistoryVisible(false)}
-      >
+      {/* MODAL 1: HISTÓRICO (Igual ao anterior) */}
+      <Modal visible={isHistoryVisible} animationType="slide" transparent>
         <View
           style={{
             flex: 1,
@@ -303,13 +324,8 @@ export default function ProgressResult() {
         </View>
       </Modal>
 
-      {/* MODAL 2: DETALHES */}
-      <Modal
-        visible={isDetailsVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setIsDetailsVisible(false)}
-      >
+      {/* MODAL 2: DETALHES (Igual ao anterior) */}
+      <Modal visible={isDetailsVisible} animationType="slide" transparent>
         <View
           style={{
             flex: 1,

@@ -68,7 +68,7 @@ export default function SaveWorkoutScreen() {
         for (const set of ex.sets) {
           if (set.completed) {
             await db.runAsync(
-              "INSERT INTO workout_sets (workout_exercisesid, exercisesid, weight, reps, set_type) VALUES (?, ?, ?, ?, ?)",
+              "INSERT INTO workout_sets (workout_exercise_id, exercise_id, weight, reps, set_type) VALUES (?, ?, ?, ?, ?)",
               [
                 workoutId,
                 ex.id,

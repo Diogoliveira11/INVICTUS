@@ -59,7 +59,7 @@ export default function WorkOutSchedule() {
 
       // Mostra os dados do utilizador atual
       const user = await getUserByEmail(db, userEmail);
-      console.log("🚀 [FINAL] Dados guardados:", user);
+      console.log("[FINAL] Dados guardados:", user);
 
       // MOSTRA O TOTAL DE UTILIZADORES NO TERMINAL
       await printDatabaseStats(db);
