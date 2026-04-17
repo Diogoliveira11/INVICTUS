@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { ChevronLeft } from "lucide-react-native";
@@ -46,55 +47,87 @@ export default function SaveWorkoutScreen() {
   // FUNÇÃO PARA SALVAR NA BASE DE DADOS
   const handleSave = async () => {
     if (stats.totalSets === 0) {
-      Alert.alert(
-        "Atenção",
-        "Deves completar pelo menos uma série para guardar o treino!",
-      );
+      Alert.alert("Atenção", "Deves completar pelo menos uma série!");
       return;
     }
 
     try {
-      // 3. Inserir o Cabeçalho do Treino usando a conexão global
-      const result = await db.runAsync(
-        "INSERT INTO workouts (title, date, total_volume) VALUES (?, ?, ?)",
-        ["Treino Invictus", new Date().toISOString(), stats.totalVolume],
+      console.log("Iniciando processo de salvamento...");
+
+      // 1. Buscar Utilizador
+      const userEmail = await AsyncStorage.getItem("userEmail");
+      const user = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM users WHERE email = ?",
+        [userEmail],
       );
 
-      const workoutId = result.lastInsertRowId;
+      if (!user) {
+        Alert.alert("Erro", "Utilizador não encontrado.");
+        return;
+      }
 
-      // 4. Inserir as Séries detalhadas
-      // Usamos um loop simples; o SQLite Context gere a fila de execução nativa
+      // 2. Gerar ID Manual para o Treino
+      const lastWorkout = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM workouts ORDER BY id DESC LIMIT 1",
+      );
+      const newWorkoutId = lastWorkout ? lastWorkout.id + 1 : 1;
+
+      // 3. Inserir o Treino
+      await db.runAsync(
+        "INSERT INTO workouts (id, user_id, title, date, total_volume) VALUES (?, ?, ?, ?, ?)",
+        [
+          newWorkoutId,
+          user.id,
+          "Treino Invictus",
+          new Date().toISOString(),
+          stats.totalVolume,
+        ],
+      );
+
+      // 4. Gerar ID Manual inicial para as Séries
+      const lastSet = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM workout_sets ORDER BY id DESC LIMIT 1",
+      );
+      let currentSetId = lastSet ? lastSet.id + 1 : 1;
+
+      // 5. Loop para inserir as Séries
       for (const ex of exercises) {
+        let setIndex = 1;
+
         for (const set of ex.sets) {
           if (set.completed) {
+            console.log(
+              `Inserindo série ID ${currentSetId} (Ordem: ${setIndex})`,
+            );
+
             await db.runAsync(
-              "INSERT INTO workout_sets (workout_exercise_id, exercise_id, weight, reps, set_type) VALUES (?, ?, ?, ?, ?)",
+              "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
               [
-                workoutId,
-                ex.id,
+                currentSetId, // id
+                newWorkoutId, // workout_exercise_id
+                ex.id, // exercise_id
                 Number(set.weight) || 0,
                 Number(set.reps) || 0,
-                set.type,
+                set.type, // set_type
+                setIndex, // index_order
+                0, // is_personal_record (0 = falso) <--- O QUE FALTA!
               ],
             );
+
+            currentSetId++;
+            setIndex++;
           }
         }
       }
 
-      // Limpa o cronómetro e os exercícios da memória global
+      // Sucesso!
       stopWorkout();
-
-      Alert.alert("Sucesso!", "Treino guardado no histórico.", [
-        {
-          text: "Ver Resumo",
-          onPress: () => {
-            router.replace("/workout/workout_summary");
-          },
-        },
+      Alert.alert("Sucesso!", "O teu treino foi guardado!", [
+        { text: "OK", onPress: () => router.replace("/(tabs)/workout") },
       ]);
     } catch (error) {
-      console.error("ERRO AO SALVAR TREINO:", error);
-      Alert.alert("Erro", "Não foi possível comunicar com a base de dados.");
+      console.error("ERRO AO SALVAR:", error);
+      Alert.alert("Erro", "Ainda falta preencher alguma coluna obrigatória.");
     }
   };
 
@@ -114,7 +147,7 @@ export default function SaveWorkoutScreen() {
           onPress={handleSave}
           className="bg-[#E31C25] px-6 py-1.5 rounded-full"
         >
-          <Text className="text-white font-bold">Salvar</Text>
+          <Text className="text-white font-bold">Save</Text>
         </TouchableOpacity>
       </View>
 
