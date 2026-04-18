@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { ChevronLeft, Clock, Dumbbell } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
+  Alert,
   Image,
   Modal,
   Platform,
@@ -18,17 +19,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Workout {
   id: number;
-  name: string;
-  duration: string;
+  title: string;
   date: string;
+  duration: string;
+  notes: string;
   total_volume: number;
 }
 
 interface WorkoutExercise {
   exercise_name: string;
-  total_sets: number;
-  max_reps: number;
-  max_weight: number;
+  weight: number;
+  reps: number;
+  set_type: string;
+  index_order: number;
 }
 
 export default function ProgressResult() {
@@ -56,22 +59,10 @@ export default function ProgressResult() {
     [],
   );
 
-  // 1. CARREGAR DADOS DO PERFIL E CONFIGURAÇÕES
+  // 1. CARREGAR DADOS DO PERFIL
   const loadUserData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
-      const complete = await AsyncStorage.getItem("profileComplete");
-
-      if (!email) {
-        router.replace("/auth/login");
-        return;
-      }
-      if (complete !== "true") {
-        router.replace("/gender");
-        return;
-      }
-
-      // Buscar Nome e Meta Semanal na BD
       const userRow = await db.getFirstAsync<{
         username: string;
         weekly_goal: number;
@@ -82,23 +73,14 @@ export default function ProgressResult() {
         setWeeklyGoal(userRow.weekly_goal || 0);
       }
     } catch (e) {
-      console.error("Erro ao carregar dados do perfil:", e);
+      console.error("Erro perfil:", e);
     }
   }, [db]);
 
-  const durationToSeconds = (duration: string) => {
-    if (!duration || typeof duration !== "string") return 0;
-    const parts = duration.split(":").map(Number);
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    return 0;
-  };
-
-  // 2. CARREGAR ESTATÍSTICAS DOS TREINOS
+  // 2. CARREGAR ESTATÍSTICAS
   const loadStats = useCallback(async () => {
     try {
       const now = new Date();
-      // Calcular início da semana (Segunda-feira)
       const firstDay = new Date(now);
       const day = now.getDay();
       const diff = now.getDate() - day + (day === 0 ? -6 : 1);
@@ -106,47 +88,44 @@ export default function ProgressResult() {
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
-      const workoutRes = await db.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM workouts WHERE date >= ?",
-        [firstDayISO],
-      );
-      setWorkoutsCount(workoutRes?.count || 0);
-
-      const volumeRes = await db.getFirstAsync<{ total: number }>(
-        "SELECT SUM(total_volume) as total FROM workouts WHERE date >= ?",
-        [firstDayISO],
-      );
-      setTotalVolume(volumeRes?.total || 0);
-
       const historyRows = await db.getAllAsync<Workout>(
-        "SELECT * FROM workouts WHERE date >= ? ORDER BY id DESC",
+        "SELECT id, title, date, duration, notes, total_volume FROM workouts WHERE date >= ? ORDER BY date DESC",
         [firstDayISO],
       );
       setWeeklyHistory(historyRows || []);
+      setWorkoutsCount(historyRows.length);
+
+      const totalV = historyRows.reduce(
+        (acc, curr) => acc + (curr.total_volume || 0),
+        0,
+      );
+      setTotalVolume(totalV);
 
       let totalSeconds = 0;
       historyRows.forEach((item) => {
-        totalSeconds += durationToSeconds(item.duration);
+        if (item.duration) {
+          const parts = item.duration.split(":").map(Number);
+          if (parts.length === 3)
+            totalSeconds += parts[0] * 3600 + parts[1] * 60 + parts[2];
+          else if (parts.length === 2) totalSeconds += parts[0] * 60 + parts[1];
+        }
       });
+
       setTotalHours(Math.floor(totalSeconds / 3600));
       setTotalMinutes(Math.floor((totalSeconds % 3600) / 60));
     } catch (e) {
-      console.error("Erro ao carregar estatísticas:", e);
+      console.error("Erro stats:", e);
     }
   }, [db]);
 
   const loadWorkoutDetails = async (workout: Workout) => {
     try {
       const details = await db.getAllAsync<WorkoutExercise>(
-        `SELECT 
-            e.name as exercise_name, 
-            COUNT(ws.id) as total_sets, 
-            MAX(ws.weight) as max_weight, 
-            MAX(ws.reps) as max_reps 
-          FROM workout_sets ws
-          JOIN exercises e ON ws.exercise_id = e.id
-          WHERE ws.workout_id = ?
-          GROUP BY ws.exercise_id`,
+        `SELECT e.name as exercise_name, ws.weight, ws.reps, ws.set_type, ws.index_order
+         FROM workout_sets ws
+         JOIN exercises e ON ws.exercise_id = e.id
+         WHERE ws.workout_exercise_id = ?
+         ORDER BY e.name ASC, ws.index_order ASC`,
         [workout.id],
       );
 
@@ -155,16 +134,15 @@ export default function ProgressResult() {
       setIsHistoryVisible(false);
       setTimeout(() => setIsDetailsVisible(true), 300);
     } catch (e) {
-      console.error("Erro ao carregar detalhes:", e);
+      Alert.alert("Erro", "Não foi possível carregar os detalhes.");
     }
   };
 
-  // Executar ao focar no ecrã
   useFocusEffect(
     useCallback(() => {
       loadUserData();
       loadStats();
-    }, [loadUserData, loadStats, db, router]),
+    }, [loadUserData, loadStats]),
   );
 
   return (
@@ -174,7 +152,6 @@ export default function ProgressResult() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* HEADER COM IMAGEM E NOME DINÂMICO */}
         <View
           style={{
             height: screenHeight * 0.58,
@@ -191,7 +168,6 @@ export default function ProgressResult() {
             resizeMode="cover"
           />
           <View className="absolute inset-0 bg-black/30" />
-
           <View className="absolute bottom-6 w-full items-center">
             <Text className="text-white text-3xl font-black uppercase italic">
               Progress Result
@@ -199,7 +175,6 @@ export default function ProgressResult() {
             <Text className="text-[#E31C25] text-2xl font-black italic mt-1 uppercase">
               Full Stats
             </Text>
-
             <View className="mt-4 bg-zinc-900/90 px-10 py-3 rounded-2xl border border-zinc-800">
               <Text className="text-zinc-200 text-lg font-black italic uppercase">
                 {userName}
@@ -208,9 +183,7 @@ export default function ProgressResult() {
           </View>
         </View>
 
-        {/* CARDS DE ESTATÍSTICAS */}
         <View className="flex-row justify-between px-5 mt-4">
-          {/* WORKOUTS E META SEMANAL */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setIsHistoryVisible(true)}
@@ -222,9 +195,7 @@ export default function ProgressResult() {
             <View className="w-20 h-20 rounded-full border-[4px] border-[#E31C25] items-center justify-center">
               <Text className="text-white text-2xl font-black italic">
                 {workoutsCount}
-                <Text className="text-zinc-600 text-2xl">
-                  /{weeklyGoal || 0}
-                </Text>
+                <Text className="text-zinc-600">/{weeklyGoal}</Text>
               </Text>
             </View>
             <View className="flex-row mt-5 gap-3">
@@ -243,7 +214,6 @@ export default function ProgressResult() {
             </View>
           </TouchableOpacity>
 
-          {/* VOLUME TOTAL */}
           <View className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900">
             <Text className="text-zinc-500 text-[10px] font-black mb-4 uppercase tracking-widest">
               Total Volume
@@ -265,58 +235,54 @@ export default function ProgressResult() {
         </View>
       </ScrollView>
 
-      {/* MODAL 1: HISTÓRICO (Igual ao anterior) */}
+      {/* MODAL 1: HISTÓRICO */}
       <Modal visible={isHistoryVisible} animationType="slide" transparent>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.9)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <View
-            style={{
-              height: "85%",
-              backgroundColor: "#000",
-              borderTopLeftRadius: 45,
-              borderTopRightRadius: 45,
-              borderTopWidth: 1,
-              borderColor: "#27272a",
-            }}
-          >
+        <View className="flex-1 bg-black/90 justify-end">
+          <View className="h-[85%] bg-[#080808] rounded-t-[50px] border-t border-zinc-800">
+            <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mt-4" />
             <View className="flex-row items-center px-8 py-8">
               <TouchableOpacity
                 onPress={() => setIsHistoryVisible(false)}
-                className="w-10 h-10 bg-zinc-900 rounded-full items-center justify-center"
+                className="w-12 h-12 bg-zinc-900 rounded-2xl items-center justify-center border border-zinc-800"
               >
-                <ChevronLeft size={20} color="white" />
+                <ChevronLeft size={24} color="white" />
               </TouchableOpacity>
-              <Text className="text-white text-xl font-black italic uppercase ml-4">
-                Workout History
+              <Text className="text-white text-2xl font-black italic uppercase ml-5 tracking-tighter">
+                History
               </Text>
             </View>
-            <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
+            <ScrollView
+              className="px-6"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 50 }}
+            >
               {weeklyHistory.map((workout) => (
                 <TouchableOpacity
                   key={workout.id}
                   onPress={() => loadWorkoutDetails(workout)}
-                  className="bg-[#121212] p-6 rounded-[35px] mb-4 border border-zinc-900"
+                  className="bg-zinc-900/40 p-6 rounded-[30px] mb-4 border border-zinc-900 flex-row justify-between items-center"
                 >
-                  <Text className="text-[#E31C25] text-[10px] font-black uppercase mb-2">
-                    {new Date(workout.date).toDateString() ===
-                    new Date().toDateString()
-                      ? "HOJE"
-                      : "ESTA SEMANA"}
-                  </Text>
-                  <Text className="text-white text-xl font-black italic uppercase mb-4">
-                    {workout.name || "Treino Invictus"}
-                  </Text>
-                  <View className="flex-row items-center">
-                    <Clock size={14} color="#52525b" />
-                    <Text className="text-zinc-400 text-xs font-black ml-2 italic">
-                      {workout.duration}
+                  <View className="flex-1">
+                    <Text className="text-[#E31C25] text-[9px] font-black uppercase tracking-widest mb-1">
+                      {new Date(workout.date).toLocaleDateString("pt-PT", {
+                        weekday: "long",
+                      })}
                     </Text>
+                    <Text className="text-white text-lg font-black italic uppercase">
+                      {workout.title || "Workout"}
+                    </Text>
+                    <View className="flex-row items-center mt-2">
+                      <Clock size={12} color="#52525b" />
+                      <Text className="text-zinc-500 text-[10px] font-black ml-1 uppercase italic">
+                        {workout.duration} • {workout.total_volume}kg
+                      </Text>
+                    </View>
                   </View>
+                  <ChevronLeft
+                    size={20}
+                    color="#E31C25"
+                    style={{ transform: [{ rotate: "180deg" }] }}
+                  />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -324,58 +290,163 @@ export default function ProgressResult() {
         </View>
       </Modal>
 
-      {/* MODAL 2: DETALHES (Igual ao anterior) */}
+      {/* MODAL 2: DETALHES COMPLETOS */}
       <Modal visible={isDetailsVisible} animationType="slide" transparent>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.95)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <View
-            style={{
-              height: "88%",
-              backgroundColor: "#000",
-              borderTopLeftRadius: 45,
-              borderTopRightRadius: 45,
-              borderTopWidth: 1,
-              borderColor: "#27272a",
-            }}
-          >
-            <View className="flex-row items-center px-8 py-8 justify-between">
-              <TouchableOpacity
-                onPress={() => setIsDetailsVisible(false)}
-                className="w-10 h-10 bg-zinc-900 rounded-full items-center justify-center"
-              >
-                <ChevronLeft size={20} color="white" />
-              </TouchableOpacity>
-              <Text className="text-white text-lg font-black italic uppercase">
-                {selectedWorkout?.name || "Detalhes"}
-              </Text>
-              <View style={{ width: 40 }} />
-            </View>
-            <ScrollView className="px-8" showsVerticalScrollIndicator={false}>
-              {workoutExercises.map((ex, index) => (
-                <View
-                  key={index}
-                  className="flex-row items-center justify-between py-6 border-b border-zinc-900/40"
+        <View className="flex-1 bg-black/95 justify-end">
+          <View className="h-[92%] bg-[#050505] rounded-t-[50px] border-t border-[#E31C25]/40">
+            <View className="w-12 h-1.5 bg-zinc-800 rounded-full self-center mt-4" />
+            <View className="px-8 pt-8 pb-6">
+              <View className="flex-row items-center justify-between">
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsDetailsVisible(false);
+                    setTimeout(() => setIsHistoryVisible(true), 300);
+                  }}
+                  className="w-12 h-12 bg-zinc-900 rounded-2xl items-center justify-center border border-zinc-800"
                 >
-                  <View className="flex-1">
-                    <Text className="text-white text-base font-black italic uppercase">
-                      {ex.exercise_name}
-                    </Text>
-                    <Text className="text-zinc-500 text-[10px] font-bold uppercase mt-1">
-                      {ex.total_sets} Sets • Max {ex.max_reps} Reps
-                    </Text>
-                  </View>
-                  <View className="bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800">
-                    <Text className="text-[#E31C25] font-black italic">
-                      {ex.max_weight} kg
+                  <ChevronLeft size={24} color="white" />
+                </TouchableOpacity>
+                <View className="items-end">
+                  <Text className="text-white text-2xl font-black italic uppercase tracking-tighter">
+                    {selectedWorkout?.title || "Treino"}
+                  </Text>
+                  <View className="flex-row items-center mt-1">
+                    <Clock size={12} color="#E31C25" />
+                    <Text className="text-[#E31C25] text-xs font-black uppercase italic ml-1">
+                      {selectedWorkout?.duration || "00:00:00"}
                     </Text>
                   </View>
                 </View>
+              </View>
+
+              <View className="flex-row mt-8 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-900 justify-around">
+                <View className="items-center">
+                  <Text className="text-zinc-500 text-[8px] font-black uppercase">
+                    Volume Total
+                  </Text>
+                  <Text className="text-white font-black italic">
+                    {selectedWorkout?.total_volume}kg
+                  </Text>
+                </View>
+                <View className="w-[1px] h-full bg-zinc-800" />
+                <View className="items-center">
+                  <Text className="text-zinc-500 text-[8px] font-black uppercase">
+                    Data
+                  </Text>
+                  <Text className="text-white font-black italic">
+                    {selectedWorkout
+                      ? new Date(selectedWorkout.date).toLocaleDateString(
+                          "pt-PT",
+                        )
+                      : "--"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <ScrollView
+              className="px-6"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 100 }}
+            >
+              {Object.values(
+                workoutExercises.reduce(
+                  (acc, obj) => {
+                    const key = obj.exercise_name;
+                    if (!acc[key]) acc[key] = { name: key, sets: [] };
+                    acc[key].sets.push(obj);
+                    return acc;
+                  },
+                  {} as Record<
+                    string,
+                    { name: string; sets: WorkoutExercise[] }
+                  >,
+                ),
+              ).map((group, idx) => (
+                <View
+                  key={idx}
+                  className="mb-6 bg-zinc-900/20 rounded-[40px] p-6 border border-zinc-900"
+                >
+                  <Text className="text-white text-lg font-black italic uppercase mb-4 tracking-tighter color-[#E31C25]">
+                    {group.name}
+                  </Text>
+                  <View className="flex-row mb-3 px-2">
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-8">
+                      Set
+                    </Text>
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase flex-1 text-center">
+                      Type
+                    </Text>
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-16 text-center">
+                      Weight
+                    </Text>
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-12 text-right">
+                      Reps
+                    </Text>
+                  </View>
+                  {group.sets.map((set, sIdx) => {
+                    let typeLabel = "NORMAL";
+                    let typeColor = "bg-zinc-800";
+                    let textColor = "text-zinc-500";
+                    switch (set.set_type) {
+                      case "W":
+                        typeLabel = "WARMUP";
+                        typeColor = "bg-amber-500/10";
+                        textColor = "text-amber-500";
+                        break;
+                      case "D":
+                        typeLabel = "DROP SET";
+                        typeColor = "bg-purple-500/10";
+                        textColor = "text-purple-500";
+                        break;
+                      case "F":
+                        typeLabel = "FAILURE";
+                        typeColor = "bg-red-500/10";
+                        textColor = "text-red-500";
+                        break;
+                      default:
+                        typeLabel = "NORMAL";
+                        typeColor = "bg-zinc-800";
+                        textColor = "text-zinc-400";
+                    }
+                    return (
+                      <View
+                        key={sIdx}
+                        className="flex-row items-center py-3 border-b border-zinc-800/30 px-2"
+                      >
+                        <Text className="text-zinc-500 font-black italic w-8">
+                          {sIdx + 1}
+                        </Text>
+                        <View className="flex-1 items-center">
+                          <View
+                            className={`px-2 py-0.5 rounded-md ${typeColor}`}
+                          >
+                            <Text
+                              className={`text-[8px] font-black ${textColor}`}
+                            >
+                              {typeLabel}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text className="text-white font-black italic w-16 text-center">
+                          {set.weight}kg
+                        </Text>
+                        <Text className="text-zinc-200 font-black italic w-12 text-right">
+                          {set.reps}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
               ))}
+              {selectedWorkout?.notes && (
+                <View className="mt-4 p-6 bg-zinc-900/10 border border-dashed border-zinc-800 rounded-[35px]">
+                  <Text className="text-zinc-500 text-[10px] font-black uppercase mb-2">
+                    Notas do Treino
+                  </Text>
+                  <Text className="text-zinc-300 italic text-sm">{`"${selectedWorkout.notes}"`}</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>

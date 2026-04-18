@@ -54,7 +54,6 @@ export default function SaveWorkoutScreen() {
     try {
       console.log("Iniciando processo de salvamento...");
 
-      // 1. Buscar Utilizador
       const userEmail = await AsyncStorage.getItem("userEmail");
       const user = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM users WHERE email = ?",
@@ -66,24 +65,24 @@ export default function SaveWorkoutScreen() {
         return;
       }
 
-      // 2. Gerar ID Manual para o Treino
       const lastWorkout = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM workouts ORDER BY id DESC LIMIT 1",
       );
       const newWorkoutId = lastWorkout ? lastWorkout.id + 1 : 1;
 
-      // 3. Inserir o Treino
+      // CORREÇÃO: Usar as variáveis corretas definidas no componente
       await db.runAsync(
-        "INSERT INTO workouts (id, user_id, title, date, total_volume) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO workouts (id, user_id, date, title, duration, notes, total_volume) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           newWorkoutId,
           user.id,
-          "Treino Invictus",
           new Date().toISOString(),
+          "Treino Invictus", // Aqui podes passar o nome da rotina se o tiveres
+          timer, // Vai para a coluna duration
+          description, // Vai para a coluna notes (o que escreveste no TextInput)
           stats.totalVolume,
         ],
       );
-
       // 4. Gerar ID Manual inicial para as Séries
       const lastSet = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM workout_sets ORDER BY id DESC LIMIT 1",

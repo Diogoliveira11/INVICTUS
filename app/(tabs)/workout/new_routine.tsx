@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native"; // Adicionado
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -37,6 +38,7 @@ export default function NewRoutineScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const db = useSQLiteContext();
+  const isFocused = useIsFocused(); // Adicionado para monitorizar foco
   const { routineId: rawId, mode: rawMode } = useLocalSearchParams();
 
   const routineId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -48,9 +50,17 @@ export default function NewRoutineScreen() {
   const [dbExercises, setDbExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState("");
 
-  // 1. CARREGAR DADOS SE FOR EDIÇÃO
+  // 1. LIMPAR ESTADO AO ENTRAR (Se for nova rotina)
   useEffect(() => {
-    if (mode === "edit" && routineId) {
+    if (isFocused && mode !== "edit") {
+      setName("");
+      setSelectedExercises([]);
+    }
+  }, [isFocused, mode]);
+
+  // 2. CARREGAR DADOS SE FOR EDIÇÃO
+  useEffect(() => {
+    if (mode === "edit" && routineId && isFocused) {
       (async () => {
         try {
           const res = await db.getFirstAsync<{ name: string }>(
@@ -59,7 +69,6 @@ export default function NewRoutineScreen() {
           );
           if (res) setName(res.name);
 
-          // Corrigido para routineid e exerciseid
           const exes = await db.getAllAsync<Exercise>(
             `SELECT e.* FROM exercises e 
               JOIN routine_exercises re ON e.id = re.exercise_id 
@@ -73,9 +82,9 @@ export default function NewRoutineScreen() {
         }
       })();
     }
-  }, [routineId, mode, db]);
+  }, [routineId, mode, db, isFocused]);
 
-  // 2. BUSCAR EXERCÍCIOS PARA O MODAL
+  // 3. BUSCAR EXERCÍCIOS PARA O MODAL
   const fetchModalExercises = useCallback(async () => {
     try {
       let query =
@@ -97,40 +106,33 @@ export default function NewRoutineScreen() {
     if (isModalVisible) fetchModalExercises();
   }, [isModalVisible, fetchModalExercises]);
 
-  // 3. FUNÇÃO SALVAR (CORRIGIDA)
+  // 4. FUNÇÃO SALVAR
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert("Aviso", "Dá um nome à tua rotina.");
     if (selectedExercises.length === 0)
       return Alert.alert("Aviso", "Adiciona exercícios.");
 
     try {
-      // 1. Buscar o ID do utilizador logado para a coluna 'usersid'
       const email = await AsyncStorage.getItem("userEmail");
       const userRow = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM users WHERE email = ?",
         [email],
       );
-      const userId = userRow?.id || 1; // Fallback para ID 1 se não encontrar
+      const userId = userRow?.id || 1;
 
       let currentRoutineId: number;
 
       if (mode === "edit" && routineId) {
         currentRoutineId = Number(routineId);
-
-        // UPDATE: Nome da rotina
         await db.runAsync("UPDATE routines SET name = ? WHERE id = ?", [
           name,
           currentRoutineId,
         ]);
-
-        // DELETE: Exercícios antigos desta rotina (Coluna na tua imagem: routinesid)
         await db.runAsync(
           "DELETE FROM routine_exercises WHERE routine_id = ?",
           [currentRoutineId],
         );
       } else {
-        // INSERT: Nova rotina (Colunas: name, usersid)
-        // Nota: Não passamos o 'id' para ele auto-incrementar
         const result = await db.runAsync(
           "INSERT INTO routines (name, user_id) VALUES (?, ?)",
           [name, userId],
@@ -138,7 +140,6 @@ export default function NewRoutineScreen() {
         currentRoutineId = result.lastInsertRowId;
       }
 
-      // INSERT: Tabela de ligação (Colunas na tua imagem: exerciseid, routinesid, index_order)
       for (let i = 0; i < selectedExercises.length; i++) {
         await db.runAsync(
           "INSERT INTO routine_exercises (exercise_id, routine_id, index_order) VALUES (?, ?, ?)",
@@ -147,19 +148,15 @@ export default function NewRoutineScreen() {
       }
 
       Alert.alert("Sucesso", "Rotina guardada!");
+
+      // LIMPEZA FINAL ANTES DE SAIR
+      setName("");
+      setSelectedExercises([]);
+
       router.replace("/workout");
     } catch (e: any) {
       console.error("ERRO AO GRAVAR:", e);
-
-      // TRATAMENTO DO ERRO ESPECÍFICO DO ID
-      if (e.message.includes("routines.id")) {
-        Alert.alert(
-          "Erro de Estrutura",
-          "A tua tabela 'routines' no HeidiSQL não tem o AUTOINCREMENT ativo na coluna ID. Precisas de marcar essa opção no HeidiSQL e reinstalar a app.",
-        );
-      } else {
-        Alert.alert("Erro", "Falha ao gravar na base de dados.");
-      }
+      Alert.alert("Erro", "Falha ao gravar na base de dados.");
     }
   };
 
@@ -176,7 +173,7 @@ export default function NewRoutineScreen() {
 
       {/* HEADER */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-zinc-900">
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace("/workout")}>
           <ChevronLeft size={28} color="#E31C25" />
         </TouchableOpacity>
         <Text className="text-white text-lg font-black uppercase italic">

@@ -98,14 +98,31 @@ export default function WorkoutTabScreen() {
           style: "destructive",
           onPress: async () => {
             try {
+              // PASSO 1: Ativar Foreign Keys (Boa prática)
+              await db.execAsync("PRAGMA foreign_keys = ON;");
+
+              // PASSO 2: Apagar primeiro as associações dos exercícios desta rotina
+              await db.runAsync(
+                "DELETE FROM routine_exercises WHERE routine_id = ?",
+                [selectedRoutineId],
+              );
+
+              // PASSO 3: Apagar a rotina em si
               await db.runAsync("DELETE FROM routines WHERE id = ?", [
                 selectedRoutineId,
               ]);
+
+              // PASSO 4: Fechar modal e recarregar lista
               setIsOptionsVisible(false);
               loadRoutines();
+
+              Alert.alert("Success", "Routine deleted successfully.");
             } catch (e) {
               console.error("Erro ao apagar:", e);
-              Alert.alert("Error", "Could not delete routine.");
+              Alert.alert(
+                "Error",
+                "Could not delete routine. Make sure it's not being used in other records.",
+              );
             }
           },
         },
@@ -151,57 +168,66 @@ export default function WorkoutTabScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => router.push("/workout/explore")}
+            onPress={() => router.push("/workout/explore_exercises")}
             className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-4 rounded-2xl"
           >
             <Search size={20} color="white" />
             <Text className="text-white font-black ml-2 uppercase italic">
-              Explore
+              EXERCISES
             </Text>
           </TouchableOpacity>
         </View>
 
         <View className="mt-10 mb-20 gap-y-5">
-          {routines.map((item) => (
-            <View
-              key={item.id}
-              className="bg-[#121212] p-6 rounded-[35px] border border-zinc-900"
-            >
-              <View className="flex-row justify-between items-start">
-                <View className="flex-1">
-                  <Text className="text-white text-xl font-black italic uppercase">
-                    {item.name}
-                  </Text>
-                  <Text
-                    className="text-zinc-500 text-xs font-bold mt-2 uppercase tracking-tight"
-                    numberOfLines={1}
+          {/* MENSAGEM DE LISTA VAZIA ADICIONADA AQUI */}
+          {routines.length === 0 ? (
+            <View className="py-20 items-center border border-zinc-900 border-dashed rounded-[35px]">
+              <Text className="text-zinc-600 font-bold uppercase italic text-center px-10">
+                No routines found.{"\n"}Create your first workout plan!
+              </Text>
+            </View>
+          ) : (
+            routines.map((item) => (
+              <View
+                key={item.id}
+                className="bg-[#121212] p-6 rounded-[35px] border border-zinc-900"
+              >
+                <View className="flex-row justify-between items-start">
+                  <View className="flex-1">
+                    <Text className="text-white text-xl font-black italic uppercase">
+                      {item.name}
+                    </Text>
+                    <Text
+                      className="text-zinc-500 text-xs font-bold mt-2 uppercase tracking-tight"
+                      numberOfLines={1}
+                    >
+                      {item.exercise_list || "No exercises"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => openOptions(item.id)}
+                    className="p-1"
                   >
-                    {item.exercise_list || "No exercises"}
-                  </Text>
+                    <MoreHorizontal size={26} color="#52525b" />
+                  </TouchableOpacity>
                 </View>
+
                 <TouchableOpacity
-                  onPress={() => openOptions(item.id)}
-                  className="p-1"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/workout/log_workout",
+                      params: { routineId: item.id },
+                    })
+                  }
+                  className="bg-[#E31C25] w-full py-4 rounded-[20px] mt-6 items-center shadow-lg"
                 >
-                  <MoreHorizontal size={26} color="#52525b" />
+                  <Text className="text-white font-black text-lg uppercase italic">
+                    Start Routine
+                  </Text>
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: "/workout/log_workout",
-                    params: { routineId: item.id },
-                  })
-                }
-                className="bg-[#E31C25] w-full py-4 rounded-[20px] mt-6 items-center shadow-lg"
-              >
-                <Text className="text-white font-black text-lg uppercase italic">
-                  Start Routine
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       </ScrollView>
 

@@ -156,7 +156,7 @@ export default function ExploreExercisesPage() {
             <ChevronLeft size={28} color="#E31C25" />
           </TouchableOpacity>
           <Text className="text-white text-2xl font-black uppercase italic">
-            Explore
+            Explore Exercises
           </Text>
           <View className="w-10" />
         </View>
@@ -174,7 +174,7 @@ export default function ExploreExercisesPage() {
           />
         </View>
 
-        {/* Filters */}
+        {/* Filters - Ajustado o texto de 10px para 12px e flex-shrink */}
         <View className="flex-row justify-between mb-8 gap-x-3">
           <TouchableOpacity
             onPress={() => {
@@ -185,7 +185,7 @@ export default function ExploreExercisesPage() {
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[10px] font-black uppercase italic mr-2"
+              className="text-white text-[12px] font-black uppercase italic mr-2 flex-shrink"
             >
               {selectedEquipment || "Equipment"}
             </Text>
@@ -201,7 +201,7 @@ export default function ExploreExercisesPage() {
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[10px] font-black uppercase italic mr-2"
+              className="text-white text-[12px] font-black uppercase italic mr-2 flex-shrink"
             >
               {selectedMuscle || "Muscles"}
             </Text>

@@ -91,7 +91,10 @@ export default function TabsLayout() {
         <Tabs.Screen name="exercises/index" options={{ href: null }} />
         <Tabs.Screen name="exercises/[id]" options={{ href: null }} />
         <Tabs.Screen name="createexercise" options={{ href: null }} />
-        <Tabs.Screen name="workout/explore" options={{ href: null }} />
+        <Tabs.Screen
+          name="workout/explore_exercises"
+          options={{ href: null }}
+        />
         <Tabs.Screen name="workout/new_routine" options={{ href: null }} />
         <Tabs.Screen name="workout/log_workout" options={{ href: null }} />
         <Tabs.Screen name="workout/save_workout" options={{ href: null }} />

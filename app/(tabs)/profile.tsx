@@ -1,14 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
-import { useLocalSearchParams, useRouter } from "expo-router"; // Adicionado useLocalSearchParams
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
-import { ChevronDown, Pencil, Settings } from "lucide-react-native";
+import {
+  ChevronDown,
+  ChevronRight,
+  Pencil,
+  Settings,
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Dados para o gráfico
+// Dados para o grÃ¡fico
 const chartData = [
   { day: "Jan 25", value: 1.5 },
   { day: "", value: 0 },
@@ -130,6 +135,7 @@ export default function ProfileScreen() {
     );
   };
 
+  // Componente ActionButton OVAL e CINZENTO (conforme a segunda print)
   const ActionButton = ({
     label,
     onPress,
@@ -139,10 +145,11 @@ export default function ProfileScreen() {
   }) => (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.7}
-      className="bg-[#E31C25] w-[48%] py-3 rounded-full items-center mb-3"
+      activeOpacity={0.8}
+      className="flex-row items-center justify-between bg-zinc-900 w-full py-5 px-7 rounded-full mb-3.5 border border-zinc-800"
     >
-      <Text className="text-white font-bold text-base">{label}</Text>
+      <Text className="text-white font-bold text-lg">{label}</Text>
+      <ChevronRight size={22} color="#FFFFFF" />
     </TouchableOpacity>
   );
 
@@ -256,16 +263,13 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ACTION BUTTONS GRID */}
-        <View className="flex-row flex-wrap justify-between px-5 mt-6">
+        {/* ACTION BUTTONS LIST OVAL (MUDADO DE GRID PARA LISTA OVAL) */}
+        <View className="px-5 mt-10 mb-10">
           <ActionButton
             label="Statistics"
             onPress={() => router.push("/volumestats")}
           />
-          <ActionButton
-            label="Exercises"
-            onPress={() => router.push("/exercises")}
-          />
+          {/* Exercises removido */}
           <ActionButton label="Measures" onPress={() => {}} />
           <ActionButton
             label="Calendar"
