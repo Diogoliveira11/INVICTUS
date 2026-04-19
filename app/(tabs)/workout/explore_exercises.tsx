@@ -1,3 +1,4 @@
+import { useIsFocused } from "@react-navigation/native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -6,6 +7,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Plus,
   Search,
   Target,
 } from "lucide-react-native";
@@ -24,6 +26,11 @@ import {
   View,
 } from "react-native";
 
+// Mapa de imagens locais do projeto
+const IMAGE_MAP: { [key: string]: any } = {
+  "assets/exercises_images/barbell_decline_bench_press.png": require("../../../assets/exercises_images/barbell_decline_bench_press.png"),
+};
+
 type Exercise = {
   id: number;
   name: string;
@@ -35,6 +42,7 @@ type Exercise = {
 export default function ExploreExercisesPage() {
   const router = useRouter();
   const db = useSQLiteContext();
+  const isFocused = useIsFocused();
 
   const [search, setSearch] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -48,7 +56,6 @@ export default function ExploreExercisesPage() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
 
-  // 1. Carregar as opções de filtro
   const fetchFilterOptions = useCallback(async () => {
     try {
       const muscles = await db.getAllAsync<{ muscle_group: string }>(
@@ -65,7 +72,6 @@ export default function ExploreExercisesPage() {
     }
   }, [db]);
 
-  // 2. Carregar os exercícios filtrados
   const fetchExercises = useCallback(async () => {
     setLoading(true);
     try {
@@ -74,7 +80,7 @@ export default function ExploreExercisesPage() {
       const params: any[] = [];
 
       if (search.trim()) {
-        query += " AND name LIKE ?";
+        query += " AND name LIKE ? COLLATE NOCASE";
         params.push(`%${search.trim()}%`);
       }
       if (selectedMuscle) {
@@ -97,12 +103,11 @@ export default function ExploreExercisesPage() {
   }, [db, search, selectedMuscle, selectedEquipment]);
 
   useEffect(() => {
-    fetchFilterOptions();
-  }, [fetchFilterOptions]);
-
-  useEffect(() => {
-    fetchExercises();
-  }, [fetchExercises]);
+    if (isFocused) {
+      fetchFilterOptions();
+      fetchExercises();
+    }
+  }, [isFocused, fetchFilterOptions, fetchExercises]);
 
   const selectFilterOption = (option: string | null) => {
     if (modalType === "muscle") setSelectedMuscle(option);
@@ -111,23 +116,35 @@ export default function ExploreExercisesPage() {
   };
 
   const renderExerciseItem = ({ item }: { item: Exercise }) => {
+    const imageKey = item.image?.trim();
+    const isCustomImage =
+      imageKey?.startsWith("file://") || imageKey?.startsWith("http");
+    const imageSource = isCustomImage
+      ? { uri: imageKey }
+      : imageKey
+        ? IMAGE_MAP[imageKey]
+        : null;
+
     return (
       <TouchableOpacity
         activeOpacity={0.7}
         className="flex-row items-center py-4 border-b border-zinc-800/50"
-        onPress={() => router.push(`/exercises/${item.id}`)}
+        onPress={() =>
+          router.push({
+            pathname: "/workout/[id]",
+            params: { id: item.id, from: "explore" }, // Corrigido: from: explore aqui
+          })
+        }
       >
-        {/* ESPAÇO DA IMAGEM */}
         <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-          {item.image ? (
+          {imageSource ? (
             <Image
-              source={{ uri: item.image }}
-              className="w-full h-full"
+              source={imageSource}
+              style={{ width: "100%", height: "100%" }}
               contentFit="cover"
-              transition={200}
+              cachePolicy="memory-disk"
             />
           ) : (
-            // Se o exercício não tiver imagem na base de dados, mostra o ícone reserva
             <Target size={26} color="#E31C25" />
           )}
         </View>
@@ -150,15 +167,25 @@ export default function ExploreExercisesPage() {
     <SafeAreaView className="flex-1 bg-[#000]">
       <StatusBar barStyle="light-content" />
       <View className="flex-1 px-5 pt-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-5 py-4 border-b border-zinc-900">
+        {/* Header Corrigido */}
+        <View className="flex-row items-center justify-between py-4 border-b border-zinc-900 mb-4">
           <TouchableOpacity onPress={() => router.replace("/workout")}>
             <ChevronLeft size={28} color="#E31C25" />
           </TouchableOpacity>
-          <Text className="text-white text-2xl font-black uppercase italic">
-            Explore Exercises
+
+          <Text className="text-white text-xl font-black uppercase italic">
+            Explore
           </Text>
-          <View className="w-10" />
+
+          <TouchableOpacity
+            onPress={() => router.push("/createexercise")}
+            className="bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800 flex-row items-center"
+          >
+            <Plus size={16} color="#E31C25" />
+            <Text className="text-white font-black uppercase italic text-xs ml-1">
+              Create
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
@@ -174,8 +201,8 @@ export default function ExploreExercisesPage() {
           />
         </View>
 
-        {/* Filters - Ajustado o texto de 10px para 12px e flex-shrink */}
-        <View className="flex-row justify-between mb-8 gap-x-3">
+        {/* Filters */}
+        <View className="flex-row justify-between mb-6 gap-x-3">
           <TouchableOpacity
             onPress={() => {
               setModalType("equipment");
@@ -185,7 +212,7 @@ export default function ExploreExercisesPage() {
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[12px] font-black uppercase italic mr-2 flex-shrink"
+              className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
             >
               {selectedEquipment || "Equipment"}
             </Text>
@@ -201,7 +228,7 @@ export default function ExploreExercisesPage() {
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[12px] font-black uppercase italic mr-2 flex-shrink"
+              className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
             >
               {selectedMuscle || "Muscles"}
             </Text>

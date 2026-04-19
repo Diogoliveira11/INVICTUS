@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
-import { ChevronLeft, Clock, Dumbbell } from "lucide-react-native";
+import { ChevronLeft, Clock, Dumbbell, Trophy } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
@@ -32,6 +32,7 @@ interface WorkoutExercise {
   reps: number;
   set_type: string;
   index_order: number;
+  is_personal_record: number;
 }
 
 export default function ProgressResult() {
@@ -89,9 +90,10 @@ export default function ProgressResult() {
       const firstDayISO = firstDay.toISOString();
 
       const historyRows = await db.getAllAsync<Workout>(
-        "SELECT id, title, date, duration, notes, total_volume FROM workouts WHERE date >= ? ORDER BY date DESC",
+        "SELECT * FROM workouts WHERE date >= ? ORDER BY date DESC",
         [firstDayISO],
       );
+
       setWeeklyHistory(historyRows || []);
       setWorkoutsCount(historyRows.length);
 
@@ -104,6 +106,7 @@ export default function ProgressResult() {
       let totalSeconds = 0;
       historyRows.forEach((item) => {
         if (item.duration) {
+          // CORRIGIDO: Usar .duration
           const parts = item.duration.split(":").map(Number);
           if (parts.length === 3)
             totalSeconds += parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -121,11 +124,17 @@ export default function ProgressResult() {
   const loadWorkoutDetails = async (workout: Workout) => {
     try {
       const details = await db.getAllAsync<WorkoutExercise>(
-        `SELECT e.name as exercise_name, ws.weight, ws.reps, ws.set_type, ws.index_order
-         FROM workout_sets ws
-         JOIN exercises e ON ws.exercise_id = e.id
-         WHERE ws.workout_exercise_id = ?
-         ORDER BY e.name ASC, ws.index_order ASC`,
+        `SELECT 
+          e.name as exercise_name, 
+          ws.weight, 
+          ws.reps, 
+          ws.set_type, 
+          ws.index_order,
+          ws.is_personal_record  -- <--- GARANTE QUE ESTÁ AQUI
+        FROM workout_sets ws
+        JOIN exercises e ON ws.exercise_id = e.id
+        WHERE ws.workout_exercise_id = ?
+        ORDER BY e.name ASC, ws.index_order ASC`,
         [workout.id],
       );
 
@@ -269,7 +278,7 @@ export default function ProgressResult() {
                       })}
                     </Text>
                     <Text className="text-white text-lg font-black italic uppercase">
-                      {workout.title || "Workout"}
+                      {workout.title || "Treino"}
                     </Text>
                     <View className="flex-row items-center mt-2">
                       <Clock size={12} color="#52525b" />
@@ -430,6 +439,13 @@ export default function ProgressResult() {
                         </View>
                         <Text className="text-white font-black italic w-16 text-center">
                           {set.weight}kg
+                          {set.is_personal_record === 1 && (
+                            <Trophy
+                              size={10}
+                              color="#FFD700"
+                              style={{ marginLeft: 2 }}
+                            />
+                          )}
                         </Text>
                         <Text className="text-zinc-200 font-black italic w-12 text-right">
                           {set.reps}

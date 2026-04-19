@@ -18,6 +18,7 @@ export type ActiveExercise = {
   name: string;
   notes?: string;
   rest_time: number;
+  personalRecords: { weight: number; reps: number }[]; // Histórico para PRs
   sets: WorkoutSet[];
 };
 
@@ -53,42 +54,29 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [seconds, setSeconds] = useState(0);
   const [restTimer, setRestTimer] = useState<number | null>(null);
 
-  // --- Cronómetro de Treino (Lógica de contagem) ---
   useEffect(() => {
     let interval: any;
     if (isActive) {
-      interval = setInterval(() => {
-        setSeconds((prev) => prev + 1);
-      }, 1000);
+      interval = setInterval(() => setSeconds((prev) => prev + 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [isActive]); // <-- Importante ter o isActive aqui
-  // --- Formatação do tempo para exibição (Cálculo derivado) ---
+  }, [isActive]);
+
   const formatTime = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
-
-    const hDisplay = hrs > 0 ? `${hrs}:` : "";
-    const mDisplay = mins < 10 && hrs > 0 ? `0${mins}:` : `${mins}:`;
-    const sDisplay = secs < 10 ? `0${secs}` : `${secs}`;
-
-    // Se não tiver horas, garante que mostra 00:00 em vez de 0:00
     const finalMins = hrs === 0 && mins < 10 ? `0${mins}` : mins;
-
     return `${hrs > 0 ? hrs + ":" : ""}${hrs > 0 && mins < 10 ? "0" + mins : finalMins}:${secs < 10 ? "0" + secs : secs}`;
   };
 
-  // Esta é a variável que será enviada pelo Contexto
-  const displayTimer = formatTime(seconds);
-
-  // --- Cronómetro de Descanso (Regressivo) ---
   useEffect(() => {
     let interval: any;
     if (restTimer !== null && restTimer > 0) {
-      interval = setInterval(() => {
-        setRestTimer((prev) => (prev !== null ? prev - 1 : null));
-      }, 1000);
+      interval = setInterval(
+        () => setRestTimer((prev) => (prev !== null ? prev - 1 : null)),
+        1000,
+      );
     } else if (restTimer === 0) {
       setRestTimer(null);
     }
@@ -124,10 +112,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             sets: ex.sets.map((s) => {
               if (s.id === setId) {
                 const newState = !s.completed;
-                // Ativa o descanso específico do exercício se ele existir e for maior que zero
-                if (newState && ex.rest_time > 0) {
-                  setRestTimer(ex.rest_time);
-                }
+                if (newState && ex.rest_time > 0) setRestTimer(ex.rest_time);
                 return { ...s, completed: newState };
               }
               return s;
@@ -153,16 +138,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setSeconds(0);
       setRestTimer(null);
     };
-
     if (confirm) {
-      Alert.alert(
-        "Descartar Treino?",
-        "Tens a certeza? Todos os dados serão perdidos.",
-        [
-          { text: "Cancelar", style: "cancel" },
-          { text: "Descartar", style: "destructive", onPress: clear },
-        ],
-      );
+      Alert.alert("Descartar Treino?", "Tens a certeza?", [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Descartar", style: "destructive", onPress: clear },
+      ]);
     } else {
       clear();
     }
@@ -173,7 +153,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       value={{
         isActive,
         isMinimized,
-        timer: displayTimer, // Enviamos a string formatada aqui
+        timer: formatTime(seconds),
         restTimer,
         exercises,
         lastExercise,

@@ -140,7 +140,12 @@ export default function WorkoutTabScreen() {
         </Text>
 
         <TouchableOpacity
-          onPress={() => router.push("/workout/log_workout")}
+          onPress={() => {
+            router.push({
+              pathname: "/workout/log_workout",
+              params: { routineId: undefined, reset: "true" },
+            });
+          }}
           className="flex-row items-center bg-zinc-900/30 py-5 px-5 rounded-[25px] mt-8 border border-zinc-800"
         >
           <Plus size={24} color="#E31C25" strokeWidth={4} />

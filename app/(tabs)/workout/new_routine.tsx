@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useIsFocused } from "@react-navigation/native"; // Adicionado
+import { useIsFocused } from "@react-navigation/native";
+import { Image } from "expo-image"; // Importar para as imagens
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -8,6 +9,7 @@ import {
   GripVertical,
   Plus,
   Search,
+  Target,
   Trash2,
   X,
 } from "lucide-react-native";
@@ -26,6 +28,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Mapa de imagens locais do projeto
+const IMAGE_MAP: { [key: string]: any } = {
+  "assets/exercises_images/barbell_decline_bench_press.png": require("../../../assets/exercises_images/barbell_decline_bench_press.png"),
+};
 type Exercise = {
   id: number;
   name: string;
@@ -38,7 +44,7 @@ export default function NewRoutineScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const db = useSQLiteContext();
-  const isFocused = useIsFocused(); // Adicionado para monitorizar foco
+  const isFocused = useIsFocused();
   const { routineId: rawId, mode: rawMode } = useLocalSearchParams();
 
   const routineId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -50,7 +56,6 @@ export default function NewRoutineScreen() {
   const [dbExercises, setDbExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState("");
 
-  // 1. LIMPAR ESTADO AO ENTRAR (Se for nova rotina)
   useEffect(() => {
     if (isFocused && mode !== "edit") {
       setName("");
@@ -58,7 +63,6 @@ export default function NewRoutineScreen() {
     }
   }, [isFocused, mode]);
 
-  // 2. CARREGAR DADOS SE FOR EDIÇÃO
   useEffect(() => {
     if (mode === "edit" && routineId && isFocused) {
       (async () => {
@@ -84,14 +88,13 @@ export default function NewRoutineScreen() {
     }
   }, [routineId, mode, db, isFocused]);
 
-  // 3. BUSCAR EXERCÍCIOS PARA O MODAL
   const fetchModalExercises = useCallback(async () => {
     try {
       let query =
         "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
       let params: any[] = [];
       if (search.trim()) {
-        query += " AND name LIKE ?";
+        query += " AND name LIKE ? COLLATE NOCASE";
         params.push(`%${search.trim()}%`);
       }
       query += " ORDER BY name ASC";
@@ -106,7 +109,6 @@ export default function NewRoutineScreen() {
     if (isModalVisible) fetchModalExercises();
   }, [isModalVisible, fetchModalExercises]);
 
-  // 4. FUNÇÃO SALVAR
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert("Aviso", "Dá um nome à tua rotina.");
     if (selectedExercises.length === 0)
@@ -148,11 +150,8 @@ export default function NewRoutineScreen() {
       }
 
       Alert.alert("Sucesso", "Rotina guardada!");
-
-      // LIMPEZA FINAL ANTES DE SAIR
       setName("");
       setSelectedExercises([]);
-
       router.replace("/workout");
     } catch (e: any) {
       console.error("ERRO AO GRAVAR:", e);
@@ -232,8 +231,12 @@ export default function NewRoutineScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL DE SELEÇÃO */}
-      <Modal visible={isModalVisible} animationType="slide">
+      {/* MODAL DE SELEÇÃO - ESTILO EXPLORE/HEVY */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
         <SafeAreaView className="flex-1 bg-[#000]">
           <View className="flex-1 px-6 pt-4">
             <View className="flex-row items-center justify-between mb-6">
@@ -264,31 +267,75 @@ export default function NewRoutineScreen() {
             <FlatList
               data={dbExercises}
               keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
                 const isSelected = selectedExercises.some(
                   (e) => e.id === item.id,
                 );
+                const imageKey = item.image?.trim();
+                const isCustomImage =
+                  imageKey?.startsWith("file://") ||
+                  imageKey?.startsWith("http");
+                const imageSource = isCustomImage
+                  ? { uri: imageKey }
+                  : imageKey
+                    ? IMAGE_MAP[imageKey]
+                    : null;
+
                 return (
-                  <TouchableOpacity
-                    onPress={() => toggleSelection(item)}
-                    className="flex-row items-center py-4 border-b border-zinc-900"
-                  >
-                    <View className="flex-1">
-                      <Text
-                        className={`text-base font-black italic uppercase ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+                  <View className="flex-row items-center py-4 border-b border-zinc-900">
+                    {/* ESQUERDA: Clique para Detalhes */}
+                    <TouchableOpacity
+                      className="flex-1 flex-row items-center"
+                      onPress={() => {
+                        setIsModalVisible(false);
+                        router.push({
+                          pathname: "/workout/[id]",
+                          params: { id: item.id, from: "new_routine" },
+                        });
+                      }}
+                    >
+                      <View className="w-14 h-14 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
+                        {imageSource ? (
+                          <Image
+                            source={imageSource}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <Target size={24} color="#E31C25" />
+                        )}
+                      </View>
+                      <View className="flex-1">
+                        <Text
+                          className={`text-base font-black italic uppercase ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+                        >
+                          {item.name}
+                        </Text>
+                        <Text className="text-zinc-500 text-xs uppercase italic">
+                          {item.muscle_group}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* DIREITA: Bola para selecionar */}
+                    <TouchableOpacity
+                      onPress={() => toggleSelection(item)}
+                      className="w-12 h-12 items-center justify-center"
+                    >
+                      <View
+                        className={`w-7 h-7 rounded-full items-center justify-center border-2 ${
+                          isSelected
+                            ? "bg-[#E31C25] border-[#E31C25]"
+                            : "border-zinc-800"
+                        }`}
                       >
-                        {item.name}
-                      </Text>
-                      <Text className="text-zinc-500 text-xs uppercase italic">
-                        {item.muscle_group}
-                      </Text>
-                    </View>
-                    {isSelected ? (
-                      <Check color="#E31C25" size={22} />
-                    ) : (
-                      <Plus color="#3f3f46" size={22} />
-                    )}
-                  </TouchableOpacity>
+                        {isSelected && (
+                          <Check color="white" size={14} strokeWidth={4} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 );
               }}
             />
