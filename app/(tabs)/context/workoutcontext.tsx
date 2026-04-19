@@ -10,6 +10,8 @@ export type WorkoutSet = {
   reps: string;
   completed: boolean;
   previous?: string;
+  suggestedWeight?: string; // NOVO
+  suggestedReps?: string; // NOVO
 };
 
 export type ActiveExercise = {
@@ -18,7 +20,7 @@ export type ActiveExercise = {
   name: string;
   notes?: string;
   rest_time: number;
-  personalRecords: { weight: number; reps: number }[]; // Histórico para PRs
+  personalRecords: { weight: number; reps: number }[];
   sets: WorkoutSet[];
 };
 

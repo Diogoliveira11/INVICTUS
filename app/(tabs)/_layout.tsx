@@ -3,7 +3,7 @@ import { Tabs, useRouter } from "expo-router";
 import { ChevronUp, Dumbbell, Home, Trash2 } from "lucide-react-native";
 import React, { useEffect } from "react";
 import { Image, Platform, Text, TouchableOpacity, View } from "react-native";
-import { useWorkout } from "./context/workoutcontext"; // Confirma se o caminho permanece este
+import { useWorkout } from "./context/workoutcontext";
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -106,7 +106,6 @@ export default function TabsLayout() {
           style={{ bottom: Platform.OS === "ios" ? 95 : 80 }}
           className="absolute left-4 right-4 bg-[#1c1c1e] rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl"
         >
-          {/* Ponto 3: Barra de Rest Timer Visual (opcional no Mini Tracker) */}
           {restTimer !== null && (
             <View className="bg-[#E31C25] h-1 w-full absolute top-0" />
           )}
@@ -114,7 +113,8 @@ export default function TabsLayout() {
           <View className="h-16 flex-row items-center px-4">
             <TouchableOpacity
               onPress={() => {
-                setIsMinimized(false); // Barra desaparece ao entrar
+                // Aqui navegamos de volta para o log_workout.
+                // O useFocusEffect no log_workout colocará isMinimized como false automaticamente.
                 router.push("/workout/log_workout");
               }}
               className="w-10 h-10 bg-zinc-800 rounded-full items-center justify-center"
@@ -139,7 +139,7 @@ export default function TabsLayout() {
             </View>
 
             <TouchableOpacity
-              onPress={() => stopWorkout(true)} // Ponto 4: Chama com confirmação
+              onPress={() => stopWorkout(true)}
               className="w-10 h-10 items-center justify-center bg-red-500/10 rounded-full"
             >
               <Trash2 color="#ef4444" size={20} />

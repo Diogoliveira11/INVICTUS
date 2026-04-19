@@ -1,5 +1,4 @@
-import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
   Check,
@@ -9,8 +8,7 @@ import {
   Plus,
   Search,
   Target,
-  Trophy,
-  X,
+  X
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -28,7 +26,7 @@ import {
   Vibration,
   View,
 } from "react-native";
-import { SetType, useWorkout } from "../context/workoutcontext";
+import { SetType, useWorkout, WorkoutSet } from "../context/workoutcontext";
 
 const IMAGE_MAP: { [key: string]: any } = {
   "assets/exercises_images/barbell_decline_bench_press.png": require("../../../assets/exercises_images/barbell_decline_bench_press.png"),
@@ -46,7 +44,6 @@ export default function LogWorkoutScreen() {
     updateSet,
     toggleSetCompleted,
     setIsMinimized,
-    setLastExercise,
     setIsActive,
     isActive,
     stopWorkout,
@@ -57,7 +54,7 @@ export default function LogWorkoutScreen() {
   const [dbExercises, setDbExercises] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [tempSelected, setTempSelected] = useState<any[]>([]);
-  const [weightUnit, setWeightUnit] = useState("kg");
+  const [weightUnit] = useState("kg");
   const [activeRestTimers, setActiveRestTimers] = useState<
     Record<string, number>
   >({});
@@ -66,6 +63,15 @@ export default function LogWorkoutScreen() {
     exId: string;
     setId: string;
   } | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsMinimized(false);
+      return () => {
+        setIsMinimized(true);
+      };
+    }, [setIsMinimized]),
+  );
 
   const stats = useMemo(() => {
     let totalSets = 0,
@@ -120,10 +126,12 @@ export default function LogWorkoutScreen() {
         [Number(routineId)],
       );
       if (routineRes) setActiveRoutineName(routineRes.name);
+
       const routineExs = await db.getAllAsync<any>(
         `SELECT e.* FROM exercises e JOIN routine_exercises re ON e.id = re.exercise_id WHERE re.routine_id = ? ORDER BY re.index_order ASC`,
         [routineId],
       );
+
       if (routineExs && routineExs.length > 0) {
         const prepared = await Promise.all(
           routineExs.map(async (ex) => {
@@ -131,26 +139,22 @@ export default function LogWorkoutScreen() {
               "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
               [ex.id],
             );
-            const historyRes = await db.getAllAsync<{
-              weight: number;
-              reps: number;
-            }>(
-              "SELECT weight, MAX(reps) as reps FROM workout_sets WHERE exercise_id = ? GROUP BY weight",
-              [ex.id],
-            );
+
             return {
               logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
               id: ex.id,
               name: ex.name,
               notes: "",
               rest_time: 0,
-              personalRecords: historyRes || [],
+              personalRecords: [],
               sets: [
                 {
                   id: Math.random().toString(),
                   type: "1" as SetType,
                   weight: "",
                   reps: "",
+                  suggestedWeight: prevRes ? String(prevRes.weight) : "0",
+                  suggestedReps: prevRes ? String(prevRes.reps) : "0",
                   completed: false,
                   previous: prevRes
                     ? `${prevRes.weight}${weightUnit} x ${prevRes.reps}`
@@ -160,7 +164,7 @@ export default function LogWorkoutScreen() {
             };
           }),
         );
-        setExercises(prepared);
+        setExercises(prepared as any);
         setIsActive(true);
       }
     } catch (e) {
@@ -177,12 +181,26 @@ export default function LogWorkoutScreen() {
 
   const handleToggleSet = (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);
-    if (
-      exercise &&
-      !exercise.sets.find((s) => s.id === setId)?.completed &&
-      exercise.rest_time > 0
-    ) {
-      setActiveRestTimers((prev) => ({ ...prev, [setId]: exercise.rest_time }));
+    if (!exercise) return;
+
+    const currentSet = exercise.sets.find((s) => s.id === setId);
+    if (!currentSet) return;
+
+    // Se o utilizador clicar no Check sem ter digitado nada, assume o valor sugerido (cinzento)
+    if (!currentSet.completed) {
+      if (currentSet.weight === "" && currentSet.suggestedWeight) {
+        updateSet(exLogId, setId, "weight", currentSet.suggestedWeight);
+      }
+      if (currentSet.reps === "" && currentSet.suggestedReps) {
+        updateSet(exLogId, setId, "reps", currentSet.suggestedReps);
+      }
+    }
+
+    if (!currentSet.completed && (exercise.rest_time ?? 0) > 0) {
+      setActiveRestTimers((prev) => ({
+        ...prev,
+        [setId]: exercise.rest_time!,
+      }));
     }
     toggleSetCompleted(exLogId, setId);
   };
@@ -215,26 +233,21 @@ export default function LogWorkoutScreen() {
           "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
           [ex.id],
         );
-        const historyRes = await db.getAllAsync<{
-          weight: number;
-          reps: number;
-        }>(
-          "SELECT weight, MAX(reps) as reps FROM workout_sets WHERE exercise_id = ? GROUP BY weight",
-          [ex.id],
-        );
         return {
           logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
           id: ex.id,
           name: ex.name,
           notes: "",
           rest_time: 0,
-          personalRecords: historyRes || [],
+          personalRecords: [],
           sets: [
             {
               id: Math.random().toString(),
               type: "1" as SetType,
               weight: "",
               reps: "",
+              suggestedWeight: prevRes ? String(prevRes.weight) : "0",
+              suggestedReps: prevRes ? String(prevRes.reps) : "0",
               completed: false,
               previous: prevRes
                 ? `${prevRes.weight}${weightUnit} x ${prevRes.reps}`
@@ -244,7 +257,7 @@ export default function LogWorkoutScreen() {
         };
       }),
     );
-    setExercises([...exercises, ...newExs]);
+    setExercises([...exercises, ...newExs] as any);
     setTempSelected([]);
     setIsModalVisible(false);
   };
@@ -258,12 +271,7 @@ export default function LogWorkoutScreen() {
         <StatusBar barStyle="light-content" />
 
         <View className="flex-row items-center justify-between px-4 py-3 bg-black border-b border-zinc-900">
-          <TouchableOpacity
-            onPress={() => {
-              setIsMinimized(true);
-              router.back();
-            }}
-          >
+          <TouchableOpacity onPress={() => router.back()}>
             <ChevronDown size={30} color="white" />
           </TouchableOpacity>
           <Text className="text-white font-black uppercase italic tracking-tighter text-lg">
@@ -376,7 +384,7 @@ export default function LogWorkoutScreen() {
                   Previous
                 </Text>
                 <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
-                  {weightUnit.toUpperCase()}
+                  KG
                 </Text>
                 <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
                   Reps
@@ -384,68 +392,61 @@ export default function LogWorkoutScreen() {
                 <View className="w-12" />
               </View>
 
-              {ex.sets.map((set, idx) => {
-                const isNewPR = ex.personalRecords.every(
-                  (pr) =>
-                    Number(set.weight) > pr.weight ||
-                    (Number(set.weight) === pr.weight &&
-                      Number(set.reps) > pr.reps),
-                );
-                return (
-                  <View key={set.id} className="mb-2">
-                    <View
-                      className={`flex-row items-center h-14 px-2 rounded-2xl ${set.completed ? "bg-[#E31C25]/15 border border-[#E31C25]/30" : "bg-zinc-900/60 border border-zinc-800"}`}
+              {ex.sets.map((set: WorkoutSet, idx: number) => (
+                <View key={set.id} className="mb-2">
+                  <View
+                    className={`flex-row items-center h-14 px-2 rounded-2xl border mb-2 ${set.completed ? "bg-[#E31C25]/15 border-[#E31C25]/30" : "bg-zinc-900/60 border border-zinc-800"}`}
+                  >
+                    <TouchableOpacity
+                      className="w-10 h-10 items-center justify-center bg-zinc-800 rounded-xl"
+                      onPress={() =>
+                        setTypeModal({
+                          visible: true,
+                          exId: ex.logId,
+                          setId: set.id,
+                        })
+                      }
                     >
-                      <TouchableOpacity
-                        className="w-10 h-10 items-center justify-center bg-zinc-800 rounded-xl relative"
-                        onPress={() =>
-                          setTypeModal({
-                            visible: true,
-                            exId: ex.logId,
-                            setId: set.id,
-                          })
-                        }
-                      >
-                        {set.completed && isNewPR && Number(set.weight) > 0 && (
-                          <View className="absolute -top-1 -left-1 z-10 bg-amber-500 rounded-full p-1 border border-black shadow-sm">
-                            <Trophy size={8} color="black" />
-                          </View>
-                        )}
-                        <Text className="text-white font-black italic">
-                          {set.type === "1" ? idx + 1 : set.type}
-                        </Text>
-                      </TouchableOpacity>
-                      <Text className="flex-1 text-zinc-500 text-center text-xs font-black italic">
-                        {set.previous}
+                      <Text className="text-white font-black italic">
+                        {set.type === "1" ? idx + 1 : set.type}
                       </Text>
-                      <TextInput
-                        keyboardType="numeric"
-                        value={set.weight}
-                        onChangeText={(v) =>
-                          updateSet(ex.logId, set.id, "weight", v)
-                        }
-                        className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
-                        placeholder="0"
-                      />
-                      <TextInput
-                        keyboardType="numeric"
-                        value={set.reps}
-                        onChangeText={(v) =>
-                          updateSet(ex.logId, set.id, "reps", v)
-                        }
-                        className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
-                        placeholder="0"
-                      />
-                      <TouchableOpacity
-                        onPress={() => handleToggleSet(ex.logId, set.id)}
-                        className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${set.completed ? "bg-[#E31C25]" : "bg-zinc-800"}`}
-                      >
-                        <Check size={20} color="white" strokeWidth={5} />
-                      </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
+                    <Text className="flex-1 text-zinc-500 text-center text-xs font-black italic">
+                      {set.previous}
+                    </Text>
+
+                    <TextInput
+                      keyboardType="numeric"
+                      value={set.weight}
+                      placeholder={set.suggestedWeight || "0"}
+                      placeholderTextColor="#52525b"
+                      onChangeText={(v) =>
+                        updateSet(ex.logId, set.id, "weight", v)
+                      }
+                      className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
+                    />
+
+                    <TextInput
+                      keyboardType="numeric"
+                      value={set.reps}
+                      placeholder={set.suggestedReps || "0"}
+                      placeholderTextColor="#52525b"
+                      onChangeText={(v) =>
+                        updateSet(ex.logId, set.id, "reps", v)
+                      }
+                      className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
+                    />
+
+                    <TouchableOpacity
+                      onPress={() => handleToggleSet(ex.logId, set.id)}
+                      className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${set.completed ? "bg-[#E31C25]" : "bg-zinc-800"}`}
+                    >
+                      <Check size={20} color="white" strokeWidth={5} />
+                    </TouchableOpacity>
                   </View>
-                );
-              })}
+                </View>
+              ))}
+
               <TouchableOpacity
                 onPress={() =>
                   setExercises(
@@ -460,6 +461,14 @@ export default function LogWorkoutScreen() {
                                 type: "1" as SetType,
                                 weight: "",
                                 reps: "",
+                                suggestedWeight:
+                                  e.sets[e.sets.length - 1]?.weight ||
+                                  e.sets[e.sets.length - 1]?.suggestedWeight ||
+                                  "0",
+                                suggestedReps:
+                                  e.sets[e.sets.length - 1]?.reps ||
+                                  e.sets[e.sets.length - 1]?.suggestedReps ||
+                                  "0",
                                 completed: false,
                                 previous: "-",
                               },
@@ -478,7 +487,6 @@ export default function LogWorkoutScreen() {
             </View>
           ))}
 
-          {/* BOTAO ADD EXERCISE - PEQUENO E CENTRALIZADO */}
           <TouchableOpacity
             onPress={() => setIsModalVisible(true)}
             className="mt-8 mb-24 bg-[#E31C25] py-3 px-8 self-center rounded-full flex-row items-center border border-zinc-800 shadow-lg"
@@ -511,7 +519,6 @@ export default function LogWorkoutScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-
               <View className="flex-row items-center bg-zinc-900 rounded-2xl h-14 px-5 mb-6 border border-zinc-800">
                 <Search color="#52525b" size={24} className="mr-3" />
                 <TextInput
@@ -522,30 +529,17 @@ export default function LogWorkoutScreen() {
                   className="flex-1 text-white font-black italic text-lg"
                 />
               </View>
-
               <FlatList
                 data={dbExercises.filter(
                   (ex) =>
                     ex.name.toLowerCase().includes(search.toLowerCase()) &&
-                    !exercises.some((ae) => ae.id === ex.id),
+                    !exercises.some((ae: any) => ae.id === ex.id),
                 )}
                 keyExtractor={(item) => item.id.toString()}
-                showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => {
-                  const imageKey = item.image?.trim();
-                  const isCustomImage =
-                    imageKey?.startsWith("file://") ||
-                    imageKey?.startsWith("http");
-                  const imageSource = isCustomImage
-                    ? { uri: imageKey }
-                    : imageKey
-                      ? IMAGE_MAP[imageKey]
-                      : null;
                   const isSelected = tempSelected.some((e) => e.id === item.id);
-
                   return (
                     <View className="flex-row items-center py-4 border-b border-zinc-900">
-                      {/* ESQUERDA: Texto e Imagem abre Detalhes e fecha Modal */}
                       <TouchableOpacity
                         className="flex-1 flex-row items-center"
                         onPress={() => {
@@ -553,19 +547,11 @@ export default function LogWorkoutScreen() {
                           router.push({
                             pathname: "/workout/[id]",
                             params: { id: item.id, from: "workout" },
-                          });
+                          } as any);
                         }}
                       >
                         <View className="w-14 h-14 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-                          {imageSource ? (
-                            <Image
-                              source={imageSource}
-                              style={{ width: "100%", height: "100%" }}
-                              contentFit="cover"
-                            />
-                          ) : (
-                            <Target size={24} color="#E31C25" />
-                          )}
+                          <Target size={24} color="#E31C25" />
                         </View>
                         <View className="flex-1">
                           <Text className="text-white text-[16px] font-black uppercase italic tracking-tighter">
@@ -576,26 +562,18 @@ export default function LogWorkoutScreen() {
                           </Text>
                         </View>
                       </TouchableOpacity>
-
-                      {/* DIREITA: Bola apenas seleciona */}
                       <TouchableOpacity
-                        onPress={() => {
-                          if (isSelected) {
-                            setTempSelected(
-                              tempSelected.filter((e) => e.id !== item.id),
-                            );
-                          } else {
-                            setTempSelected([...tempSelected, item]);
-                          }
-                        }}
+                        onPress={() =>
+                          isSelected
+                            ? setTempSelected(
+                                tempSelected.filter((e) => e.id !== item.id),
+                              )
+                            : setTempSelected([...tempSelected, item])
+                        }
                         className="w-12 h-12 items-center justify-center"
                       >
                         <View
-                          className={`w-7 h-7 rounded-full items-center justify-center border-2 ${
-                            isSelected
-                              ? "bg-[#E31C25] border-[#E31C25]"
-                              : "border-zinc-800"
-                          }`}
+                          className={`w-7 h-7 rounded-full items-center justify-center border-2 ${isSelected ? "bg-[#E31C25] border-[#E31C25]" : "border-zinc-800"}`}
                         >
                           {isSelected && (
                             <Check color="white" size={14} strokeWidth={4} />
