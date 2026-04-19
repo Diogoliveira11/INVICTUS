@@ -10,8 +10,8 @@ export type WorkoutSet = {
   reps: string;
   completed: boolean;
   previous?: string;
-  suggestedWeight?: string; // NOVO
-  suggestedReps?: string; // NOVO
+  suggestedWeight?: string;
+  suggestedReps?: string;
 };
 
 export type ActiveExercise = {

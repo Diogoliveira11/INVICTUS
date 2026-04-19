@@ -26,7 +26,12 @@ import {
   Vibration,
   View,
 } from "react-native";
-import { SetType, useWorkout, WorkoutSet } from "../context/workoutcontext";
+import {
+  ActiveExercise,
+  SetType,
+  useWorkout,
+  WorkoutSet,
+} from "../context/workoutcontext";
 
 const IMAGE_MAP: { [key: string]: any } = {
   "assets/exercises_images/barbell_decline_bench_press.png": require("../../../assets/exercises_images/barbell_decline_bench_press.png"),
@@ -64,6 +69,7 @@ export default function LogWorkoutScreen() {
     setId: string;
   } | null>(null);
 
+  // Minimizar automaticamente ao sair
   useFocusEffect(
     useCallback(() => {
       setIsMinimized(false);
@@ -112,13 +118,16 @@ export default function LogWorkoutScreen() {
     const routineId = Array.isArray(params.routineId)
       ? params.routineId[0]
       : params.routineId;
+
+    // Se já existem exercícios na lista, não carregamos a rotina por cima para não apagar o progresso atual
+    // exceto se acabámos de abrir o ecrã vindo de um clique numa rotina nova
+    if (exercises.length > 0) return;
+
     if (!routineId) {
-      if (exercises.length > 0 && !isActive) stopWorkout(false);
       setActiveRoutineName("Treino Avulso");
       setIsActive(true);
       return;
     }
-    if (exercises.length > 0) return;
 
     try {
       const routineRes = await db.getFirstAsync<{ name: string }>(
@@ -164,13 +173,13 @@ export default function LogWorkoutScreen() {
             };
           }),
         );
-        setExercises(prepared as any);
+        setExercises(prepared as ActiveExercise[]);
         setIsActive(true);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Erro ao carregar rotina:", e);
     }
-  }, [params.routineId, db, weightUnit]);
+  }, [params.routineId, db, weightUnit, exercises.length]); // Adicionado exercises.length como dependência
 
   useEffect(() => {
     db.getAllAsync<any>("SELECT * FROM exercises ORDER BY name ASC").then(
@@ -182,16 +191,22 @@ export default function LogWorkoutScreen() {
   const handleToggleSet = (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);
     if (!exercise) return;
-
     const currentSet = exercise.sets.find((s) => s.id === setId);
     if (!currentSet) return;
 
-    // Se o utilizador clicar no Check sem ter digitado nada, assume o valor sugerido (cinzento)
     if (!currentSet.completed) {
-      if (currentSet.weight === "" && currentSet.suggestedWeight) {
+      if (
+        currentSet.weight === "" &&
+        currentSet.suggestedWeight &&
+        currentSet.suggestedWeight !== "0"
+      ) {
         updateSet(exLogId, setId, "weight", currentSet.suggestedWeight);
       }
-      if (currentSet.reps === "" && currentSet.suggestedReps) {
+      if (
+        currentSet.reps === "" &&
+        currentSet.suggestedReps &&
+        currentSet.suggestedReps !== "0"
+      ) {
         updateSet(exLogId, setId, "reps", currentSet.suggestedReps);
       }
     }
@@ -257,7 +272,7 @@ export default function LogWorkoutScreen() {
         };
       }),
     );
-    setExercises([...exercises, ...newExs] as any);
+    setExercises([...exercises, ...newExs] as ActiveExercise[]);
     setTempSelected([]);
     setIsModalVisible(false);
   };
@@ -414,7 +429,6 @@ export default function LogWorkoutScreen() {
                     <Text className="flex-1 text-zinc-500 text-center text-xs font-black italic">
                       {set.previous}
                     </Text>
-
                     <TextInput
                       keyboardType="numeric"
                       value={set.weight}
@@ -425,7 +439,6 @@ export default function LogWorkoutScreen() {
                       }
                       className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
                     />
-
                     <TextInput
                       keyboardType="numeric"
                       value={set.reps}
@@ -436,7 +449,6 @@ export default function LogWorkoutScreen() {
                       }
                       className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
                     />
-
                     <TouchableOpacity
                       onPress={() => handleToggleSet(ex.logId, set.id)}
                       className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${set.completed ? "bg-[#E31C25]" : "bg-zinc-800"}`}
