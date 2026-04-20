@@ -1,6 +1,12 @@
 import * as Notifications from "expo-notifications";
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { Alert } from "react-native";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Alert, AppState } from "react-native";
 
 export type SetType = "W" | "1" | "F" | "D";
 
@@ -55,72 +61,76 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [exercises, setExercises] = useState<ActiveExercise[]>([]);
   const [lastExercise, setLastExercise] = useState("");
   const [seconds, setSeconds] = useState(0);
+  const startTimeRef = useRef<number | null>(null);
+
   const [restTimer, setRestTimer] = useState<number | null>(null);
+  const endTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active" && endTimeRef.current) {
+        const now = Date.now();
+        const remaining = Math.round((endTimeRef.current - now) / 1000);
+        if (remaining > 0) {
+          setRestTimer(remaining);
+        } else {
+          setRestTimer(null);
+          endTimeRef.current = null;
+        }
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     let interval: any;
     if (isActive) {
-      interval = setInterval(() => setSeconds((prev) => prev + 1), 1000);
+      if (startTimeRef.current === null) {
+        startTimeRef.current = Date.now() - seconds * 1000;
+      }
+      interval = setInterval(() => {
+        if (startTimeRef.current) {
+          const elapsed = Math.floor(
+            (Date.now() - startTimeRef.current) / 1000,
+          );
+          setSeconds(elapsed);
+        }
+      }, 1000);
+    } else {
+      clearInterval(interval);
+      startTimeRef.current = null;
     }
     return () => clearInterval(interval);
   }, [isActive]);
 
-  const formatTime = (totalSeconds: number) => {
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    const finalMins = hrs === 0 && mins < 10 ? `0${mins}` : mins;
-    return `${hrs > 0 ? hrs + ":" : ""}${hrs > 0 && mins < 10 ? "0" + mins : finalMins}:${secs < 10 ? "0" + secs : secs}`;
-  };
-
   useEffect(() => {
     let interval: any;
     if (restTimer !== null && restTimer > 0) {
-      interval = setInterval(
-        () => setRestTimer((prev) => (prev !== null ? prev - 1 : null)),
-        1000,
-      );
-    } else if (restTimer === 0) {
-      setRestTimer(null);
+      interval = setInterval(() => {
+        setRestTimer((prev) => {
+          if (prev && prev > 1) return prev - 1;
+          endTimeRef.current = null;
+          return null;
+        });
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [restTimer]);
 
-  const updateSet = (
-    exerciseLogId: string,
-    setId: string,
-    field: "weight" | "reps" | "type",
-    value: string,
-  ) => {
-    setExercises((prev) =>
-      prev.map((ex) =>
-        ex.logId === exerciseLogId
-          ? {
-              ...ex,
-              sets: ex.sets.map((set) =>
-                set.id === setId ? { ...set, [field]: value } : set,
-              ),
-            }
-          : ex,
-      ),
-    );
-  };
-
-  const scheduleRestNotification = async (seconds: number) => {
+  const scheduleRestNotification = async (secs: number) => {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    if (seconds > 0) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Descanso Terminado! 🔔",
-          body: "Está na hora da próxima série.",
-          sound: true,
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: seconds,
-        },
-      });
-    }
+    endTimeRef.current = Date.now() + secs * 1000;
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Rest period over! 🔔",
+        body: "Time for the next series.",
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: secs,
+      },
+    });
   };
 
   const toggleSetCompleted = (exLogId: string, setId: string) => {
@@ -137,6 +147,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
                   scheduleRestNotification(ex.rest_time);
                 } else if (!newState) {
                   setRestTimer(null);
+                  endTimeRef.current = null;
                   Notifications.cancelAllScheduledNotificationsAsync();
                 }
                 return { ...s, completed: newState };
@@ -150,7 +161,37 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const formatTime = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hrs > 0 ? hrs + ":" : ""}${mins < 10 && hrs > 0 ? "0" + mins : mins}:${secs < 10 ? "0" + secs : secs}`;
+  };
+
+  const updateSet = (
+    logId: string,
+    setId: string,
+    field: any,
+    value: string,
+  ) => {
+    setExercises((prev) =>
+      prev.map((ex) =>
+        ex.logId === logId
+          ? {
+              ...ex,
+              sets: ex.sets.map((s) =>
+                s.id === setId ? { ...s, [field]: value } : s,
+              ),
+            }
+          : ex,
+      ),
+    );
+  };
+
   const startWorkout = (name: string) => {
+    startTimeRef.current = Date.now();
+    setSeconds(0);
+    setExercises([]);
     setIsActive(true);
     setIsMinimized(false);
     setLastExercise(name);
@@ -162,17 +203,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setIsMinimized(false);
       setExercises([]);
       setSeconds(0);
+      startTimeRef.current = null;
       setRestTimer(null);
+      endTimeRef.current = null;
+      setLastExercise("");
       Notifications.cancelAllScheduledNotificationsAsync();
     };
-    if (confirm) {
+    if (confirm)
       Alert.alert("Descartar Treino?", "Tens a certeza?", [
-        { text: "Cancelar", style: "cancel" },
+        { text: "Cancelar" },
         { text: "Descartar", style: "destructive", onPress: clear },
       ]);
-    } else {
-      clear();
-    }
+    else clear();
   };
 
   return (
