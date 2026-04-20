@@ -651,6 +651,7 @@ export default function LogWorkoutScreen() {
         </ScrollView>
 
         {/* MODAL LIBRARY */}
+        {/* MODAL LIBRARY */}
         <Modal
           visible={isModalVisible}
           animationType="slide"
@@ -673,7 +674,6 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Barra de Pesquisa */}
               <View className="flex-row items-center bg-zinc-900/50 rounded-2xl h-14 px-5 mb-4 border border-zinc-800">
                 <Search color="#52525b" size={20} className="mr-3" />
                 <TextInput
@@ -685,7 +685,6 @@ export default function LogWorkoutScreen() {
                 />
               </View>
 
-              {/* Botões de Filtro */}
               <View className="flex-row justify-between mb-6 gap-x-3">
                 <TouchableOpacity
                   onPress={() => {
@@ -732,7 +731,6 @@ export default function LogWorkoutScreen() {
                   const imageSource = item.image
                     ? IMAGE_MAP[item.image.trim()]
                     : null;
-
                   return (
                     <View className="flex-row items-center py-4 border-b border-zinc-900/50">
                       <TouchableOpacity
@@ -767,7 +765,6 @@ export default function LogWorkoutScreen() {
                           </Text>
                         </View>
                       </TouchableOpacity>
-
                       <TouchableOpacity
                         onPress={() =>
                           isSelected
@@ -792,7 +789,7 @@ export default function LogWorkoutScreen() {
               />
             </View>
 
-            {/* MODAL DE SELEÇÃO DE OPÇÕES DE FILTRO - COLOCADO DENTRO DO CONTEXTO DA LIBRARY */}
+            {/* MODAL DE FILTROS */}
             <Modal
               visible={isFilterModalVisible}
               transparent
@@ -803,12 +800,11 @@ export default function LogWorkoutScreen() {
               >
                 <View className="flex-1 bg-black/80 justify-end">
                   <TouchableWithoutFeedback>
-                    <View className="bg-[#121212] rounded-t-[40px] min-h-[50%] p-8 border-t border-zinc-800">
+                    <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
                       <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
                       <Text className="text-white text-xl font-black uppercase italic mb-6">
                         {modalType === "muscle" ? "Muscles" : "Equipment"}
                       </Text>
-
                       <ScrollView showsVerticalScrollIndicator={false}>
                         <TouchableOpacity
                           onPress={() => {
@@ -827,7 +823,6 @@ export default function LogWorkoutScreen() {
                             <Check color="#E31C25" size={24} />
                           )}
                         </TouchableOpacity>
-
                         {(modalType === "muscle"
                           ? muscleOptions
                           : equipmentOptions
