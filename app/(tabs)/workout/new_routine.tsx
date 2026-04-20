@@ -27,131 +27,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-// Mapa de imagens locais do projeto
-const IMAGE_MAP: { [key: string]: any } = {
-  "assets/exercises_images/back_extension.png": require("../../../assets/exercises_images/back_extension.png"),
-  "assets/exercises_images/back_extension_machine.png": require("../../../assets/exercises_images/back_extension_machine.png"),
-  "assets/exercises_images/back_extension_weighted_hyperextension.png": require("../../../assets/exercises_images/back_extension_weighted_hyperextension.png"),
-  "assets/exercises_images/barbell_row.png": require("../../../assets/exercises_images/barbell_row.png"),
-  "assets/exercises_images/barbell_shrug.png": require("../../../assets/exercises_images/barbell_shrug.png"),
-  "assets/exercises_images/behind_back_wrist_curl_barbell.png": require("../../../assets/exercises_images/behind_back_wrist_curl_barbell.png"),
-  "assets/exercises_images/bench_press_barbell.png": require("../../../assets/exercises_images/bench_press_barbell.png"),
-  "assets/exercises_images/bench_press_cable.png": require("../../../assets/exercises_images/bench_press_cable.png"),
-  "assets/exercises_images/bench_press_dumbbell.png": require("../../../assets/exercises_images/bench_press_dumbbell.png"),
-  "assets/exercises_images/bench_press_smith_machine.png": require("../../../assets/exercises_images/bench_press_smith_machine.png"),
-  "assets/exercises_images/bicep_curl_barbell.png": require("../../../assets/exercises_images/bicep_curl_barbell.png"),
-  "assets/exercises_images/bicep_curl_cable.png": require("../../../assets/exercises_images/bicep_curl_cable.png"),
-  "assets/exercises_images/bicep_curl_dumbbell.png": require("../../../assets/exercises_images/bicep_curl_dumbbell.png"),
-  "assets/exercises_images/bicep_curl_machine.png": require("../../../assets/exercises_images/bicep_curl_machine.png"),
-  "assets/exercises_images/bulgarian_split_squat.png": require("../../../assets/exercises_images/bulgarian_split_squat.png"),
-  "assets/exercises_images/butterfly_pec_deck.png": require("../../../assets/exercises_images/butterfly_pec_deck.png"),
-  "assets/exercises_images/cable_crunch.png": require("../../../assets/exercises_images/cable_crunch.png"),
-  "assets/exercises_images/cable_fly_crossovers.png": require("../../../assets/exercises_images/cable_fly_crossovers.png"),
-  "assets/exercises_images/calf_extension_machine.png": require("../../../assets/exercises_images/calf_extension_machine.png"),
-  "assets/exercises_images/calf_press_machine.png": require("../../../assets/exercises_images/calf_press_machine.png"),
-  "assets/exercises_images/chest_dip_weighted.png": require("../../../assets/exercises_images/chest_dip_weighted.png"),
-  "assets/exercises_images/chest_fly_dumbbell.png": require("../../../assets/exercises_images/chest_fly_dumbbell.png"),
-  "assets/exercises_images/chest_fly_machine.png": require("../../../assets/exercises_images/chest_fly_machine.png"),
-  "assets/exercises_images/chest_press_machine.png": require("../../../assets/exercises_images/chest_press_machine.png"),
-  "assets/exercises_images/chin_up.png": require("../../../assets/exercises_images/chin_up.png"),
-  "assets/exercises_images/concentration_curl.png": require("../../../assets/exercises_images/concentration_curl.png"),
-  "assets/exercises_images/crunch_machine.png": require("../../../assets/exercises_images/crunch_machine.png"),
-  "assets/exercises_images/crunch_weighted.png": require("../../../assets/exercises_images/crunch_weighted.png"),
-  "assets/exercises_images/deadlift_barbell.png": require("../../../assets/exercises_images/deadlift_barbell.png"),
-  "assets/exercises_images/deadlift_dumbbell.png": require("../../../assets/exercises_images/deadlift_dumbbell.png"),
-  "assets/exercises_images/deadlift_smith_machine.png": require("../../../assets/exercises_images/deadlift_smith_machine.png"),
-  "assets/exercises_images/decline_bench_press_barbell.png": require("../../../assets/exercises_images/decline_bench_press_barbell.png"),
-  "assets/exercises_images/decline_bench_press_dumbbell.png": require("../../../assets/exercises_images/decline_bench_press_dumbbell.png"),
-  "assets/exercises_images/decline_bench_press_machine.png": require("../../../assets/exercises_images/decline_bench_press_machine.png"),
-  "assets/exercises_images/decline_bench_press_smith_machine.png": require("../../../assets/exercises_images/decline_bench_press_smith_machine.png"),
-  "assets/exercises_images/decline_chest_fly_dumbbell.png": require("../../../assets/exercises_images/decline_chest_fly_dumbbell.png"),
-  "assets/exercises_images/decline_crunch_weighted.png": require("../../../assets/exercises_images/decline_crunch_weighted.png"),
-  "assets/exercises_images/dumbbell_row.png": require("../../../assets/exercises_images/dumbbell_row.png"),
-  "assets/exercises_images/dumbbell_shrug.png": require("../../../assets/exercises_images/dumbbell_shrug.png"),
-  "assets/exercises_images/elliptical_trainer.png": require("../../../assets/exercises_images/elliptical_trainer.png"),
-  "assets/exercises_images/ez_bar_biceps_curl.png": require("../../../assets/exercises_images/ez_bar_biceps_curl.png"),
-  "assets/exercises_images/full_squat.png": require("../../../assets/exercises_images/full_squat.png"),
-  "assets/exercises_images/glute_kickback_machine.png": require("../../../assets/exercises_images/glute_kickback_machine.png"),
-  "assets/exercises_images/hack_squat_machine.png": require("../../../assets/exercises_images/hack_squat_machine.png"),
-  "assets/exercises_images/hammer_curl_cable.png": require("../../../assets/exercises_images/hammer_curl_cable.png"),
-  "assets/exercises_images/hammer_curl_dumbbell.png": require("../../../assets/exercises_images/hammer_curl_dumbbell.png"),
-  "assets/exercises_images/hanging_leg_raise.png": require("../../../assets/exercises_images/hanging_leg_raise.png"),
-  "assets/exercises_images/hip_abduction_machine.png": require("../../../assets/exercises_images/hip_abduction_machine.png"),
-  "assets/exercises_images/hip_adduction_machine.png": require("../../../assets/exercises_images/hip_adduction_machine.png"),
-  "assets/exercises_images/hip_thrust_barbell.png": require("../../../assets/exercises_images/hip_thrust_barbell.png"),
-  "assets/exercises_images/hip_thrust_machine.png": require("../../../assets/exercises_images/hip_thrust_machine.png"),
-  "assets/exercises_images/incline_bench_press_barbell.png": require("../../../assets/exercises_images/incline_bench_press_barbell.png"),
-  "assets/exercises_images/incline_bench_press_dumbbell.png": require("../../../assets/exercises_images/incline_bench_press_dumbbell.png"),
-  "assets/exercises_images/incline_bench_press_smith_machine.png": require("../../../assets/exercises_images/incline_bench_press_smith_machine.png"),
-  "assets/exercises_images/incline_chest_fly_dumbbell.png": require("../../../assets/exercises_images/incline_chest_fly_dumbbell.png"),
-  "assets/exercises_images/iso_lateral_chest_press_machine.png": require("../../../assets/exercises_images/iso_lateral_chest_press_machine.png"),
-  "assets/exercises_images/iso_lateral_high_row_machine.png": require("../../../assets/exercises_images/iso_lateral_high_row_machine.png"),
-  "assets/exercises_images/iso_lateral_row_machine.png": require("../../../assets/exercises_images/iso_lateral_row_machine.png"),
-  "assets/exercises_images/lat_pulldown_cable.png": require("../../../assets/exercises_images/lat_pulldown_cable.png"),
-  "assets/exercises_images/lat_pulldown_close_grip_cable.png": require("../../../assets/exercises_images/lat_pulldown_close_grip_cable.png"),
-  "assets/exercises_images/lat_pulldown_machine.png": require("../../../assets/exercises_images/lat_pulldown_machine.png"),
-  "assets/exercises_images/lateral_raise_cable.png": require("../../../assets/exercises_images/lateral_raise_cable.png"),
-  "assets/exercises_images/lateral_raise_dumbbell.png": require("../../../assets/exercises_images/lateral_raise_dumbbell.png"),
-  "assets/exercises_images/lateral_raise_machine.png": require("../../../assets/exercises_images/lateral_raise_machine.png"),
-  "assets/exercises_images/leg_extension_machine.png": require("../../../assets/exercises_images/leg_extension_machine.png"),
-  "assets/exercises_images/leg_press_horizontal_machine.png": require("../../../assets/exercises_images/leg_press_horizontal_machine.png"),
-  "assets/exercises_images/leg_press_machine.png": require("../../../assets/exercises_images/leg_press_machine.png"),
-  "assets/exercises_images/leg_raise_parallel_bars.png": require("../../../assets/exercises_images/leg_raise_parallel_bars.png"),
-  "assets/exercises_images/low_cable_fly_crossovers.png": require("../../../assets/exercises_images/low_cable_fly_crossovers.png"),
-  "assets/exercises_images/lying_leg_curl_machine.png": require("../../../assets/exercises_images/lying_leg_curl_machine.png"),
-  "assets/exercises_images/lying_leg_raise.png": require("../../../assets/exercises_images/lying_leg_raise.png"),
-  "assets/exercises_images/overhead_press_barbell.png": require("../../../assets/exercises_images/overhead_press_barbell.png"),
-  "assets/exercises_images/overhead_press_dumbbell.png": require("../../../assets/exercises_images/overhead_press_dumbbell.png"),
-  "assets/exercises_images/overhead_press_smith_machine.png": require("../../../assets/exercises_images/overhead_press_smith_machine.png"),
-  "assets/exercises_images/overhead_triceps_extension_cable.png": require("../../../assets/exercises_images/overhead_triceps_extension_cable.png"),
-  "assets/exercises_images/plank.png": require("../../../assets/exercises_images/plank.png"),
-  "assets/exercises_images/preacher_curl_barbell.png": require("../../../assets/exercises_images/preacher_curl_barbell.png"),
-  "assets/exercises_images/preacher_curl_dumbbell.png": require("../../../assets/exercises_images/preacher_curl_dumbbell.png"),
-  "assets/exercises_images/preacher_curl_machine.png": require("../../../assets/exercises_images/preacher_curl_machine.png"),
-  "assets/exercises_images/pullover_dumbbell.png": require("../../../assets/exercises_images/pullover_dumbbell.png"),
-  "assets/exercises_images/pullover_machine.png": require("../../../assets/exercises_images/pullover_machine.png"),
-  "assets/exercises_images/rear_delt_reverse_fly_cable.png": require("../../../assets/exercises_images/rear_delt_reverse_fly_cable.png"),
-  "assets/exercises_images/rear_delt_reverse_fly_machine.png": require("../../../assets/exercises_images/rear_delt_reverse_fly_machine.png"),
-  "assets/exercises_images/rear_kick_machine.png": require("../../../assets/exercises_images/rear_kick_machine.png"),
-  "assets/exercises_images/reverse_fly_single_arm_cable.png": require("../../../assets/exercises_images/reverse_fly_single_arm_cable.png"),
-  "assets/exercises_images/reverse_grip_lat_pulldown_cable.png": require("../../../assets/exercises_images/reverse_grip_lat_pulldown_cable.png"),
-  "assets/exercises_images/romanian_deadlift_barbell.png": require("../../../assets/exercises_images/romanian_deadlift_barbell.png"),
-  "assets/exercises_images/romanian_deadlift_dumbbell.png": require("../../../assets/exercises_images/romanian_deadlift_dumbbell.png"),
-  "assets/exercises_images/rope_straight_arm_pulldown.png": require("../../../assets/exercises_images/rope_straight_arm_pulldown.png"),
-  "assets/exercises_images/rowing_machine.png": require("../../../assets/exercises_images/rowing_machine.png"),
-  "assets/exercises_images/seated_cable_row_bar_wide_grip.png": require("../../../assets/exercises_images/seated_cable_row_bar_wide_grip.png"),
-  "assets/exercises_images/seated_cable_row_v_grip.png": require("../../../assets/exercises_images/seated_cable_row_v_grip.png"),
-  "assets/exercises_images/seated_calf_raise.png": require("../../../assets/exercises_images/seated_calf_raise.png"),
-  "assets/exercises_images/seated_chest_flys_cable.png": require("../../../assets/exercises_images/seated_chest_flys_cable.png"),
-  "assets/exercises_images/seated_dip_machine.png": require("../../../assets/exercises_images/seated_dip_machine.png"),
-  "assets/exercises_images/seated_leg_curl_machine.png": require("../../../assets/exercises_images/seated_leg_curl_machine.png"),
-  "assets/exercises_images/seated_palms_up_wrist_curl.png": require("../../../assets/exercises_images/seated_palms_up_wrist_curl.png"),
-  "assets/exercises_images/seated_wrist_extension_barbell.png": require("../../../assets/exercises_images/seated_wrist_extension_barbell.png"),
-  "assets/exercises_images/shoulder_press_dumbbell.png": require("../../../assets/exercises_images/shoulder_press_dumbbell.png"),
-  "assets/exercises_images/shrug_barbell.png": require("../../../assets/exercises_images/shrug_barbell.png"),
-  "assets/exercises_images/shrug_cable.png": require("../../../assets/exercises_images/shrug_cable.png"),
-  "assets/exercises_images/shrug_dumbbell.png": require("../../../assets/exercises_images/shrug_dumbbell.png"),
-  "assets/exercises_images/side_plank.png": require("../../../assets/exercises_images/side_plank.png"),
-  "assets/exercises_images/single_arm_cable_crossover.png": require("../../../assets/exercises_images/single_arm_cable_crossover.png"),
-  "assets/exercises_images/single_arm_triceps_pushdown_cable.png": require("../../../assets/exercises_images/single_arm_triceps_pushdown_cable.png"),
-  "assets/exercises_images/single_leg_hip_thrust_dumbbell.png": require("../../../assets/exercises_images/single_leg_hip_thrust_dumbbell.png"),
-  "assets/exercises_images/single_leg_standing_calf_raise_machine.png": require("../../../assets/exercises_images/single_leg_standing_calf_raise_machine.png"),
-  "assets/exercises_images/skullcrusher_barbell.png": require("../../../assets/exercises_images/skullcrusher_barbell.png"),
-  "assets/exercises_images/stair_machine_steps.png": require("../../../assets/exercises_images/stair_machine_steps.png"),
-  "assets/exercises_images/standing_cable_glute_kickbacks.png": require("../../../assets/exercises_images/standing_cable_glute_kickbacks.png"),
-  "assets/exercises_images/standing_calf_raise_machine.png": require("../../../assets/exercises_images/standing_calf_raise_machine.png"),
-  "assets/exercises_images/standing_calf_raise_smith.png": require("../../../assets/exercises_images/standing_calf_raise_smith.png"),
-  "assets/exercises_images/standing_leg_curls.png": require("../../../assets/exercises_images/standing_leg_curls.png"),
-  "assets/exercises_images/straight_arm_lat_pulldown_cable.png": require("../../../assets/exercises_images/straight_arm_lat_pulldown_cable.png"),
-  "assets/exercises_images/straight_leg_deadlift.png": require("../../../assets/exercises_images/straight_leg_deadlift.png"),
-  "assets/exercises_images/sumo_deadlift.png": require("../../../assets/exercises_images/sumo_deadlift.png"),
-  "assets/exercises_images/treadmill.png": require("../../../assets/exercises_images/treadmill.png"),
-  "assets/exercises_images/triceps_pushdown.png": require("../../../assets/exercises_images/triceps_pushdown.png"),
-  "assets/exercises_images/triceps_rope_pushdown.png": require("../../../assets/exercises_images/triceps_rope_pushdown.png"),
-  "assets/exercises_images/upright_row_cable.png": require("../../../assets/exercises_images/upright_row_cable.png"),
-  "assets/exercises_images/wrist_roller.png": require("../../../assets/exercises_images/wrist_roller.png"),
-};
+import { IMAGE_MAP } from "../../../constants/exercise_images";
 
 type Exercise = {
   id: number;
@@ -320,25 +196,45 @@ export default function NewRoutineScreen() {
             Exercises ({selectedExercises.length})
           </Text>
 
-          {selectedExercises.map((ex) => (
-            <View
-              key={ex.id}
-              className="flex-row items-center bg-zinc-900/50 p-4 rounded-2xl mb-3 border border-zinc-800"
-            >
-              <GripVertical size={20} color="#3f3f46" />
-              <View className="flex-1 ml-3">
-                <Text className="text-white font-bold uppercase italic">
-                  {ex.name}
-                </Text>
-                <Text className="text-zinc-500 text-xs uppercase">
-                  {ex.muscle_group}
-                </Text>
+          {selectedExercises.map((ex) => {
+            const imageKey = ex.image?.trim();
+            const imageSource = imageKey ? IMAGE_MAP[imageKey] : null;
+
+            return (
+              <View
+                key={ex.id}
+                className="flex-row items-center bg-zinc-900/50 p-4 rounded-2xl mb-3 border border-zinc-800"
+              >
+                <GripVertical size={20} color="#3f3f46" />
+
+                {/* Imagem do Exercício na lista da Rotina */}
+                <View className="w-12 h-12 rounded-xl bg-zinc-900 items-center justify-center ml-2 border border-zinc-800 overflow-hidden">
+                  {imageSource ? (
+                    <Image
+                      source={imageSource}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <Target size={20} color="#E31C25" />
+                  )}
+                </View>
+
+                <View className="flex-1 ml-3">
+                  <Text className="text-white font-bold uppercase italic">
+                    {ex.name}
+                  </Text>
+                  <Text className="text-zinc-500 text-xs uppercase italic">
+                    {ex.muscle_group}
+                  </Text>
+                </View>
+
+                <TouchableOpacity onPress={() => toggleSelection(ex)}>
+                  <Trash2 size={20} color="#ef4444" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => toggleSelection(ex)}>
-                <Trash2 size={20} color="#ef4444" />
-              </TouchableOpacity>
-            </View>
-          ))}
+            );
+          })}
 
           <TouchableOpacity
             onPress={() => setIsModalVisible(true)}
@@ -394,18 +290,12 @@ export default function NewRoutineScreen() {
                   (e) => e.id === item.id,
                 );
                 const imageKey = item.image?.trim();
-                const isCustomImage =
-                  imageKey?.startsWith("file://") ||
-                  imageKey?.startsWith("http");
-                const imageSource = isCustomImage
-                  ? { uri: imageKey }
-                  : imageKey
-                    ? IMAGE_MAP[imageKey]
-                    : null;
+
+                // Lógica simplificada usando o IMAGE_MAP centralizado
+                const imageSource = imageKey ? IMAGE_MAP[imageKey] : null;
 
                 return (
                   <View className="flex-row items-center py-4 border-b border-zinc-900">
-                    {/* ESQUERDA: Clique para Detalhes */}
                     <TouchableOpacity
                       className="flex-1 flex-row items-center"
                       onPress={() => {
@@ -427,9 +317,12 @@ export default function NewRoutineScreen() {
                           <Target size={24} color="#E31C25" />
                         )}
                       </View>
+
                       <View className="flex-1">
                         <Text
-                          className={`text-base font-black italic uppercase ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+                          className={`text-base font-black italic uppercase ${
+                            isSelected ? "text-[#E31C25]" : "text-white"
+                          }`}
                         >
                           {item.name}
                         </Text>
@@ -439,7 +332,6 @@ export default function NewRoutineScreen() {
                       </View>
                     </TouchableOpacity>
 
-                    {/* DIREITA: Bola para selecionar */}
                     <TouchableOpacity
                       onPress={() => toggleSelection(item)}
                       className="w-12 h-12 items-center justify-center"
