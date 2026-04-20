@@ -315,14 +315,13 @@ export default function NewRoutineScreen() {
                   (e) => e.id === item.id,
                 );
                 const imageKey = item.image?.trim();
-
-                // Lógica simplificada usando o IMAGE_MAP centralizado
                 const imageSource = imageKey ? IMAGE_MAP[imageKey] : null;
 
                 return (
-                  <View className="flex-row items-center py-4 border-b border-zinc-900">
+                  <View className="flex-row items-center py-4 border-b border-zinc-800/50">
                     <TouchableOpacity
                       className="flex-1 flex-row items-center"
+                      activeOpacity={0.7}
                       onPress={() => {
                         setIsModalVisible(false);
                         router.push({
@@ -331,7 +330,8 @@ export default function NewRoutineScreen() {
                         });
                       }}
                     >
-                      <View className="w-14 h-14 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
+                      {/* FOTO PADRONIZADA EXPLORE */}
+                      <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
                         {imageSource ? (
                           <Image
                             source={imageSource}
@@ -339,34 +339,29 @@ export default function NewRoutineScreen() {
                             contentFit="cover"
                           />
                         ) : (
-                          <Target size={24} color="#E31C25" />
+                          <Target size={26} color="#E31C25" />
                         )}
                       </View>
 
                       <View className="flex-1">
                         <Text
-                          className={`text-base font-black italic uppercase ${
-                            isSelected ? "text-[#E31C25]" : "text-white"
-                          }`}
+                          className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}
                         >
                           {item.name}
                         </Text>
-                        <Text className="text-zinc-500 text-xs uppercase italic">
-                          {item.muscle_group}
+                        <Text className="text-zinc-500 text-xs mt-1 uppercase font-medium">
+                          {item.muscle_group} • {item.equipment}
                         </Text>
                       </View>
                     </TouchableOpacity>
 
+                    {/* BOLA DE SELEÇÃO */}
                     <TouchableOpacity
                       onPress={() => toggleSelection(item)}
                       className="w-12 h-12 items-center justify-center"
                     >
                       <View
-                        className={`w-7 h-7 rounded-full items-center justify-center border-2 ${
-                          isSelected
-                            ? "bg-[#E31C25] border-[#E31C25]"
-                            : "border-zinc-800"
-                        }`}
+                        className={`w-7 h-7 rounded-full items-center justify-center border-2 ${isSelected ? "bg-[#E31C25] border-[#E31C25]" : "border-zinc-800"}`}
                       >
                         {isSelected && (
                           <Check color="white" size={14} strokeWidth={4} />

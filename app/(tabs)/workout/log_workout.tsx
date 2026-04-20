@@ -1,5 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
+
+import { Image } from "expo-image";
 import {
   Check,
   ChevronDown,
@@ -9,7 +11,7 @@ import {
   Search,
   Target,
   Trophy,
-  X
+  X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -27,10 +29,8 @@ import {
   Vibration,
   View,
 } from "react-native";
-import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
-
-import { Image } from "react-native"; // Garante que o componente Image está importado
 import { IMAGE_MAP } from "../../../constants/exercise_images";
+import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
 
 const isNewRecord = (
   currentW: string,
@@ -291,12 +291,19 @@ export default function LogWorkoutScreen() {
           logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
           id: ex.id,
           name: ex.name,
-          image_url: ex.image,
+          image_url: ex.image, // <--- GARANTE QUE ISTO ESTÁ "ex.image"
           notes: "",
           rest_time: 0,
           personalRecords: [],
           sets: [
-            /* ... seus sets ... */
+            {
+              id: Math.random().toString(),
+              type: "1" as SetType,
+              weight: "",
+              reps: "",
+              completed: false,
+              previous: "-",
+            },
           ],
         };
       }),
@@ -307,6 +314,7 @@ export default function LogWorkoutScreen() {
     setTempSelected([]);
     setIsModalVisible(false);
   };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -376,11 +384,12 @@ export default function LogWorkoutScreen() {
               {/* 1. CABEÇALHO: IMAGEM + NOME + BOTÃO REMOVER */}
               <View className="flex-row items-center mb-3">
                 <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-3 border border-zinc-800 overflow-hidden">
-                  {ex.image_url && IMAGE_MAP[ex.image_url] ? (
+                  {/* CORREÇÃO AQUI: Verificamos a string e buscamos no mapa */}
+                  {ex.image_url && IMAGE_MAP[ex.image_url.trim()] ? (
                     <Image
-                      source={IMAGE_MAP[ex.image_url]}
-                      className="w-full h-full"
-                      resizeMode="cover"
+                      source={IMAGE_MAP[ex.image_url.trim()]}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
                     />
                   ) : (
                     <Target size={24} color="#E31C25" />
@@ -628,14 +637,14 @@ export default function LogWorkoutScreen() {
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => {
                   const isSelected = tempSelected.some((e) => e.id === item.id);
-
-                  // CORREÇÃO: Usar item.image para bater com a coluna do banco
-                  const exerciseImage = IMAGE_MAP[item.image];
+                  const imageKey = item.image?.trim();
+                  const imageSource = imageKey ? IMAGE_MAP[imageKey] : null;
 
                   return (
-                    <View className="flex-row items-center py-4 border-b border-zinc-900">
+                    <View className="flex-row items-center py-4 border-b border-zinc-800/50">
                       <TouchableOpacity
                         className="flex-1 flex-row items-center"
+                        activeOpacity={0.7}
                         onPress={() => {
                           setIsModalVisible(false);
                           router.push({
@@ -644,25 +653,27 @@ export default function LogWorkoutScreen() {
                           } as any);
                         }}
                       >
-                        {/* FOTO NA BIBLIOTECA */}
-                        <View className="w-14 h-14 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-                          {exerciseImage ? (
+                        {/* FOTO PADRONIZADA EXPLORE */}
+                        <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
+                          {imageSource ? (
                             <Image
-                              source={exerciseImage}
-                              className="w-full h-full"
-                              resizeMode="cover"
+                              source={imageSource}
+                              style={{ width: "100%", height: "100%" }}
+                              contentFit="cover"
                             />
                           ) : (
-                            <Target size={24} color="#E31C25" />
+                            <Target size={26} color="#E31C25" />
                           )}
                         </View>
 
                         <View className="flex-1">
-                          <Text className="text-white text-[16px] font-black uppercase italic tracking-tighter">
+                          <Text
+                            className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+                          >
                             {item.name}
                           </Text>
-                          <Text className="text-zinc-600 text-[10px] font-black mt-1 uppercase tracking-widest">
-                            {item.muscle_group}
+                          <Text className="text-zinc-500 text-xs mt-1 uppercase font-medium">
+                            {item.muscle_group} • {item.equipment}
                           </Text>
                         </View>
                       </TouchableOpacity>
@@ -678,11 +689,7 @@ export default function LogWorkoutScreen() {
                         className="w-12 h-12 items-center justify-center"
                       >
                         <View
-                          className={`w-7 h-7 rounded-full items-center justify-center border-2 ${
-                            isSelected
-                              ? "bg-[#E31C25] border-[#E31C25]"
-                              : "border-zinc-800"
-                          }`}
+                          className={`w-7 h-7 rounded-full items-center justify-center border-2 ${isSelected ? "bg-[#E31C25] border-[#E31C25]" : "border-zinc-800"}`}
                         >
                           {isSelected && (
                             <Check color="white" size={14} strokeWidth={4} />
