@@ -33,6 +33,9 @@ import {
 import { IMAGE_MAP } from "../../../constants/exercise_images";
 import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
 
+// @ts-ignore
+import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";
+
 const isNewRecord = (
   currentW: string,
   currentR: string,
@@ -438,16 +441,37 @@ export default function LogWorkoutScreen() {
               {/* 1. CABEÇALHO: IMAGEM + NOME + BOTÃO REMOVER */}
               <View className="flex-row items-center mb-3">
                 <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-3 border border-zinc-800 overflow-hidden">
-                  {/* CORREÇÃO AQUI: Verificamos a string e buscamos no mapa */}
-                  {ex.image_url && IMAGE_MAP[ex.image_url.trim()] ? (
-                    <Image
-                      source={IMAGE_MAP[ex.image_url.trim()]}
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <Target size={24} color="#E31C25" />
-                  )}
+                  {(() => {
+                    const imageKey = ex.image_url?.trim();
+                    if (!imageKey)
+                      return (
+                        <Image
+                          source={InvictusLogo}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit="contain"
+                        />
+                      );
+
+                    // Verifica se é imagem externa/galeria (começa com file ou http)
+                    const isExternal =
+                      imageKey.startsWith("file") ||
+                      imageKey.startsWith("http");
+
+                    // Se for externa, usa a URI direta. Se não, tenta o IMAGE_MAP. Se falhar, usa o Logo.
+                    const imageSource = isExternal
+                      ? { uri: imageKey }
+                      : IMAGE_MAP[imageKey] || InvictusLogo;
+
+                    return (
+                      <Image
+                        source={imageSource}
+                        style={{ width: "100%", height: "100%" }}
+                        contentFit={
+                          imageSource === InvictusLogo ? "contain" : "cover"
+                        }
+                      />
+                    );
+                  })()}
                 </View>
 
                 <Text className="text-[#E31C25] text-xl font-black italic uppercase tracking-tighter flex-1">
@@ -727,9 +751,18 @@ export default function LogWorkoutScreen() {
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => {
                   const isSelected = tempSelected.some((e) => e.id === item.id);
-                  const imageSource = item.image
-                    ? IMAGE_MAP[item.image.trim()]
-                    : null;
+                  const imageKey = item.image?.trim();
+
+                  // Lógica de prioridade corrigida
+                  const isExternal =
+                    imageKey?.startsWith("file") ||
+                    imageKey?.startsWith("http");
+                  const imageSource = isExternal
+                    ? { uri: imageKey }
+                    : imageKey && IMAGE_MAP[imageKey]
+                      ? IMAGE_MAP[imageKey]
+                      : InvictusLogo;
+
                   return (
                     <View className="flex-row items-center py-4 border-b border-zinc-900/50">
                       <TouchableOpacity
@@ -743,16 +776,15 @@ export default function LogWorkoutScreen() {
                         }}
                       >
                         <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-                          {imageSource ? (
-                            <Image
-                              source={imageSource}
-                              style={{ width: "100%", height: "100%" }}
-                              contentFit="cover"
-                            />
-                          ) : (
-                            <Target size={26} color="#E31C25" />
-                          )}
+                          <Image
+                            source={imageSource}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit={
+                              imageSource === InvictusLogo ? "contain" : "cover"
+                            }
+                          />
                         </View>
+
                         <View className="flex-1">
                           <Text
                             className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}

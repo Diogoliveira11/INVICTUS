@@ -10,7 +10,6 @@ import {
   GripVertical,
   Plus,
   Search,
-  Target,
   Trash2,
   X,
 } from "lucide-react-native";
@@ -30,6 +29,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IMAGE_MAP } from "../../../constants/exercise_images";
+
+// @ts-ignore
+import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";
 
 type Exercise = {
   id: number;
@@ -263,7 +265,15 @@ export default function NewRoutineScreen() {
 
           {selectedExercises.map((ex) => {
             const imageKey = ex.image?.trim();
-            const imageSource = imageKey ? IMAGE_MAP[imageKey] : null;
+
+            // Lógica de prioridade igual ao Explore
+            const isCustomImage =
+              imageKey?.startsWith("file://") || imageKey?.startsWith("http");
+            const imageSource = isCustomImage
+              ? { uri: imageKey }
+              : imageKey && IMAGE_MAP[imageKey]
+                ? IMAGE_MAP[imageKey]
+                : InvictusLogo;
 
             return (
               <View
@@ -272,17 +282,14 @@ export default function NewRoutineScreen() {
               >
                 <GripVertical size={20} color="#3f3f46" />
 
-                {/* Imagem do Exercício na lista da Rotina */}
                 <View className="w-12 h-12 rounded-xl bg-zinc-900 items-center justify-center ml-2 border border-zinc-800 overflow-hidden">
-                  {imageSource ? (
-                    <Image
-                      source={imageSource}
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <Target size={20} color="#E31C25" />
-                  )}
+                  <Image
+                    source={imageSource}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit={
+                      imageSource === InvictusLogo ? "contain" : "cover"
+                    }
+                  />
                 </View>
 
                 <View className="flex-1 ml-3">
@@ -390,7 +397,16 @@ export default function NewRoutineScreen() {
                   (e) => e.id === item.id,
                 );
                 const imageKey = item.image?.trim();
-                const imageSource = imageKey ? IMAGE_MAP[imageKey] : null;
+
+                // Mesma lógica de fallback
+                const isCustomImage =
+                  imageKey?.startsWith("file://") ||
+                  imageKey?.startsWith("http");
+                const imageSource = isCustomImage
+                  ? { uri: imageKey }
+                  : imageKey && IMAGE_MAP[imageKey]
+                    ? IMAGE_MAP[imageKey]
+                    : InvictusLogo;
 
                 return (
                   <View className="flex-row items-center py-4 border-b border-zinc-800/50">
@@ -405,17 +421,14 @@ export default function NewRoutineScreen() {
                         });
                       }}
                     >
-                      {/* FOTO PADRONIZADA EXPLORE */}
                       <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-                        {imageSource ? (
-                          <Image
-                            source={imageSource}
-                            style={{ width: "100%", height: "100%" }}
-                            contentFit="cover"
-                          />
-                        ) : (
-                          <Target size={26} color="#E31C25" />
-                        )}
+                        <Image
+                          source={imageSource}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit={
+                            imageSource === InvictusLogo ? "contain" : "cover"
+                          }
+                        />
                       </View>
 
                       <View className="flex-1">
@@ -430,7 +443,6 @@ export default function NewRoutineScreen() {
                       </View>
                     </TouchableOpacity>
 
-                    {/* BOLA DE SELEÇÃO */}
                     <TouchableOpacity
                       onPress={() => toggleSelection(item)}
                       className="w-12 h-12 items-center justify-center"
