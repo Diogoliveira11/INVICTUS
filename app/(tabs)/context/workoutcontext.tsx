@@ -25,6 +25,7 @@ export type ActiveExercise = {
   id: number;
   logId: string;
   name: string;
+  image_url?: string;
   notes?: string;
   rest_time: number;
   personalRecords: { weight: number; reps: number }[];
