@@ -1,6 +1,6 @@
 import * as NavigationBar from "expo-navigation-bar";
 import * as Notifications from "expo-notifications";
-import { Tabs, useRouter } from "expo-router";
+import { Tabs, usePathname, useRouter } from "expo-router";
 import { ChevronUp, Dumbbell, Home, Trash2 } from "lucide-react-native";
 import React, { useEffect } from "react";
 import {
@@ -35,6 +35,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function TabsLayout() {
+  const pathname = usePathname();
   const router = useRouter();
   const {
     isActive,
@@ -45,6 +46,9 @@ export default function TabsLayout() {
     setIsMinimized,
     stopWorkout,
   } = useWorkout();
+
+  const isResumoPage =
+    pathname.includes("save_workout") || pathname.includes("workout_summary");
 
   useEffect(() => {
     async function setupApp() {
@@ -150,7 +154,7 @@ export default function TabsLayout() {
       </Tabs>
 
       {/* MINI TRACKER */}
-      {isActive && isMinimized && (
+      {isActive && isMinimized && !isResumoPage && (
         <View
           style={{ bottom: Platform.OS === "ios" ? 95 : 80 }}
           className="absolute left-4 right-4 bg-[#1c1c1e] rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl"

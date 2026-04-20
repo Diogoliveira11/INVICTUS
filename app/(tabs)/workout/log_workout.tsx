@@ -8,7 +8,8 @@ import {
   Plus,
   Search,
   Target,
-  X,
+  Trophy,
+  X
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -30,6 +31,24 @@ import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
 
 import { Image } from "react-native"; // Garante que o componente Image está importado
 import { IMAGE_MAP } from "../../../constants/exercise_images";
+
+const isNewRecord = (
+  currentW: string,
+  currentR: string,
+  prWeight: number,
+  prReps: number,
+) => {
+  const w = parseFloat(currentW) || 0;
+  const r = parseInt(currentR) || 0;
+
+  if (w === 0 || r === 0) return false;
+
+  // Cálculo de volume total: Peso x Repetições
+  const currentVolume = w * r;
+  const bestVolume = prWeight * prReps;
+
+  return currentVolume > bestVolume;
+};
 
 export default function LogWorkoutScreen() {
   const router = useRouter();
@@ -144,18 +163,28 @@ export default function LogWorkoutScreen() {
       if (routineExs && routineExs.length > 0) {
         const prepared = await Promise.all(
           routineExs.map(async (ex) => {
+            // 1. Pega o último treino (para o Previous)
             const prevRes = await db.getFirstAsync<any>(
               "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
               [ex.id],
             );
+
+            // 2. NOVIDADE: Pega o Peso Máximo de sempre (PR)
+            const prRes = await db.getFirstAsync<any>(
+              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
+              [ex.id],
+            );
+
             return {
-              logId: `${ex.id}-${Math.random()}`,
+              logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
               id: ex.id,
               name: ex.name,
               image_url: ex.image,
               notes: "",
               rest_time: 0,
-              personalRecords: [],
+              personalRecords: prRes
+                ? [{ weight: prRes.weight, reps: prRes.reps }]
+                : [],
               sets: [
                 {
                   id: Math.random().toString(),
@@ -362,6 +391,15 @@ export default function LogWorkoutScreen() {
                   {ex.name}
                 </Text>
 
+                {ex.personalRecords && ex.personalRecords.length > 0 && (
+                  <View className="flex-row items-center bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 self-start mt-1">
+                    <Target size={12} color="#EAB308" />
+                    <Text className="text-[#EAB308] text-[10px] font-bold ml-1 uppercase">
+                      PR: {ex.personalRecords[0].weight}kg
+                    </Text>
+                  </View>
+                )}
+
                 <TouchableOpacity
                   onPress={() =>
                     Alert.alert("Remove", ex.name, [
@@ -468,6 +506,19 @@ export default function LogWorkoutScreen() {
                       onPress={() => handleToggleSet(ex.logId, set.id)}
                       className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${set.completed ? "bg-[#E31C25]" : "bg-zinc-800"}`}
                     >
+                      {set.completed &&
+                      ex.personalRecords.length > 0 &&
+                      isNewRecord(
+                        set.weight,
+                        set.reps,
+                        ex.personalRecords[0].weight,
+                        ex.personalRecords[0].reps,
+                      ) ? (
+                        <View className="absolute -top-3 -left-2 bg-amber-500 rounded-full p-1 border-2 border-black">
+                          <Trophy size={10} color="black" />
+                        </View>
+                      ) : null}
+
                       <Check size={20} color="white" strokeWidth={5} />
                     </TouchableOpacity>
                   </View>
