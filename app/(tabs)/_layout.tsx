@@ -1,9 +1,21 @@
 import * as NavigationBar from "expo-navigation-bar";
+import * as Notifications from "expo-notifications";
 import { Tabs, useRouter } from "expo-router";
 import { ChevronUp, Dumbbell, Home, Trash2 } from "lucide-react-native";
 import React, { useEffect } from "react";
 import { Image, Platform, Text, TouchableOpacity, View } from "react-native";
 import { useWorkout } from "./context/workoutcontext";
+
+// Configuração completa para evitar erros de tipo e strings soltas
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -18,17 +30,21 @@ export default function TabsLayout() {
   } = useWorkout();
 
   useEffect(() => {
-    async function hideSystemBars() {
+    async function setupApp() {
       if (Platform.OS === "android") {
         try {
           await NavigationBar.setVisibilityAsync("hidden");
           await NavigationBar.setBehaviorAsync("overlay-swipe");
         } catch (error) {
-          console.log("Erro ao esconder botões do sistema:", error);
+          console.log("Erro barras sistema:", error);
         }
       }
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== "granted") {
+        await Notifications.requestPermissionsAsync();
+      }
     }
-    hideSystemBars();
+    setupApp();
   }, []);
 
   return (
@@ -70,11 +86,7 @@ export default function TabsLayout() {
           options={{
             tabBarIcon: ({ focused }) => (
               <View
-                className={`w-8 h-8 rounded-full overflow-hidden ${
-                  focused
-                    ? "border-[2px] border-[#E31C25]"
-                    : "border border-zinc-500"
-                }`}
+                className={`w-8 h-8 rounded-full overflow-hidden ${focused ? "border-[2px] border-[#E31C25]" : "border border-zinc-500"}`}
               >
                 <Image
                   source={{
@@ -87,7 +99,7 @@ export default function TabsLayout() {
             ),
           }}
         />
-        {/* Telas Ocultas */}
+
         <Tabs.Screen name="createexercise" options={{ href: null }} />
         <Tabs.Screen
           name="workout/explore_exercises"
@@ -100,7 +112,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="workout/workout_summary" options={{ href: null }} />
       </Tabs>
 
-      {/* MINI TRACKER - Só aparece se estiver ATIVO e MINIMIZADO */}
       {isActive && isMinimized && (
         <View
           style={{ bottom: Platform.OS === "ios" ? 95 : 80 }}
@@ -109,12 +120,10 @@ export default function TabsLayout() {
           {restTimer !== null && (
             <View className="bg-[#E31C25] h-1 w-full absolute top-0" />
           )}
-
           <View className="h-16 flex-row items-center px-4">
             <TouchableOpacity
               onPress={() => {
-                // Aqui navegamos de volta para o log_workout.
-                // O useFocusEffect no log_workout colocará isMinimized como false automaticamente.
+                setIsMinimized(false);
                 router.push("/workout/log_workout");
               }}
               className="w-10 h-10 bg-zinc-800 rounded-full items-center justify-center"

@@ -1,3 +1,4 @@
+import * as Notifications from "expo-notifications";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Alert } from "react-native";
 
@@ -105,6 +106,23 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const scheduleRestNotification = async (seconds: number) => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (seconds > 0) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Descanso Terminado! 🔔",
+          body: "Está na hora da próxima série.",
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: seconds,
+        },
+      });
+    }
+  };
+
   const toggleSetCompleted = (exLogId: string, setId: string) => {
     setExercises((prev) =>
       prev.map((ex) => {
@@ -114,7 +132,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             sets: ex.sets.map((s) => {
               if (s.id === setId) {
                 const newState = !s.completed;
-                if (newState && ex.rest_time > 0) setRestTimer(ex.rest_time);
+                if (newState && ex.rest_time > 0) {
+                  setRestTimer(ex.rest_time);
+                  scheduleRestNotification(ex.rest_time);
+                } else if (!newState) {
+                  setRestTimer(null);
+                  Notifications.cancelAllScheduledNotificationsAsync();
+                }
                 return { ...s, completed: newState };
               }
               return s;
@@ -139,6 +163,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setExercises([]);
       setSeconds(0);
       setRestTimer(null);
+      Notifications.cancelAllScheduledNotificationsAsync();
     };
     if (confirm) {
       Alert.alert("Descartar Treino?", "Tens a certeza?", [

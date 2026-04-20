@@ -8,7 +8,7 @@ import {
   Plus,
   Search,
   Target,
-  X
+  X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -29,13 +29,8 @@ import {
 import {
   ActiveExercise,
   SetType,
-  useWorkout,
-  WorkoutSet,
+  useWorkout
 } from "../context/workoutcontext";
-
-const IMAGE_MAP: { [key: string]: any } = {
-  "assets/exercises_images/barbell_decline_bench_press.png": require("../../../assets/exercises_images/barbell_decline_bench_press.png"),
-};
 
 export default function LogWorkoutScreen() {
   const router = useRouter();
@@ -69,7 +64,6 @@ export default function LogWorkoutScreen() {
     setId: string;
   } | null>(null);
 
-  // Minimizar automaticamente ao sair
   useFocusEffect(
     useCallback(() => {
       setIsMinimized(false);
@@ -78,20 +72,6 @@ export default function LogWorkoutScreen() {
       };
     }, [setIsMinimized]),
   );
-
-  const stats = useMemo(() => {
-    let totalSets = 0,
-      totalVolume = 0;
-    exercises.forEach((ex) =>
-      ex.sets.forEach((s) => {
-        if (s.completed) {
-          totalSets++;
-          totalVolume += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
-        }
-      }),
-    );
-    return { totalSets, totalVolume };
-  }, [exercises]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -114,33 +94,40 @@ export default function LogWorkoutScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  const stats = useMemo(() => {
+    let totalSets = 0,
+      totalVolume = 0;
+    exercises.forEach((ex) =>
+      ex.sets.forEach((s) => {
+        if (s.completed) {
+          totalSets++;
+          totalVolume += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
+        }
+      }),
+    );
+    return { totalSets, totalVolume };
+  }, [exercises]);
+
   const initWorkout = useCallback(async () => {
     const routineId = Array.isArray(params.routineId)
       ? params.routineId[0]
       : params.routineId;
-
-    // Se já existem exercícios na lista, não carregamos a rotina por cima para não apagar o progresso atual
-    // exceto se acabámos de abrir o ecrã vindo de um clique numa rotina nova
     if (exercises.length > 0) return;
-
     if (!routineId) {
       setActiveRoutineName("Treino Avulso");
       setIsActive(true);
       return;
     }
-
     try {
       const routineRes = await db.getFirstAsync<{ name: string }>(
         "SELECT name FROM routines WHERE id = ?",
         [Number(routineId)],
       );
       if (routineRes) setActiveRoutineName(routineRes.name);
-
       const routineExs = await db.getAllAsync<any>(
         `SELECT e.* FROM exercises e JOIN routine_exercises re ON e.id = re.exercise_id WHERE re.routine_id = ? ORDER BY re.index_order ASC`,
         [routineId],
       );
-
       if (routineExs && routineExs.length > 0) {
         const prepared = await Promise.all(
           routineExs.map(async (ex) => {
@@ -148,7 +135,6 @@ export default function LogWorkoutScreen() {
               "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
               [ex.id],
             );
-
             return {
               logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
               id: ex.id,
@@ -177,9 +163,9 @@ export default function LogWorkoutScreen() {
         setIsActive(true);
       }
     } catch (e) {
-      console.error("Erro ao carregar rotina:", e);
+      console.error(e);
     }
-  }, [params.routineId, db, weightUnit, exercises.length]); // Adicionado exercises.length como dependência
+  }, [params.routineId, db, weightUnit, exercises.length]);
 
   useEffect(() => {
     db.getAllAsync<any>("SELECT * FROM exercises ORDER BY name ASC").then(
@@ -194,28 +180,34 @@ export default function LogWorkoutScreen() {
     const currentSet = exercise.sets.find((s) => s.id === setId);
     if (!currentSet) return;
 
-    if (!currentSet.completed) {
+    const isMarkingComplete = !currentSet.completed;
+
+    if (isMarkingComplete) {
       if (
         currentSet.weight === "" &&
         currentSet.suggestedWeight &&
         currentSet.suggestedWeight !== "0"
-      ) {
+      )
         updateSet(exLogId, setId, "weight", currentSet.suggestedWeight);
-      }
       if (
         currentSet.reps === "" &&
         currentSet.suggestedReps &&
         currentSet.suggestedReps !== "0"
-      ) {
+      )
         updateSet(exLogId, setId, "reps", currentSet.suggestedReps);
-      }
-    }
 
-    if (!currentSet.completed && (exercise.rest_time ?? 0) > 0) {
-      setActiveRestTimers((prev) => ({
-        ...prev,
-        [setId]: exercise.rest_time!,
-      }));
+      if ((exercise.rest_time ?? 0) > 0) {
+        setActiveRestTimers((prev) => ({
+          ...prev,
+          [setId]: exercise.rest_time,
+        }));
+      }
+    } else {
+      setActiveRestTimers((prev) => {
+        const next = { ...prev };
+        delete next[setId];
+        return next;
+      });
     }
     toggleSetCompleted(exLogId, setId);
   };
@@ -284,7 +276,6 @@ export default function LogWorkoutScreen() {
     >
       <SafeAreaView style={{ flex: 1 }}>
         <StatusBar barStyle="light-content" />
-
         <View className="flex-row items-center justify-between px-4 py-3 bg-black border-b border-zinc-900">
           <TouchableOpacity onPress={() => router.back()}>
             <ChevronDown size={30} color="white" />
@@ -350,31 +341,29 @@ export default function LogWorkoutScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() =>
-                    Alert.alert("Options", ex.name, [
+                    Alert.alert("Remove", ex.name, [
                       {
-                        text: "Remove",
-                        style: "destructive",
+                        text: "Yes",
                         onPress: () =>
                           setExercises(
                             exercises.filter((e) => e.logId !== ex.logId),
                           ),
                       },
-                      { text: "Cancel" },
+                      { text: "No" },
                     ])
                   }
                 >
                   <MoreVertical size={24} color="#3f3f46" />
                 </TouchableOpacity>
               </View>
-
               <TextInput
                 placeholder="Add notes..."
                 placeholderTextColor="#3f3f46"
                 value={ex.notes}
-                onChangeText={(text) =>
+                onChangeText={(t) =>
                   setExercises(
                     exercises.map((e) =>
-                      e.logId === ex.logId ? { ...e, notes: text } : e,
+                      e.logId === ex.logId ? { ...e, notes: t } : e,
                     ),
                   )
                 }
@@ -407,10 +396,10 @@ export default function LogWorkoutScreen() {
                 <View className="w-12" />
               </View>
 
-              {ex.sets.map((set: WorkoutSet, idx: number) => (
-                <View key={set.id} className="mb-2">
+              {ex.sets.map((set, idx) => (
+                <View key={set.id} className="mb-3">
                   <View
-                    className={`flex-row items-center h-14 px-2 rounded-2xl border mb-2 ${set.completed ? "bg-[#E31C25]/15 border-[#E31C25]/30" : "bg-zinc-900/60 border border-zinc-800"}`}
+                    className={`flex-row items-center h-14 px-2 rounded-2xl border ${set.completed ? "bg-[#E31C25]/15 border-[#E31C25]/30" : "bg-zinc-900/60 border border-zinc-800"}`}
                   >
                     <TouchableOpacity
                       className="w-10 h-10 items-center justify-center bg-zinc-800 rounded-xl"
@@ -432,7 +421,7 @@ export default function LogWorkoutScreen() {
                     <TextInput
                       keyboardType="numeric"
                       value={set.weight}
-                      placeholder={set.suggestedWeight || "0"}
+                      placeholder={set.suggestedWeight}
                       placeholderTextColor="#52525b"
                       onChangeText={(v) =>
                         updateSet(ex.logId, set.id, "weight", v)
@@ -442,7 +431,7 @@ export default function LogWorkoutScreen() {
                     <TextInput
                       keyboardType="numeric"
                       value={set.reps}
-                      placeholder={set.suggestedReps || "0"}
+                      placeholder={set.suggestedReps}
                       placeholderTextColor="#52525b"
                       onChangeText={(v) =>
                         updateSet(ex.logId, set.id, "reps", v)
@@ -456,9 +445,26 @@ export default function LogWorkoutScreen() {
                       <Check size={20} color="white" strokeWidth={5} />
                     </TouchableOpacity>
                   </View>
+
+                  {/* DESIGN DE ALTO DESTAQUE DO CRONÓMETRO */}
+                  {activeRestTimers[set.id] && (
+                    <View className="mt-1.5 mx-1">
+                      <View className="bg-amber-500/15 flex-row items-center justify-between px-5 py-2.5 rounded-xl border border-amber-500/30">
+                        <View className="flex-row items-center">
+                          <Clock size={16} color="#EAB308" strokeWidth={3} />
+                          <Text className="text-[#EAB308] text-xs font-black italic ml-2.5 uppercase tracking-wider">
+                            Resting Period
+                          </Text>
+                        </View>
+                        <Text className="text-white text-base font-black italic tracking-tighter">
+                          {activeRestTimers[set.id]}
+                          <Text className="text-zinc-400 text-xs">s</Text>
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               ))}
-
               <TouchableOpacity
                 onPress={() =>
                   setExercises(
@@ -474,13 +480,9 @@ export default function LogWorkoutScreen() {
                                 weight: "",
                                 reps: "",
                                 suggestedWeight:
-                                  e.sets[e.sets.length - 1]?.weight ||
-                                  e.sets[e.sets.length - 1]?.suggestedWeight ||
-                                  "0",
+                                  e.sets[e.sets.length - 1]?.weight || "0",
                                 suggestedReps:
-                                  e.sets[e.sets.length - 1]?.reps ||
-                                  e.sets[e.sets.length - 1]?.suggestedReps ||
-                                  "0",
+                                  e.sets[e.sets.length - 1]?.reps || "0",
                                 completed: false,
                                 previous: "-",
                               },
@@ -498,7 +500,6 @@ export default function LogWorkoutScreen() {
               </TouchableOpacity>
             </View>
           ))}
-
           <TouchableOpacity
             onPress={() => setIsModalVisible(true)}
             className="mt-8 mb-24 bg-[#E31C25] py-3 px-8 self-center rounded-full flex-row items-center border border-zinc-800 shadow-lg"
@@ -510,6 +511,7 @@ export default function LogWorkoutScreen() {
           </TouchableOpacity>
         </ScrollView>
 
+        {/* MODAL LIBRARY */}
         <Modal
           visible={isModalVisible}
           animationType="slide"
@@ -600,6 +602,7 @@ export default function LogWorkoutScreen() {
           </SafeAreaView>
         </Modal>
 
+        {/* MODAL SET TYPE */}
         <Modal visible={!!typeModal} transparent animationType="fade">
           <TouchableOpacity
             activeOpacity={1}
