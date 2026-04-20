@@ -47,6 +47,10 @@ export default function ProgressResult() {
   const [totalHours, setTotalHours] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [weeklyHistory, setWeeklyHistory] = useState<Workout[]>([]);
+  const [isVolumeModalVisible, setIsVolumeModalVisible] = useState(false);
+  const [volumeByExercise, setVolumeByExercise] = useState<
+    { name: string; volume: number }[]
+  >([]);
 
   // Estados Dinâmicos do Utilizador
   const [userName, setUserName] = useState("Invictus User");
@@ -131,6 +135,38 @@ export default function ProgressResult() {
     }
   }, [db]);
 
+  const loadVolumeByExercise = useCallback(async () => {
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      const userRow = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM users WHERE email = ?",
+        [email],
+      );
+
+      if (!userRow) return;
+
+      // Query robusta: Força conversão de tipos e filtra por utilizador
+      const query = `
+      SELECT 
+        e.name as name, 
+        SUM(CAST(ws.weight AS REAL) * CAST(ws.reps AS INTEGER)) as volume
+      FROM workout_sets ws
+      JOIN exercises e ON ws.exercise_id = e.id
+      JOIN workouts w ON ws.workout_exercise_id = w.id
+      WHERE w.user_id = ? 
+      AND w.date >= date('now', '-7 days')
+      GROUP BY e.id
+      ORDER BY volume DESC
+    `;
+
+      const result = await db.getAllAsync<any>(query, [userRow.id]);
+
+      setVolumeByExercise(result);
+    } catch (e) {
+      console.error("Erro ao carregar volume por exercício:", e);
+    }
+  }, [db]);
+
   const loadWorkoutDetails = async (workout: Workout) => {
     try {
       const details = await db.getAllAsync<WorkoutExercise>(
@@ -161,7 +197,8 @@ export default function ProgressResult() {
     useCallback(() => {
       loadUserData();
       loadStats();
-    }, [loadUserData, loadStats]),
+      loadVolumeByExercise();
+    }, [loadUserData, loadStats, loadVolumeByExercise]),
   );
 
   return (
@@ -233,7 +270,11 @@ export default function ProgressResult() {
             </View>
           </TouchableOpacity>
 
-          <View className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900">
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setIsVolumeModalVisible(true)}
+            className="bg-zinc-900/50 w-[48%] p-6 rounded-[35px] items-center border border-zinc-900"
+          >
             <Text className="text-zinc-500 text-[10px] font-black mb-4 uppercase tracking-widest">
               Total Volume
             </Text>
@@ -250,7 +291,7 @@ export default function ProgressResult() {
                 Weight Lifted
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -471,6 +512,73 @@ export default function ProgressResult() {
                     Notas do Treino
                   </Text>
                   <Text className="text-zinc-300 italic text-sm">{`"${selectedWorkout.notes}"`}</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      {/* MODAL 3: ANÁLISE DE VOLUME */}
+      {/* MODAL: VOLUME POR EXERCÍCIO */}
+      {/* MODAL: VOLUME POR EXERCÍCIO */}
+      <Modal visible={isVolumeModalVisible} animationType="slide" transparent>
+        <View className="flex-1 bg-black/90 justify-end">
+          <View className="h-[75%] bg-[#080808] rounded-t-[50px] border-t border-zinc-800">
+            <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mt-4" />
+
+            <View className="flex-row items-center px-8 py-8">
+              <TouchableOpacity
+                onPress={() => setIsVolumeModalVisible(false)}
+                className="w-12 h-12 bg-zinc-900 rounded-2xl items-center justify-center border border-zinc-800"
+              >
+                <ChevronLeft size={24} color="white" />
+              </TouchableOpacity>
+              <Text className="text-white text-2xl font-black italic uppercase ml-5 tracking-tighter">
+                Weekly Exercise Volume
+              </Text>
+            </View>
+
+            <ScrollView className="px-8" showsVerticalScrollIndicator={false}>
+              {volumeByExercise.length > 0 ? (
+                volumeByExercise.map((item, index) => (
+                  <View
+                    key={index}
+                    className="mb-4 bg-zinc-900/30 p-5 rounded-[30px] border border-zinc-900 flex-row items-center justify-between"
+                  >
+                    <View className="flex-1 mr-4">
+                      <Text className="text-zinc-500 text-[8px] font-black uppercase mb-1 italic">
+                        Rank #{index + 1}
+                      </Text>
+                      <Text
+                        className="text-white font-bold uppercase italic text-sm"
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-[#E31C25] font-black italic text-lg">
+                        {/* .toLocaleString() para formatar ex: 1.250 */}
+                        {Number(item.volume).toLocaleString()}{" "}
+                        <Text className="text-[10px] text-zinc-600">KG</Text>
+                      </Text>
+                      <View className="h-1 bg-zinc-900 w-24 rounded-full mt-2 overflow-hidden">
+                        <View
+                          style={{
+                            width: `${totalVolume > 0 ? (item.volume / totalVolume) * 100 : 0}%`,
+                          }}
+                          className="h-full bg-[#E31C25]"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View className="items-center mt-20">
+                  <Dumbbell size={40} color="#18181b" />
+                  <Text className="text-zinc-700 italic font-bold uppercase mt-4">
+                    No data this week
+                  </Text>
                 </View>
               )}
             </ScrollView>
