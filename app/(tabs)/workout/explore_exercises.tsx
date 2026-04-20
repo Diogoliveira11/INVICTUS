@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Plus,
   Search,
-  Target,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -26,6 +25,8 @@ import {
   View,
 } from "react-native";
 
+// @ts-ignore
+import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";
 import { IMAGE_MAP } from "../../../constants/exercise_images"; // Confirma se o caminho está correto
 
 type Exercise = {
@@ -113,18 +114,21 @@ export default function ExploreExercisesPage() {
   };
 
   const renderExerciseItem = ({ item }: { item: Exercise }) => {
-    // 1. Pegamos a string que vem da coluna 'image' do banco de dados
     const imageKey = item.image?.trim();
 
-    // 2. Verificamos se é uma imagem do projeto (IMAGE_MAP) ou externa
+    // Verificamos se é uma imagem personalizada (caminho local ou URL)
     const isCustomImage =
       imageKey?.startsWith("file://") || imageKey?.startsWith("http");
 
+    // Lógica de prioridade:
+    // 1. Imagem de ficheiro/web
+    // 2. Imagem do projeto (IMAGE_MAP)
+    // 3. Logo Invictus (Fallback para exercícios sem foto)
     const imageSource = isCustomImage
       ? { uri: imageKey }
-      : imageKey
-        ? IMAGE_MAP[imageKey] // Aqui ele vai buscar ao ficheiro que importaste
-        : null;
+      : imageKey && IMAGE_MAP[imageKey]
+        ? IMAGE_MAP[imageKey]
+        : InvictusLogo; // <--- Aqui entra o seu Logo
 
     return (
       <TouchableOpacity
@@ -138,16 +142,13 @@ export default function ExploreExercisesPage() {
         }
       >
         <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-          {imageSource ? (
-            <Image
-              source={imageSource}
-              style={{ width: "100%", height: "100%" }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <Target size={26} color="#E31C25" />
-          )}
+          {/* Agora imageSource nunca será nulo, pois tem o logo como padrão final */}
+          <Image
+            source={imageSource}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="contain" // "contain" é melhor para logos para não cortar o desenho
+            cachePolicy="memory-disk"
+          />
         </View>
 
         <View className="flex-1">

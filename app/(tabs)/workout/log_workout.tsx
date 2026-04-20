@@ -345,7 +345,7 @@ export default function LogWorkoutScreen() {
           logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
           id: ex.id,
           name: ex.name,
-          image_url: ex.image, // <--- GARANTE QUE ISTO ESTÁ "ex.image"
+          image_url: ex.image,
           notes: "",
           rest_time: 0,
           personalRecords: [],
@@ -381,7 +381,7 @@ export default function LogWorkoutScreen() {
             <ChevronDown size={30} color="white" />
           </TouchableOpacity>
           <Text className="text-white font-black uppercase italic tracking-tighter text-lg">
-            Log Workout
+            Workout
           </Text>
           <TouchableOpacity
             onPress={() =>
@@ -651,7 +651,6 @@ export default function LogWorkoutScreen() {
         </ScrollView>
 
         {/* MODAL LIBRARY */}
-        {/* MODAL LIBRARY */}
         <Modal
           visible={isModalVisible}
           animationType="slide"
@@ -664,7 +663,7 @@ export default function LogWorkoutScreen() {
                   <X color="white" size={30} />
                 </TouchableOpacity>
                 <Text className="text-white text-2xl font-black italic uppercase tracking-tighter">
-                  Library
+                  Select Exercises
                 </Text>
                 <TouchableOpacity onPress={confirmSelection}>
                   <Text className="text-[#E31C25] text-xl font-black uppercase italic">

@@ -154,7 +154,9 @@ export default function CreateExerciseScreen() {
       <StatusBar barStyle="light-content" />
 
       <View className="flex-row items-center justify-between px-6 py-4 border-b border-zinc-900">
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => router.replace("/(tabs)/workout/explore_exercises")}
+        >
           <ArrowLeft color="white" size={24} />
         </TouchableOpacity>
         <Text className="text-white text-lg font-black uppercase italic">
