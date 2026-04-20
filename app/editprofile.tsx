@@ -1,9 +1,13 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { ArrowLeft, HelpCircle } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Image,
+  ActivityIndicator,
+  Alert,
   ScrollView,
   Text,
   TextInput,
@@ -12,114 +16,211 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// @ts-ignore
+import InvictusLogo from "../assets/images/logo_invictus.jpeg";
+
 export default function EditProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const db = useSQLiteContext();
 
-  // Estados para os campos (podes carregar estes dados da tua DB)
-  const [name, setName] = useState("Diogo Oliveira");
-  const [bio, setBio] = useState("");
-  const [link, setLink] = useState("https://example.com");
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [weight, setWeight] = useState("");
+  const [height, setHeight] = useState("");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   const redColor = "#E31C25";
+
+  useEffect(() => {
+    async function loadUserData() {
+      try {
+        const email = await AsyncStorage.getItem("userEmail");
+        if (!email) return;
+
+        const userRow = await db.getFirstAsync<any>(
+          "SELECT username, weight, height, profile_picture FROM users WHERE email = ?",
+          [email],
+        );
+
+        if (userRow) {
+          setName(userRow.username || "");
+          setWeight(userRow.weight || "");
+          setHeight(userRow.height || "");
+          setProfileImage(userRow.profile_picture || null);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadUserData();
+  }, [db]);
+
+  const handleSave = async () => {
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) return;
+
+      await db.runAsync(
+        "UPDATE users SET username = ?, weight = ?, height = ? WHERE email = ?",
+        [name, weight, height, email],
+      );
+
+      Alert.alert("Sucesso", "Perfil atualizado!", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (error) {
+      console.error("Erro ao guardar:", error);
+      Alert.alert("Erro", "Falha ao gravar dados na base de dados.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-black items-center justify-center">
+        <ActivityIndicator color={redColor} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar style="light" />
 
       {/* HEADER */}
-      <View 
+      <View
         style={{ paddingTop: insets.top + 10 }}
-        className="flex-row justify-between items-center px-5 pb-4 border-b border-zinc-900"
+        className="flex-row justify-between items-center px-6 pb-5 border-b border-zinc-900"
       >
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#FFF" />
+          <ArrowLeft size={28} color="#FFF" />
         </TouchableOpacity>
-        
-        <Text className="text-white font-bold text-lg">Edit Profile</Text>
-        
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-zinc-500 font-bold text-lg">Done</Text>
+        <Text className="text-white font-black uppercase italic text-xl tracking-tighter">
+          Edit Profile
+        </Text>
+        <TouchableOpacity onPress={handleSave}>
+          <Text
+            style={{ color: redColor }}
+            className="font-black uppercase italic text-xl tracking-tighter"
+          >
+            Done
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* AVATAR SECTION */}
-        <View className="items-center mt-8">
-          <View className="w-28 h-28 rounded-full bg-zinc-800 overflow-hidden">
-            <Image
-              source={{ uri: "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg" }}
-              className="w-full h-full"
-              resizeMode="cover"
-            />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {/* AVATAR */}
+        <View className="items-center mt-6">
+          <View className="w-24 h-24 rounded-full border-2 border-[#E31C25] p-1">
+            <View className="w-full h-full rounded-full bg-zinc-900 overflow-hidden border border-zinc-800">
+              <Image
+                source={profileImage ? { uri: profileImage } : InvictusLogo}
+                className="w-full h-full"
+                contentFit={profileImage ? "cover" : "contain"}
+              />
+            </View>
           </View>
-          <TouchableOpacity className="mt-4">
-            <Text style={{ color: redColor }} className="font-bold text-base">
+          <TouchableOpacity className="mt-3">
+            <Text
+              style={{ color: redColor }}
+              className="font-black uppercase italic text-[10px]"
+            >
               Change Picture
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* PUBLIC DATA SECTION */}
-        <View className="px-5 mt-10">
-          <Text className="text-zinc-500 text-sm mb-4">Public profile data</Text>
-          
-          {/* Campo Nome */}
-          <View className="flex-row py-4 border-b border-zinc-900">
-            <Text className="text-white w-20 font-medium">Name</Text>
+        {/* INPUTS ENQUADRADOS */}
+        <View className="px-6 mt-10">
+          <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest mb-4 italic">
+            Athlete Data
+          </Text>
+
+          {/* Campo Username */}
+          <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
+            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+              Username
+            </Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Your name"
+              placeholder="Username"
               placeholderTextColor="#3f3f46"
-              className="text-white flex-1"
+              className="text-white font-bold text-lg italic text-right flex-1 ml-4"
+              selectionColor={redColor}
             />
           </View>
 
-          {/* Campo Bio */}
-          <View className="flex-row py-4 border-b border-zinc-900">
-            <Text className="text-white w-20 font-medium">Bio</Text>
+          {/* Campo Peso */}
+          <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
+            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+              Weight
+            </Text>
             <TextInput
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Describe yourself"
+              value={weight}
+              onChangeText={setWeight}
+              placeholder="0.0"
               placeholderTextColor="#3f3f46"
-              multiline
-              className="text-white flex-1"
+              keyboardType="numeric"
+              className="text-white font-bold text-lg italic text-right flex-1 ml-4"
+              selectionColor={redColor}
             />
           </View>
 
-          {/* Campo Link */}
-          <View className="flex-row py-4 border-b border-zinc-900">
-            <Text className="text-white w-20 font-medium">Link</Text>
+          {/* Campo Altura */}
+          <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
+            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+              Height
+            </Text>
             <TextInput
-              value={link}
-              onChangeText={setLink}
-              placeholder="Add a link"
+              value={height}
+              onChangeText={setHeight}
+              placeholder="0"
               placeholderTextColor="#3f3f46"
-              className="text-white flex-1"
+              keyboardType="numeric"
+              className="text-white font-bold text-lg italic text-right flex-1 ml-4"
+              selectionColor={redColor}
             />
           </View>
         </View>
 
-        {/* PRIVATE DATA SECTION */}
-        <View className="px-5 mt-10 mb-10">
-          <View className="flex-row items-center mb-4 gap-2">
-            <Text className="text-zinc-500 text-sm">Private data</Text>
-            <HelpCircle size={16} color="#52525b" />
+        {/* ACCOUNT INFO */}
+        <View className="px-6 mt-10">
+          <View className="flex-row items-center mb-5 gap-2">
+            <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest italic">
+              Personal Info
+            </Text>
+            <HelpCircle size={14} color="#52525b" />
           </View>
 
-          {/* Campo Sexo */}
-          <TouchableOpacity className="flex-row justify-between py-4 border-b border-zinc-900">
-            <Text className="text-white font-medium">Sex</Text>
-            <Text style={{ color: redColor }} className="font-medium">Male</Text>
-          </TouchableOpacity>
+          <View className="flex-row justify-between py-5 border-b border-zinc-900">
+            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+              Gender
+            </Text>
+            <Text
+              style={{ color: redColor }}
+              className="font-black uppercase italic text-sm"
+            >
+              Male
+            </Text>
+          </View>
 
-          {/* Campo Aniversário */}
-          <TouchableOpacity className="flex-row justify-between py-4 border-b border-zinc-900">
-            <Text className="text-white font-medium">Birthday</Text>
-            <Text style={{ color: redColor }} className="font-medium">Oct 30, 2005</Text>
-          </TouchableOpacity>
+          <View className="flex-row justify-between py-5 border-b border-zinc-900">
+            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+              Birthday
+            </Text>
+            <Text
+              style={{ color: redColor }}
+              className="font-black uppercase italic text-sm"
+            >
+              Oct 30, 2005
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </View>
