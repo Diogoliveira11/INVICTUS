@@ -64,17 +64,32 @@ export default function NewRoutineScreen() {
     if (mode === "edit" && routineId && isFocused) {
       (async () => {
         try {
-          const res = await db.getFirstAsync<{ name: string }>(
-            "SELECT name FROM routines WHERE id = ?",
-            [Number(routineId)],
+          const email = await AsyncStorage.getItem("userEmail");
+          const userRow = await db.getFirstAsync<{ id: number }>(
+            "SELECT id FROM users WHERE email = ?",
+            [email],
           );
-          if (res) setName(res.name);
+
+          // Verificação de segurança para o TypeScript
+          if (!userRow) return;
+
+          const currentUserId = userRow.id; // Criamos a variável aqui
+
+          const res = await db.getFirstAsync<{ name: string }>(
+            "SELECT name FROM routines WHERE id = ? AND user_id = ?",
+            [Number(routineId), currentUserId], // Agora o TS sabe que currentUserId é um número
+          );
+
+          if (res) {
+            setName(res.name);
+            // O aviso 'res' is assigned a value but never used desaparece aqui
+          }
 
           const exes = await db.getAllAsync<Exercise>(
             `SELECT e.* FROM exercises e 
-              JOIN routine_exercises re ON e.id = re.exercise_id 
-              WHERE re.routine_id = ? 
-              ORDER BY re.index_order ASC`,
+            JOIN routine_exercises re ON e.id = re.exercise_id 
+            WHERE re.routine_id = ? 
+            ORDER BY re.index_order ASC`,
             [Number(routineId)],
           );
           setSelectedExercises(exes);
@@ -112,13 +127,22 @@ export default function NewRoutineScreen() {
       return Alert.alert("Aviso", "Adiciona exercícios.");
 
     try {
+      // 1. Obter o email e depois o ID do utilizador
       const email = await AsyncStorage.getItem("userEmail");
       const userRow = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM users WHERE email = ?",
         [email],
       );
-      const userId = userRow?.id || 1;
 
+      // 2. Verificação crucial para o TypeScript e segurança
+      if (!userRow) {
+        return Alert.alert(
+          "Erro",
+          "Utilizador não encontrado. Faz login novamente.",
+        );
+      }
+
+      const currentUserId = userRow.id; // Agora temos o ID garantido como número
       let currentRoutineId: number;
 
       if (mode === "edit" && routineId) {
@@ -132,9 +156,10 @@ export default function NewRoutineScreen() {
           [currentRoutineId],
         );
       } else {
+        // 3. USAR O ID QUE BUSCÁMOS ACIMA
         const result = await db.runAsync(
           "INSERT INTO routines (name, user_id) VALUES (?, ?)",
-          [name, userId],
+          [name, currentUserId], // Mudado de userId para currentUserId
         );
         currentRoutineId = result.lastInsertRowId;
       }

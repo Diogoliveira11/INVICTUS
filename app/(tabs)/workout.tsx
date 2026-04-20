@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -43,29 +44,40 @@ export default function WorkoutTabScreen() {
     try {
       await db.execAsync("PRAGMA foreign_keys = ON;");
 
-      // Query ajustada para os nomes exatos das tuas colunas:
-      // exerciseid e routinesid
-      const query = `
-          SELECT 
-            r.id, 
-            r.name, 
-            (SELECT GROUP_CONCAT(e.name, ', ') 
-             FROM exercises e 
-             JOIN routine_exercises re ON e.id = re.exercise_id 
-             WHERE re.routine_id = r.id) AS exercise_list
-          FROM routines r
-          ORDER BY r.id DESC
-      `;
+      // 1. Pegar o email e o ID do utilizador logado
+      const email = await AsyncStorage.getItem("userEmail");
+      const userRow = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM users WHERE email = ?",
+        [email],
+      );
 
-      const result = await db.getAllAsync<Routine>(query);
+      if (!userRow) return;
+
+      // 2. Query com o filtro WHERE r.user_id = ?
+      const query = `
+        SELECT 
+          r.id, 
+          r.name, 
+          (SELECT GROUP_CONCAT(e.name, ', ') 
+           FROM exercises e 
+           JOIN routine_exercises re ON e.id = re.exercise_id 
+           WHERE re.routine_id = r.id) AS exercise_list
+        FROM routines r
+        WHERE r.user_id = ?
+        ORDER BY r.id DESC
+    `;
+
+      const result = await db.getAllAsync<Routine>(query, [userRow.id]);
       setRoutines(result);
     } catch (e) {
       console.error("Erro ao carregar rotinas:", e);
 
-      // Fallback caso a tabela de ligação ainda dê problemas
+      // Fallback filtrado também!
       try {
+        const email = await AsyncStorage.getItem("userEmail");
         const simpleResult = await db.getAllAsync<Routine>(
-          "SELECT id, name FROM routines ORDER BY id DESC",
+          "SELECT id, name FROM routines WHERE user_id = (SELECT id FROM users WHERE email = ?) ORDER BY id DESC",
+          [email],
         );
         setRoutines(simpleResult);
       } catch (innerError) {

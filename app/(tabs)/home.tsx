@@ -81,6 +81,15 @@ export default function ProgressResult() {
   // 2. CARREGAR ESTATÍSTICAS
   const loadStats = useCallback(async () => {
     try {
+      const email = await AsyncStorage.getItem("userEmail");
+      // Primeiro, precisamos do ID do utilizador atual
+      const userRow = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM users WHERE email = ?",
+        [email],
+      );
+
+      if (!userRow) return;
+
       const now = new Date();
       const firstDay = new Date(now);
       const day = now.getDay();
@@ -89,9 +98,10 @@ export default function ProgressResult() {
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
+      // ADICIONADO: user_id = ? para filtrar o histórico
       const historyRows = await db.getAllAsync<Workout>(
-        "SELECT * FROM workouts WHERE date >= ? ORDER BY date DESC",
-        [firstDayISO],
+        "SELECT * FROM workouts WHERE date >= ? AND user_id = ? ORDER BY date DESC",
+        [firstDayISO, userRow.id],
       );
 
       setWeeklyHistory(historyRows || []);
