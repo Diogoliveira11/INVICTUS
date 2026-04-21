@@ -20,7 +20,7 @@ import {
   View,
 } from "react-native";
 
-// Mapa de gifs locais do projeto
+// Mapa de gifs
 const GIF_MAP: { [key: string]: any } = {
   "assets/exercises_gifs/back_extension.gif": require("../../../assets/exercises_gifs/back_extension.gif"),
   "assets/exercises_gifs/back_extension_machine.gif": require("../../../assets/exercises_gifs/back_extension_machine.gif"),
@@ -157,7 +157,7 @@ type ExerciseDetails = {
 
 export default function ExerciseDetailScreen() {
   const router = useRouter();
-  const { id, from } = useLocalSearchParams<{ id: string; from: string }>(); // Captura o 'from'
+  const { id, from } = useLocalSearchParams<{ id: string; from: string }>();
   const db = useSQLiteContext();
 
   const [exercise, setExercise] = useState<ExerciseDetails | null>(null);
@@ -188,22 +188,19 @@ export default function ExerciseDetailScreen() {
   // VOLTAR BASEADO NA ORIGEM
   const handleBack = () => {
     if (from === "workout") {
-      // Caminho completo para o log de treino
       router.replace("/(tabs)/workout/log_workout" as any);
     } else if (from === "new_routine") {
-      // CAMINHO CORRIGIDO: O ficheiro está dentro da pasta workout
       router.replace("/(tabs)/workout/new_routine" as any);
     } else {
-      // Caso padrão: Explore Exercises
       router.replace("/(tabs)/workout/explore_exercises" as any);
     }
   };
 
   const handleDelete = async () => {
-    Alert.alert("Eliminar", "Tens a certeza?", [
-      { text: "Cancelar", style: "cancel" },
+    Alert.alert("Delete", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "Eliminar",
+        text: "Delete",
         style: "destructive",
         onPress: async () => {
           try {
@@ -212,7 +209,7 @@ export default function ExerciseDetailScreen() {
             ]);
             router.replace("/workout/explore_exercises");
           } catch (error) {
-            Alert.alert("Erro", "Não foi possível eliminar.");
+            Alert.alert("Error", "It could not be deleted.");
           }
         },
       },
@@ -228,7 +225,7 @@ export default function ExerciseDetailScreen() {
   if (!exercise)
     return (
       <View className="flex-1 bg-black justify-center items-center">
-        <Text className="text-white">Não encontrado.</Text>
+        <Text className="text-white">Not found.</Text>
       </View>
     );
 
@@ -305,7 +302,7 @@ export default function ExerciseDetailScreen() {
             </View>
             <View className="bg-zinc-900/50 p-6 rounded-[30px] border border-zinc-800">
               <Text className="text-zinc-500 uppercase font-black text-[10px] mb-1">
-                Músculo Principal
+                Main muscle
               </Text>
               <Text className="text-white text-2xl font-black italic uppercase">
                 {exercise.muscle_group}
@@ -337,7 +334,7 @@ export default function ExerciseDetailScreen() {
                 Personal Records
               </Text>
               <Text className="text-zinc-500 text-center mt-2 px-6 font-medium">
-                Sem histórico disponível.
+                No history available
               </Text>
             </View>
           </View>
@@ -348,7 +345,7 @@ export default function ExerciseDetailScreen() {
             <View className="flex-row items-center mb-4">
               <BookOpen size={20} color="#E31C25" />
               <Text className="text-white font-black ml-2 uppercase italic text-lg">
-                Instruções
+                Instructions
               </Text>
             </View>
             <View className="bg-zinc-900/30 p-6 rounded-[30px] border border-zinc-800">

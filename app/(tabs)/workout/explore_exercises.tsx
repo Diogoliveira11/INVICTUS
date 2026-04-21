@@ -27,7 +27,7 @@ import {
 
 // @ts-ignore
 import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";
-import { IMAGE_MAP } from "../../../constants/exercise_images"; // Confirma se o caminho está correto
+import { IMAGE_MAP } from "../../../constants/exercise_images";
 
 type Exercise = {
   id: number;
@@ -128,7 +128,7 @@ export default function ExploreExercisesPage() {
       ? { uri: imageKey }
       : imageKey && IMAGE_MAP[imageKey]
         ? IMAGE_MAP[imageKey]
-        : InvictusLogo; // <--- Aqui entra o seu Logo
+        : InvictusLogo;
 
     return (
       <TouchableOpacity

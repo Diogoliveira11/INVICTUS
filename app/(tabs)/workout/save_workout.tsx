@@ -65,7 +65,7 @@ export default function SaveWorkoutScreen() {
 
   const handleSave = async () => {
     if (stats.totalSets === 0) {
-      Alert.alert("Atenção", "Completa pelo menos uma série!");
+      Alert.alert("Attention", "Do at least one set!");
       return;
     }
     try {
@@ -87,7 +87,7 @@ export default function SaveWorkoutScreen() {
           newWorkoutId,
           user.id,
           new Date().toISOString(),
-          routineName || "Treino Avulso",
+          routineName || "Quick Workout",
           timer,
           description,
           stats.totalVolume,
@@ -127,7 +127,7 @@ export default function SaveWorkoutScreen() {
         }
       }
       stopWorkout();
-      Alert.alert("Sucesso!", "Treino guardado!", [
+      Alert.alert("Success!", "Saved workout!", [
         { text: "OK", onPress: () => router.replace("/(tabs)/home") },
       ]);
     } catch (e) {
@@ -143,7 +143,7 @@ export default function SaveWorkoutScreen() {
           <ChevronLeft size={28} color="white" />
         </TouchableOpacity>
         <Text className="text-white font-black text-lg italic uppercase">
-          Finalizar
+          Finish
         </Text>
         <TouchableOpacity
           onPress={handleSave}
@@ -154,12 +154,12 @@ export default function SaveWorkoutScreen() {
       </View>
       <ScrollView className="px-6 pt-6">
         <Text className="text-white text-3xl font-black italic mb-8 uppercase">
-          Resumo
+          Summary
         </Text>
         <View className="flex-row justify-between mb-10 bg-zinc-900/30 p-5 rounded-[30px] border border-zinc-900">
           <View>
             <Text className="text-zinc-500 text-[10px] font-black uppercase">
-              Duração
+              Duration
             </Text>
             <Text className="text-[#E31C25] text-xl font-black italic">
               {timer}
@@ -175,7 +175,7 @@ export default function SaveWorkoutScreen() {
           </View>
           <View className="items-end">
             <Text className="text-zinc-500 text-[10px] font-black uppercase">
-              Séries
+              Series
             </Text>
             <Text className="text-white text-xl font-black italic">
               {stats.totalSets}
@@ -183,7 +183,7 @@ export default function SaveWorkoutScreen() {
           </View>
         </View>
         <TextInput
-          placeholder="Notas..."
+          placeholder="Notes..."
           placeholderTextColor="#3f3f46"
           multiline
           value={description}

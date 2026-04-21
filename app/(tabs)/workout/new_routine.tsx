@@ -213,13 +213,13 @@ export default function NewRoutineScreen() {
         );
       }
 
-      Alert.alert("Sucesso", "Rotina guardada!");
+      Alert.alert("Success", "Routine saved!");
       setName("");
       setSelectedExercises([]);
       router.replace("/workout");
     } catch (e: any) {
-      console.error("ERRO AO GRAVAR:", e);
-      Alert.alert("Erro", "Falha ao gravar na base de dados.");
+      console.error("ERROR WHILE SAVING:", e);
+      Alert.alert("Error", "Error saving to the database.");
     }
   };
 
@@ -266,7 +266,7 @@ export default function NewRoutineScreen() {
           {selectedExercises.map((ex) => {
             const imageKey = ex.image?.trim();
 
-            // Lógica de prioridade igual ao Explore
+            // Lógica de prioridade
             const isCustomImage =
               imageKey?.startsWith("file://") || imageKey?.startsWith("http");
             const imageSource = isCustomImage
@@ -320,7 +320,7 @@ export default function NewRoutineScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL DE SELEÇÃO - ESTILO EXPLORE/HEVY */}
+      {/* MODAL DE SELEÇÃO */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
@@ -470,7 +470,7 @@ export default function NewRoutineScreen() {
               >
                 <View className="flex-1 bg-black/80 justify-end">
                   <TouchableWithoutFeedback>
-                    {/* ALTURA CORRIGIDA: h-[60%] em vez de min-h */}
+                    {/* ALTURA: h-[60%] em vez de min-h */}
                     <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
                       <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
                       <Text className="text-white text-xl font-black uppercase italic mb-6">

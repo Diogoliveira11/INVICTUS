@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { Clock, Trophy, Weight, Zap } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -13,13 +13,12 @@ import {
 
 export default function WorkoutSummaryScreen() {
   const router = useRouter();
-  const db = useSQLiteContext(); // 2. Usar a instância central da BD
-  const [data, setData] = useState<any>(null);
+  const params = useLocalSearchParams();
+  const db = useSQLiteContext();
 
   // Buscar o último treino gravado usando o contexto global
   const fetchSummary = async () => {
     try {
-      // 3. Já não usamos SQLite.openDatabaseAsync
       // Pegar o último treino inserido
       const lastWorkout = await db.getFirstAsync<any>(
         "SELECT * FROM workouts ORDER BY id DESC LIMIT 1",
@@ -53,11 +52,9 @@ export default function WorkoutSummaryScreen() {
           <View className="bg-amber-500/20 p-6 rounded-full mb-4 border border-amber-500/20">
             <Trophy size={60} color="#f59e0b" />
           </View>
-          <Text className="text-white text-3xl font-black mb-1">
-            Bom trabalho!
-          </Text>
+          <Text className="text-white text-3xl font-black mb-1">Good job!</Text>
           <Text className="text-zinc-500 text-base">
-            Treino finalizado com sucesso
+            Training session completed successfully
           </Text>
         </View>
 
@@ -69,7 +66,7 @@ export default function WorkoutSummaryScreen() {
               {data?.duration || "00:00"}
             </Text>
             <Text className="text-zinc-500 text-[10px] uppercase font-bold">
-              Tempo
+              Time
             </Text>
           </View>
 
@@ -89,15 +86,7 @@ export default function WorkoutSummaryScreen() {
               {data?.setsCount || "0"}
             </Text>
             <Text className="text-zinc-500 text-[10px] uppercase font-bold">
-              Séries
-            </Text>
-          </View>
-
-          <View className="bg-[#121417] w-[48%] p-6 rounded-[32px] border border-zinc-800 items-center">
-            <Trophy size={24} color="#E31C25" />
-            <Text className="text-white text-xl font-black mt-2">1º</Text>
-            <Text className="text-zinc-500 text-[10px] uppercase font-bold">
-              Lugar
+              Series
             </Text>
           </View>
         </View>
@@ -105,7 +94,7 @@ export default function WorkoutSummaryScreen() {
         {/* Card de Mensagem Motivacional */}
         <View className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800 items-center">
           <Text className="text-zinc-400 text-center italic">
-            A consistência é o que transforma o comum em extraordinário.
+            Consistency is what turns the ordinary into the extraordinary.
           </Text>
         </View>
       </ScrollView>
@@ -117,7 +106,7 @@ export default function WorkoutSummaryScreen() {
           className="bg-[#E31C25] w-full py-5 rounded-2xl items-center shadow-lg"
         >
           <Text className="text-white font-black text-lg uppercase tracking-widest">
-            Concluído
+            Completed
           </Text>
         </TouchableOpacity>
       </View>

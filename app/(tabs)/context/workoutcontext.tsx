@@ -211,9 +211,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       Notifications.cancelAllScheduledNotificationsAsync();
     };
     if (confirm)
-      Alert.alert("Descartar Treino?", "Tens a certeza?", [
-        { text: "Cancelar" },
-        { text: "Descartar", style: "destructive", onPress: clear },
+      Alert.alert("Skip the workout?", "Are you sure?", [
+        { text: "Cancel" },
+        { text: "Discard", style: "destructive", onPress: clear },
       ]);
     else clear();
   };
