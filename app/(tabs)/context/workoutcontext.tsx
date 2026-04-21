@@ -34,6 +34,7 @@ export type ActiveExercise = {
   id: number;
   logId: string;
   name: string;
+  muscle_group?: string;
   image_url?: string;
   notes?: string;
   rest_time: number;

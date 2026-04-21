@@ -3,8 +3,8 @@ import { useSQLiteContext } from "expo-sqlite";
 
 import { Image } from "expo-image";
 import {
-  ArrowDown, // Adicionado
-  ArrowUp, // Adicionado
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronDown,
   Clock,
@@ -253,6 +253,7 @@ export default function LogWorkoutScreen() {
               logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
               id: ex.id,
               name: ex.name,
+              muscle_group: ex.muscle_group, // Adicionado para verificação de Cardio
               image_url: ex.image,
               notes: "",
               rest_time: 0,
@@ -357,6 +358,7 @@ export default function LogWorkoutScreen() {
           logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
           id: ex.id,
           name: ex.name,
+          muscle_group: ex.muscle_group, // Adicionado
           image_url: ex.image,
           notes: "",
           rest_time: 0,
@@ -413,7 +415,7 @@ export default function LogWorkoutScreen() {
             onPress={() =>
               router.push({
                 pathname: "/workout/save_workout",
-                params: { routineName: activeRoutineName || "Treino Avulso" },
+                params: { routineName: activeRoutineName },
               })
             }
             className="bg-[#E31C25] px-5 py-2 rounded-full"
@@ -581,10 +583,12 @@ export default function LogWorkoutScreen() {
                   Previous
                 </Text>
                 <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
-                  KG
+                  {ex.muscle_group?.toLowerCase() === "cardio" ? "KM" : "KG"}
                 </Text>
                 <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
-                  Reps
+                  {ex.muscle_group?.toLowerCase() === "cardio"
+                    ? "TIME"
+                    : "Reps"}
                 </Text>
                 <View className="w-12" />
               </View>
@@ -625,7 +629,11 @@ export default function LogWorkoutScreen() {
                     <TextInput
                       keyboardType="numeric"
                       value={set.weight}
-                      placeholder={set.suggestedWeight}
+                      placeholder={
+                        ex.muscle_group?.toLowerCase() === "cardio"
+                          ? "0.0"
+                          : set.suggestedWeight
+                      }
                       placeholderTextColor="#52525b"
                       onChangeText={(v) =>
                         updateSet(ex.logId, set.id, "weight", v)
@@ -639,9 +647,17 @@ export default function LogWorkoutScreen() {
                     />
 
                     <TextInput
-                      keyboardType="numeric"
+                      keyboardType={
+                        ex.muscle_group?.toLowerCase() === "cardio"
+                          ? "default"
+                          : "numeric"
+                      }
                       value={set.reps}
-                      placeholder={set.suggestedReps}
+                      placeholder={
+                        ex.muscle_group?.toLowerCase() === "cardio"
+                          ? "00:00"
+                          : set.suggestedReps
+                      }
                       placeholderTextColor="#52525b"
                       onChangeText={(v) =>
                         updateSet(ex.logId, set.id, "reps", v)
@@ -694,7 +710,6 @@ export default function LogWorkoutScreen() {
                 </View>
               ))}
 
-              {/* NOVOS BOTÕES: ADD SET E REORDENAÇÃO */}
               <View className="flex-row items-center mt-3 gap-x-2">
                 <TouchableOpacity
                   onPress={() =>
