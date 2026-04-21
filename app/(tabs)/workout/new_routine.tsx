@@ -255,6 +255,10 @@ export default function NewRoutineScreen() {
           placeholderTextColor="#52525b"
           value={name}
           onChangeText={setName}
+          autoCorrect={false} // Desativa a correção automática
+          spellCheck={false} // Desativa a verificação ortográfica
+          textContentType="none" // Impede o Android de sugerir preenchimentos automáticos
+          keyboardType="visible-password" // Força o teclado a não tentar "adivinhar" a palavra
           className="text-white text-3xl font-black italic border-b border-zinc-800 pb-3 uppercase"
         />
 

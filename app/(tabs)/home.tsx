@@ -176,7 +176,7 @@ export default function ProgressResult() {
           ws.reps, 
           ws.set_type, 
           ws.index_order,
-          ws.is_personal_record  -- <--- GARANTE QUE ESTÁ AQUI
+          ws.is_personal_record
         FROM workout_sets ws
         JOIN exercises e ON ws.exercise_id = e.id
         WHERE ws.workout_exercise_id = ?
@@ -239,7 +239,7 @@ export default function ProgressResult() {
           </View>
         </View>
 
-        <View className="flex-row justify-between px-5 mt-4">
+        <View className="flex-row justify-between px-5">
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setIsHistoryVisible(true)}

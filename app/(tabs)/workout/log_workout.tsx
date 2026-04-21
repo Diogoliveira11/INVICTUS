@@ -47,7 +47,6 @@ const isNewRecord = (
 
   if (w === 0 || r === 0) return false;
 
-  // Cálculo de volume total: Peso x Repetições
   const currentVolume = w * r;
   const bestVolume = prWeight * prReps;
 
@@ -128,7 +127,6 @@ export default function LogWorkoutScreen() {
       const rows = await db.getAllAsync<any>(query, params);
       setDbExercises(rows);
 
-      // Carregar opções de filtros se estiverem vazias
       if (muscleOptions.length === 0) {
         const muscles = await db.getAllAsync<{ muscle_group: string }>(
           "SELECT DISTINCT muscle_group FROM exercises ORDER BY muscle_group ASC",
@@ -144,7 +142,6 @@ export default function LogWorkoutScreen() {
     }
   }, [search, selectedMuscle, selectedEquipment, db, muscleOptions.length]);
 
-  // Chamar a função quando o modal abrir ou filtros mudarem
   useEffect(() => {
     if (isModalVisible) fetchLibraryExercises();
   }, [isModalVisible, fetchLibraryExercises]);
@@ -220,13 +217,11 @@ export default function LogWorkoutScreen() {
       if (routineExs && routineExs.length > 0) {
         const prepared = await Promise.all(
           routineExs.map(async (ex) => {
-            // 1. Pega o último treino (para o Previous)
             const prevRes = await db.getFirstAsync<any>(
               "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
               [ex.id],
             );
 
-            // 2. NOVIDADE: Pega o Peso Máximo de sempre (PR)
             const prRes = await db.getFirstAsync<any>(
               "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
               [ex.id],
@@ -438,7 +433,6 @@ export default function LogWorkoutScreen() {
               key={ex.logId}
               className="mt-4 bg-zinc-900/30 rounded-[25px] p-5 mx-2 border border-zinc-900"
             >
-              {/* 1. CABEÇALHO: IMAGEM + NOME + BOTÃO REMOVER */}
               <View className="flex-row items-center mb-3">
                 <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-3 border border-zinc-800 overflow-hidden">
                   {(() => {
@@ -452,12 +446,10 @@ export default function LogWorkoutScreen() {
                         />
                       );
 
-                    // Verifica se é imagem externa/galeria (começa com file ou http)
                     const isExternal =
                       imageKey.startsWith("file") ||
                       imageKey.startsWith("http");
 
-                    // Se for externa, usa a URI direta. Se não, tenta o IMAGE_MAP. Se falhar, usa o Logo.
                     const imageSource = isExternal
                       ? { uri: imageKey }
                       : IMAGE_MAP[imageKey] || InvictusLogo;
@@ -505,7 +497,6 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* 2. NOTAS (APENAS UMA VEZ) */}
               <TextInput
                 placeholder="Add notes..."
                 placeholderTextColor="#3f3f46"
@@ -520,7 +511,6 @@ export default function LogWorkoutScreen() {
                 className="text-zinc-400 text-sm mb-3 italic font-bold border-b border-zinc-800/50 pb-1"
               />
 
-              {/* 3. REST TIMER (APENAS UMA VEZ) */}
               <TouchableOpacity
                 onPress={() => handleSetRestTime(ex.logId)}
                 className="flex-row items-center mb-5 bg-[#E31C25]/10 self-start px-4 py-1.5 rounded-xl border border-[#E31C25]/20"
@@ -569,6 +559,8 @@ export default function LogWorkoutScreen() {
                     <Text className="flex-1 text-zinc-500 text-center text-xs font-black italic">
                       {set.previous}
                     </Text>
+
+                    {/* CAMPO KG CORRIGIDO PARA ANDROID */}
                     <TextInput
                       keyboardType="numeric"
                       value={set.weight}
@@ -577,8 +569,15 @@ export default function LogWorkoutScreen() {
                       onChangeText={(v) =>
                         updateSet(ex.logId, set.id, "weight", v)
                       }
+                      textAlignVertical="center"
+                      multiline={false}
+                      scrollEnabled={false}
+                      underlineColorAndroid="transparent"
+                      style={{ paddingVertical: 0 }}
                       className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
                     />
+
+                    {/* CAMPO REPS CORRIGIDO PARA ANDROID */}
                     <TextInput
                       keyboardType="numeric"
                       value={set.reps}
@@ -587,8 +586,14 @@ export default function LogWorkoutScreen() {
                       onChangeText={(v) =>
                         updateSet(ex.logId, set.id, "reps", v)
                       }
+                      textAlignVertical="center"
+                      multiline={false}
+                      scrollEnabled={false}
+                      underlineColorAndroid="transparent"
+                      style={{ paddingVertical: 0 }}
                       className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
                     />
+
                     <TouchableOpacity
                       onPress={() => handleToggleSet(ex.logId, set.id)}
                       className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${set.completed ? "bg-[#E31C25]" : "bg-zinc-800"}`}
@@ -753,7 +758,6 @@ export default function LogWorkoutScreen() {
                   const isSelected = tempSelected.some((e) => e.id === item.id);
                   const imageKey = item.image?.trim();
 
-                  // Lógica de prioridade corrigida
                   const isExternal =
                     imageKey?.startsWith("file") ||
                     imageKey?.startsWith("http");
