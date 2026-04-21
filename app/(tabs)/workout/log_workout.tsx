@@ -478,50 +478,62 @@ export default function LogWorkoutScreen() {
               className="mt-4 bg-zinc-900/30 rounded-[25px] p-5 mx-2 border border-zinc-900"
             >
               <View className="flex-row items-center mb-3">
-                <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-3 border border-zinc-800 overflow-hidden">
-                  {(() => {
-                    const imageKey = ex.image_url?.trim();
-                    if (!imageKey)
+                <TouchableOpacity
+                  className="flex-row items-center flex-1"
+                  onPress={() => {
+                    router.push({
+                      pathname: "/workout/[id]",
+                      params: { id: ex.id, from: "workout" },
+                    } as any);
+                  }}
+                >
+                  <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-3 border border-zinc-800 overflow-hidden">
+                    {(() => {
+                      const imageKey = ex.image_url?.trim();
+                      if (!imageKey)
+                        return (
+                          <Image
+                            source={InvictusLogo}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="contain"
+                          />
+                        );
+
+                      const isExternal =
+                        imageKey.startsWith("file") ||
+                        imageKey.startsWith("http");
+
+                      const imageSource = isExternal
+                        ? { uri: imageKey }
+                        : IMAGE_MAP[imageKey] || InvictusLogo;
+
                       return (
                         <Image
-                          source={InvictusLogo}
+                          source={imageSource}
                           style={{ width: "100%", height: "100%" }}
-                          contentFit="contain"
+                          contentFit={
+                            imageSource === InvictusLogo ? "contain" : "cover"
+                          }
                         />
                       );
-
-                    const isExternal =
-                      imageKey.startsWith("file") ||
-                      imageKey.startsWith("http");
-
-                    const imageSource = isExternal
-                      ? { uri: imageKey }
-                      : IMAGE_MAP[imageKey] || InvictusLogo;
-
-                    return (
-                      <Image
-                        source={imageSource}
-                        style={{ width: "100%", height: "100%" }}
-                        contentFit={
-                          imageSource === InvictusLogo ? "contain" : "cover"
-                        }
-                      />
-                    );
-                  })()}
-                </View>
-
-                <Text className="text-[#E31C25] text-xl font-black italic uppercase tracking-tighter flex-1">
-                  {ex.name}
-                </Text>
-
-                {ex.personalRecords && ex.personalRecords.length > 0 && (
-                  <View className="flex-row items-center bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 self-start mt-1">
-                    <Target size={12} color="#EAB308" />
-                    <Text className="text-[#EAB308] text-[10px] font-bold ml-1 uppercase">
-                      PR: {ex.personalRecords[0].weight}kg
-                    </Text>
+                    })()}
                   </View>
-                )}
+
+                  <View className="flex-1">
+                    <Text className="text-[#E31C25] text-xl font-black italic uppercase tracking-tighter">
+                      {ex.name}
+                    </Text>
+
+                    {ex.personalRecords && ex.personalRecords.length > 0 && (
+                      <View className="flex-row items-center bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 self-start mt-1">
+                        <Target size={12} color="#EAB308" />
+                        <Text className="text-[#EAB308] text-[10px] font-bold ml-1 uppercase">
+                          PR: {ex.personalRecords[0].weight}kg
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() =>
@@ -531,6 +543,7 @@ export default function LogWorkoutScreen() {
                       name: ex.name,
                     })
                   }
+                  className="p-2"
                 >
                   <MoreVertical size={24} color="#3f3f46" />
                 </TouchableOpacity>
