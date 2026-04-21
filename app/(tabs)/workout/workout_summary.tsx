@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite"; // 1. Importar o contexto
 import { Clock, Trophy, Weight, Zap } from "lucide-react-native";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -13,8 +13,8 @@ import {
 
 export default function WorkoutSummaryScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const db = useSQLiteContext();
+  const db = useSQLiteContext(); // 2. Usar a instância central da BD
+  const [data, setData] = useState<any>(null);
 
   // Buscar o último treino gravado usando o contexto global
   const fetchSummary = async () => {

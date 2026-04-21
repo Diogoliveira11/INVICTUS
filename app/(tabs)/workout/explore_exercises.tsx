@@ -141,12 +141,14 @@ export default function ExploreExercisesPage() {
           })
         }
       >
-        <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-          {/* Agora imageSource nunca será nulo, pois tem o logo como padrão final */}
+        {/* Quadrado da Imagem */}
+        <View className="w-16 h-16 rounded-2xl bg-zinc-900 mr-4 border border-zinc-800 overflow-hidden">
           <Image
             source={imageSource}
             style={{ width: "100%", height: "100%" }}
-            contentFit="contain" // "contain" é melhor para logos para não cortar o desenho
+            // ALTERADO PARA COVER: Preenche todo o espaço cortando o excesso
+            // Se for o Logo, talvez queiras manter contain, mas para exercícios cover é melhor
+            contentFit={imageSource === InvictusLogo ? "contain" : "cover"}
             cachePolicy="memory-disk"
           />
         </View>
