@@ -1,8 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
   ArrowLeft,
   BookOpen,
+  Calendar,
   Target,
   Trash2,
   Trophy,
@@ -20,7 +22,6 @@ import {
   View,
 } from "react-native";
 
-// Mapa de gifs
 const GIF_MAP: { [key: string]: any } = {
   "assets/exercises_gifs/back_extension.gif": require("../../../assets/exercises_gifs/back_extension.gif"),
   "assets/exercises_gifs/back_extension_machine.gif": require("../../../assets/exercises_gifs/back_extension_machine.gif"),
@@ -155,37 +156,62 @@ type ExerciseDetails = {
   is_custom: number;
 };
 
+type WorkoutHistory = {
+  id: number;
+  weight: number;
+  reps: number;
+  date: string;
+};
+
 export default function ExerciseDetailScreen() {
   const router = useRouter();
   const { id, from } = useLocalSearchParams<{ id: string; from: string }>();
   const db = useSQLiteContext();
 
   const [exercise, setExercise] = useState<ExerciseDetails | null>(null);
+  const [history, setHistory] = useState<WorkoutHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("");
 
   useEffect(() => {
-    async function loadExercise() {
+    async function loadData() {
       try {
+        const email = await AsyncStorage.getItem("userEmail");
+        console.log("Email logado:", email);
+
+        // 1. Tentar carregar o exercício primeiro
         const result = await db.getFirstAsync<ExerciseDetails>(
-          "SELECT id, name, muscle_group, image, gif, instructions, is_custom FROM exercises WHERE id = ?",
+          "SELECT * FROM exercises WHERE id = ?",
           [id as string],
         );
+        if (result) setExercise(result);
 
-        if (result) {
-          setExercise(result);
-          setActiveTab(result.is_custom === 1 ? "History" : "Summary");
+        // 2. Query de Histórico "Segura"
+        // Se esta falhar, o problema está nos JOINS ou nomes das tabelas
+        if (email) {
+          try {
+            const historyRows = await db.getAllAsync<WorkoutHistory>(
+              `SELECT weight, reps, '2026-04-21' as date 
+               FROM workout_sets 
+               WHERE exercise_id = ? 
+               LIMIT 10`,
+              [id as string],
+            );
+            console.log("Histórico encontrado:", historyRows);
+            setHistory(historyRows);
+          } catch (historyErr) {
+            console.error("Erro específico no histórico:", historyErr);
+          }
         }
       } catch (e) {
-        console.error(e);
+        console.error("Erro geral no loadData:", e);
       } finally {
         setLoading(false);
       }
     }
-    loadExercise();
+    loadData();
   }, [id, db]);
 
-  // VOLTAR BASEADO NA ORIGEM
   const handleBack = () => {
     if (from === "workout") {
       router.replace("/(tabs)/workout/log_workout" as any);
@@ -222,10 +248,11 @@ export default function ExerciseDetailScreen() {
         <ActivityIndicator color="#E31C25" size="large" />
       </View>
     );
+
   if (!exercise)
     return (
       <View className="flex-1 bg-black justify-center items-center">
-        <Text className="text-white">Not found.</Text>
+        <Text className="text-white">Exercise not found.</Text>
       </View>
     );
 
@@ -233,16 +260,14 @@ export default function ExerciseDetailScreen() {
     exercise.is_custom === 1
       ? ["History", "How to"]
       : ["Summary", "History", "How to"];
-  const gifSource = exercise.gif
-    ? (GIF_MAP[exercise.gif] ??
-      GIF_MAP[exercise.gif.replace(/^\//, "")] ??
-      GIF_MAP[exercise.gif.replace(/^assets\//, "")] ??
-      null)
-    : null;
+
+  const gifSource = exercise.gif ? GIF_MAP[exercise.gif] || null : null;
 
   return (
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
+
+      {/* HEADER */}
       <View className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900">
         <TouchableOpacity onPress={handleBack} className="p-2">
           <ArrowLeft color="white" size={24} />
@@ -262,6 +287,7 @@ export default function ExerciseDetailScreen() {
         )}
       </View>
 
+      {/* TABS */}
       <View className="flex-row border-b border-zinc-900">
         {tabs.map((tab) => (
           <TouchableOpacity
@@ -279,30 +305,28 @@ export default function ExerciseDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {activeTab === "Summary" && exercise.is_custom === 0 && (
+        {/* SUMMARY TAB */}
+        {activeTab === "Summary" && (
           <View className="p-5">
             <View className="w-full h-80 bg-white rounded-[40px] overflow-hidden mb-6 items-center justify-center border-4 border-zinc-900">
               {gifSource ? (
                 <Image
                   source={gifSource}
-                  className="w-full h-full"
+                  style={{ width: "100%", height: "100%" }}
                   resizeMode="contain"
-                  onError={() =>
-                    console.warn("GIF failed to load:", exercise.gif)
-                  }
                 />
               ) : (
                 <View className="items-center justify-center gap-2">
                   <Target size={48} color="#d4d4d8" />
                   <Text className="text-zinc-400 font-bold uppercase text-xs">
-                    {exercise.name}
+                    No preview available
                   </Text>
                 </View>
               )}
             </View>
             <View className="bg-zinc-900/50 p-6 rounded-[30px] border border-zinc-800">
               <Text className="text-zinc-500 uppercase font-black text-[10px] mb-1">
-                Main muscle
+                Target Muscle
               </Text>
               <Text className="text-white text-2xl font-black italic uppercase">
                 {exercise.muscle_group}
@@ -311,46 +335,72 @@ export default function ExerciseDetailScreen() {
           </View>
         )}
 
+        {/* HISTORY TAB */}
         {activeTab === "History" && (
           <View className="p-6">
-            {exercise.is_custom === 1 && (
-              <View className="bg-zinc-900/30 p-6 rounded-[30px] border border-zinc-900 mb-8 flex-row items-center">
-                <View className="w-12 h-12 bg-[#E31C25]/10 rounded-2xl items-center justify-center mr-4">
-                  <Target color="#E31C25" size={24} />
+            <Text className="text-white font-black uppercase italic text-lg mb-6">
+              Recent Activity
+            </Text>
+
+            {history.length > 0 ? (
+              history.map((item, index) => (
+                <View
+                  key={index}
+                  className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-800 mb-3 flex-row items-center justify-between"
+                >
+                  <View className="flex-row items-center">
+                    <View className="bg-zinc-800 p-2 rounded-lg mr-4">
+                      <Calendar size={16} color="#E31C25" />
+                    </View>
+                    <View>
+                      <Text className="text-zinc-500 text-[10px] font-bold uppercase">
+                        {new Date(item.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </Text>
+                      <Text className="text-white font-black italic uppercase">
+                        Completed Set
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-[#E31C25] font-black text-lg italic">
+                      {item.weight}
+                      <Text className="text-zinc-500 text-xs">kg</Text>
+                    </Text>
+                    <Text className="text-zinc-400 text-xs font-bold">
+                      {item.reps} Reps
+                    </Text>
+                  </View>
                 </View>
-                <View>
-                  <Text className="text-zinc-500 uppercase font-black text-[8px]">
-                    Muscle Group
-                  </Text>
-                  <Text className="text-white text-lg font-black italic uppercase">
-                    {exercise.muscle_group}
-                  </Text>
-                </View>
+              ))
+            ) : (
+              <View className="items-center justify-center pt-10">
+                <Trophy size={48} color="#3f3f46" />
+                <Text className="text-zinc-500 text-center mt-4 font-bold uppercase italic">
+                  No history found
+                </Text>
               </View>
             )}
-            <View className="items-center justify-center pt-10">
-              <Trophy size={48} color="#f59e0b" />
-              <Text className="text-white font-black uppercase italic text-lg mt-4">
-                Personal Records
-              </Text>
-              <Text className="text-zinc-500 text-center mt-2 px-6 font-medium">
-                No history available
-              </Text>
-            </View>
           </View>
         )}
 
+        {/* HOW TO TAB */}
         {activeTab === "How to" && (
           <View className="p-6">
             <View className="flex-row items-center mb-4">
               <BookOpen size={20} color="#E31C25" />
               <Text className="text-white font-black ml-2 uppercase italic text-lg">
-                Instructions
+                Execution Guide
               </Text>
             </View>
             <View className="bg-zinc-900/30 p-6 rounded-[30px] border border-zinc-800">
               <Text className="text-zinc-400 leading-6 text-base italic">
-                {exercise.instructions || "Sem instruções para este exercício."}
+                {exercise.instructions && exercise.instructions.trim() !== ""
+                  ? exercise.instructions
+                  : "No instructions available."}
               </Text>
             </View>
           </View>

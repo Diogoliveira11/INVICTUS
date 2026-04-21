@@ -1,10 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { ChevronLeft } from "lucide-react-native";
+import { Check, ChevronLeft } from "lucide-react-native"; // Adicionei o Check
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -21,6 +22,9 @@ export default function SaveWorkoutScreen() {
   const { timer, exercises, stopWorkout } = useWorkout();
   const [description, setDescription] = useState("");
   const { routineName } = useLocalSearchParams<{ routineName: string }>();
+
+  // NOVO: Estado para o modal de sucesso
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const checkPersonalRecord = async (
     exerciseId: number,
@@ -126,18 +130,21 @@ export default function SaveWorkoutScreen() {
           }
         }
       }
+
+      // FINALIZAÇÃO: Para o timer global e mostra o modal de sucesso
       stopWorkout();
-      Alert.alert("Success!", "Saved workout!", [
-        { text: "OK", onPress: () => router.replace("/(tabs)/home") },
-      ]);
+      setShowSuccessModal(true);
     } catch (e) {
       console.error(e);
+      Alert.alert("Error", "Could not save workout.");
     }
   };
 
   return (
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
+
+      {/* HEADER */}
       <View className="flex-row items-center justify-between px-4 py-2 border-b border-zinc-900">
         <TouchableOpacity onPress={() => router.push("/workout/log_workout")}>
           <ChevronLeft size={28} color="white" />
@@ -152,10 +159,13 @@ export default function SaveWorkoutScreen() {
           <Text className="text-white font-bold">Save</Text>
         </TouchableOpacity>
       </View>
+
       <ScrollView className="px-6 pt-6">
         <Text className="text-white text-3xl font-black italic mb-8 uppercase">
           Summary
         </Text>
+
+        {/* STATS CARDS */}
         <View className="flex-row justify-between mb-10 bg-zinc-900/30 p-5 rounded-[30px] border border-zinc-900">
           <View>
             <Text className="text-zinc-500 text-[10px] font-black uppercase">
@@ -182,6 +192,7 @@ export default function SaveWorkoutScreen() {
             </Text>
           </View>
         </View>
+
         <TextInput
           placeholder="Notes..."
           placeholderTextColor="#3f3f46"
@@ -192,6 +203,39 @@ export default function SaveWorkoutScreen() {
           textAlignVertical="top"
         />
       </ScrollView>
+
+      {/* MODAL DE SUCESSO - ESTÉTICA INVICTUS */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            {/* Ícone de Sucesso */}
+            <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
+              <Check color="#22c55e" size={32} strokeWidth={3} />
+            </View>
+
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              Success!
+            </Text>
+
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              Saved workout!
+            </Text>
+
+            {/* Botão de Fechar */}
+            <TouchableOpacity
+              onPress={() => {
+                setShowSuccessModal(false);
+                router.replace("/(tabs)/home");
+              }}
+              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center shadow-lg"
+            >
+              <Text className="text-white font-black uppercase italic text-lg">
+                Great!
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

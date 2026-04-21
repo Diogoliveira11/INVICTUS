@@ -10,12 +10,12 @@ import {
   Plus,
   Search,
   Target,
+  Trash2, // Importado para o ícone no modal
   Trophy,
   X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -80,7 +80,7 @@ export default function LogWorkoutScreen() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
 
-  const [activeRoutineName, setActiveRoutineName] = useState("Treino Avulso");
+  const [activeRoutineName, setActiveRoutineName] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [dbExercises, setDbExercises] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -94,6 +94,27 @@ export default function LogWorkoutScreen() {
     exId: string;
     setId: string;
   } | null>(null);
+
+  const [restModal, setRestModal] = useState<{
+    visible: boolean;
+    exLogId: string;
+    value: string;
+  }>({
+    visible: false,
+    exLogId: "",
+    value: "60",
+  });
+
+  // NOVO: Estado para gerir o modal de confirmação de remoção
+  const [removeExerciseModal, setRemoveExerciseModal] = useState<{
+    visible: boolean;
+    logId: string;
+    name: string;
+  }>({
+    visible: false,
+    logId: "",
+    name: "",
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -189,15 +210,15 @@ export default function LogWorkoutScreen() {
 
     if (shouldReset) {
       router.setParams({ reset: undefined });
-      startWorkout("Treino Avulso");
-      setActiveRoutineName("Treino Avulso");
+      startWorkout("");
+      setActiveRoutineName("");
       return;
     }
 
     if (!routineId) {
       if (!isActive) {
-        startWorkout("Treino Avulso");
-        setActiveRoutineName("Treino Avulso");
+        startWorkout("");
+        setActiveRoutineName("");
       }
       return;
     }
@@ -316,20 +337,12 @@ export default function LogWorkoutScreen() {
   };
 
   const handleSetRestTime = (exLogId: string) => {
-    Alert.prompt(
-      "Rest Timer",
-      "Segundos de descanso:",
-      (val) => {
-        const seconds = parseInt(val || "0");
-        setExercises((prev: ActiveExercise[]) =>
-          prev.map((e) =>
-            e.logId === exLogId ? { ...e, rest_time: seconds } : e,
-          ),
-        );
-      },
-      "plain-text",
-      "60",
-    );
+    const currentEx = exercises.find((e) => e.logId === exLogId);
+    setRestModal({
+      visible: true,
+      exLogId,
+      value: String(currentEx?.rest_time || "60"),
+    });
   };
 
   const confirmSelection = async () => {
@@ -385,7 +398,7 @@ export default function LogWorkoutScreen() {
             onPress={() =>
               router.push({
                 pathname: "/workout/save_workout",
-                params: { routineName: activeRoutineName },
+                params: { routineName: activeRoutineName || "Treino Avulso" },
               })
             }
             className="bg-[#E31C25] px-5 py-2 rounded-full"
@@ -428,6 +441,22 @@ export default function LogWorkoutScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
+          <View className="px-4 mt-2 mb-4">
+            <TextInput
+              placeholder="Workout Name"
+              placeholderTextColor="#52525b"
+              value={activeRoutineName}
+              onChangeText={setActiveRoutineName}
+              autoCorrect={false}
+              spellCheck={false}
+              textContentType="none"
+              keyboardType={
+                Platform.OS === "android" ? "visible-password" : "default"
+              }
+              className="text-white text-3xl font-black italic border-b border-zinc-800 pb-2 uppercase"
+            />
+          </View>
+
           {exercises.map((ex) => (
             <View
               key={ex.logId}
@@ -481,16 +510,12 @@ export default function LogWorkoutScreen() {
 
                 <TouchableOpacity
                   onPress={() =>
-                    Alert.alert("Remove", ex.name, [
-                      {
-                        text: "Yes",
-                        onPress: () =>
-                          setExercises((prev: ActiveExercise[]) =>
-                            prev.filter((e) => e.logId !== ex.logId),
-                          ),
-                      },
-                      { text: "No" },
-                    ])
+                    // ATUALIZADO: Abre o modal personalizado em vez do Alert nativo
+                    setRemoveExerciseModal({
+                      visible: true,
+                      logId: ex.logId,
+                      name: ex.name,
+                    })
                   }
                 >
                   <MoreVertical size={24} color="#3f3f46" />
@@ -560,7 +585,6 @@ export default function LogWorkoutScreen() {
                       {set.previous}
                     </Text>
 
-                    {/* CAMPO KG CORRIGIDO PARA ANDROID */}
                     <TextInput
                       keyboardType="numeric"
                       value={set.weight}
@@ -577,7 +601,6 @@ export default function LogWorkoutScreen() {
                       className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
                     />
 
-                    {/* CAMPO REPS CORRIGIDO PARA ANDROID */}
                     <TextInput
                       keyboardType="numeric"
                       value={set.reps}
@@ -936,6 +959,123 @@ export default function LogWorkoutScreen() {
               </View>
             </View>
           </TouchableOpacity>
+        </Modal>
+
+        {/* MODAL REST TIMER PARA ANDROID/IOS */}
+        <Modal visible={restModal.visible} transparent animationType="fade">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            className="flex-1 bg-black/80 justify-center px-10"
+          >
+            <View className="bg-[#121212] p-8 rounded-[30px] border border-zinc-800">
+              <Text className="text-white text-center font-black uppercase italic mb-6">
+                Rest Timer (Seconds)
+              </Text>
+
+              <TextInput
+                keyboardType="numeric"
+                autoFocus
+                value={restModal.value}
+                onChangeText={(v) =>
+                  setRestModal((prev) => ({ ...prev, value: v }))
+                }
+                textAlignVertical="center"
+                multiline={false}
+                scrollEnabled={false}
+                style={{ paddingVertical: 0 }}
+                className="bg-zinc-900 text-white text-3xl font-black text-center py-4 rounded-2xl border border-zinc-800 mb-6"
+              />
+
+              <View className="flex-row justify-between">
+                <TouchableOpacity
+                  onPress={() => setRestModal({ ...restModal, visible: false })}
+                  className="flex-1 py-4 mr-2 items-center bg-zinc-800 rounded-xl"
+                >
+                  <Text className="text-zinc-400 font-bold uppercase">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    const seconds = parseInt(restModal.value || "0");
+                    setExercises((prev: ActiveExercise[]) =>
+                      prev.map((e) =>
+                        e.logId === restModal.exLogId
+                          ? { ...e, rest_time: seconds }
+                          : e,
+                      ),
+                    );
+                    setRestModal({ ...restModal, visible: false });
+                  }}
+                  className="flex-1 py-4 ml-2 items-center bg-[#E31C25] rounded-xl"
+                >
+                  <Text className="text-white font-black uppercase italic">
+                    Save
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* NOVO: MODAL PERSONALIZADO DE CONFIRMAÇÃO DE REMOÇÃO (Estética Invictus) */}
+        <Modal
+          visible={removeExerciseModal.visible}
+          transparent
+          animationType="fade"
+        >
+          <View className="flex-1 bg-black/90 justify-center items-center px-6">
+            <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+              {/* Ícone e Título */}
+              <View className="bg-[#E31C25]/10 p-4 rounded-full mb-6">
+                <Trash2 color="#ef4444" size={32} />
+              </View>
+
+              <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+                Remove Exercise?
+              </Text>
+
+              <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+                Are you sure you want to remove {removeExerciseModal.name} from
+                this workout?
+              </Text>
+
+              {/* Botões Personalizados */}
+              <View className="flex-row w-full justify-between gap-x-4">
+                <TouchableOpacity
+                  onPress={() =>
+                    setRemoveExerciseModal({
+                      ...removeExerciseModal,
+                      visible: false,
+                    })
+                  }
+                  className="flex-1 bg-zinc-900 py-4 rounded-xl items-center border border-zinc-800"
+                >
+                  <Text className="text-zinc-400 font-bold uppercase">
+                    No, Keep
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setExercises((prev: ActiveExercise[]) =>
+                      prev.filter((e) => e.logId !== removeExerciseModal.logId),
+                    );
+                    setRemoveExerciseModal({
+                      ...removeExerciseModal,
+                      visible: false,
+                    });
+                  }}
+                  className="flex-1 bg-[#E31C25] py-4 rounded-xl items-center"
+                >
+                  <Text className="text-white font-black uppercase italic">
+                    Yes, Remove
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     </KeyboardAvoidingView>
