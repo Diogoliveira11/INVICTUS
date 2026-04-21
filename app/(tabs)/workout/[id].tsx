@@ -177,14 +177,24 @@ export default function ExerciseDetailScreen() {
     async function loadData() {
       try {
         const email = await AsyncStorage.getItem("userEmail");
-        console.log("Email logado:", email);
 
-        // 1. Tentar carregar o exercício primeiro
+        // 1. Carregar o exercício
         const result = await db.getFirstAsync<ExerciseDetails>(
           "SELECT * FROM exercises WHERE id = ?",
           [id as string],
         );
-        if (result) setExercise(result);
+
+        if (result) {
+          setExercise(result);
+
+          // --- LÓGICA DE ABA PADRÃO ---
+          // Se for customizado (1), abre no History. Caso contrário, Summary.
+          if (result.is_custom === 1) {
+            setActiveTab("History");
+          } else {
+            setActiveTab("Summary");
+          }
+        }
 
         // 2. Query de Histórico "Segura"
         // Se esta falhar, o problema está nos JOINS ou nomes das tabelas

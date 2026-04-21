@@ -3,6 +3,8 @@ import { useSQLiteContext } from "expo-sqlite";
 
 import { Image } from "expo-image";
 import {
+  ArrowDown, // Adicionado
+  ArrowUp, // Adicionado
   Check,
   ChevronDown,
   Clock,
@@ -10,7 +12,7 @@ import {
   Plus,
   Search,
   Target,
-  Trash2, // Importado para o ícone no modal
+  Trash2,
   Trophy,
   X,
 } from "lucide-react-native";
@@ -105,7 +107,6 @@ export default function LogWorkoutScreen() {
     value: "60",
   });
 
-  // NOVO: Estado para gerir o modal de confirmação de remoção
   const [removeExerciseModal, setRemoveExerciseModal] = useState<{
     visible: boolean;
     logId: string;
@@ -380,6 +381,20 @@ export default function LogWorkoutScreen() {
     setIsModalVisible(false);
   };
 
+  // FUNÇÃO DE REORDENAÇÃO
+  const moveExercise = (index: number, direction: "up" | "down") => {
+    const newExercises = [...exercises];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= newExercises.length) return;
+
+    const temp = newExercises[index];
+    newExercises[index] = newExercises[targetIndex];
+    newExercises[targetIndex] = temp;
+
+    setExercises(newExercises);
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -457,7 +472,7 @@ export default function LogWorkoutScreen() {
             />
           </View>
 
-          {exercises.map((ex) => (
+          {exercises.map((ex, index) => (
             <View
               key={ex.logId}
               className="mt-4 bg-zinc-900/30 rounded-[25px] p-5 mx-2 border border-zinc-900"
@@ -510,7 +525,6 @@ export default function LogWorkoutScreen() {
 
                 <TouchableOpacity
                   onPress={() =>
-                    // ATUALIZADO: Abre o modal personalizado em vez do Alert nativo
                     setRemoveExerciseModal({
                       visible: true,
                       logId: ex.logId,
@@ -577,7 +591,17 @@ export default function LogWorkoutScreen() {
                         })
                       }
                     >
-                      <Text className="text-white font-black italic">
+                      <Text
+                        className={`font-black italic text-base ${
+                          set.type === "W"
+                            ? "text-amber-500"
+                            : set.type === "D"
+                              ? "text-purple-500"
+                              : set.type === "F"
+                                ? "text-[#E31C25]"
+                                : "text-white"
+                        }`}
+                      >
                         {set.type === "1" ? idx + 1 : set.type}
                       </Text>
                     </TouchableOpacity>
@@ -656,39 +680,67 @@ export default function LogWorkoutScreen() {
                   )}
                 </View>
               ))}
-              <TouchableOpacity
-                onPress={() =>
-                  setExercises((prev: ActiveExercise[]) =>
-                    prev.map((e) =>
-                      e.logId === ex.logId
-                        ? {
-                            ...e,
-                            sets: [
-                              ...e.sets,
-                              {
-                                id: Math.random().toString(),
-                                type: "1" as SetType,
-                                weight: "",
-                                reps: "",
-                                suggestedWeight:
-                                  e.sets[e.sets.length - 1]?.weight || "0",
-                                suggestedReps:
-                                  e.sets[e.sets.length - 1]?.reps || "0",
-                                completed: false,
-                                previous: "-",
-                              },
-                            ],
-                          }
-                        : e,
-                    ),
-                  )
-                }
-                className="mt-3 py-4 bg-zinc-900/40 rounded-2xl items-center border border-dashed border-zinc-800"
-              >
-                <Text className="text-zinc-500 font-black text-[10px] uppercase italic tracking-widest">
-                  + Add Set
-                </Text>
-              </TouchableOpacity>
+
+              {/* NOVOS BOTÕES: ADD SET E REORDENAÇÃO */}
+              <View className="flex-row items-center mt-3 gap-x-2">
+                <TouchableOpacity
+                  onPress={() =>
+                    setExercises((prev: ActiveExercise[]) =>
+                      prev.map((e) =>
+                        e.logId === ex.logId
+                          ? {
+                              ...e,
+                              sets: [
+                                ...e.sets,
+                                {
+                                  id: Math.random().toString(),
+                                  type: "1" as SetType,
+                                  weight: "",
+                                  reps: "",
+                                  suggestedWeight:
+                                    e.sets[e.sets.length - 1]?.weight || "0",
+                                  suggestedReps:
+                                    e.sets[e.sets.length - 1]?.reps || "0",
+                                  completed: false,
+                                  previous: "-",
+                                },
+                              ],
+                            }
+                          : e,
+                      ),
+                    )
+                  }
+                  className="flex-1 py-4 bg-zinc-900/40 rounded-2xl items-center border border-dashed border-zinc-800"
+                >
+                  <Text className="text-zinc-500 font-black text-[10px] uppercase italic tracking-widest">
+                    + Add Set
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => moveExercise(index, "up")}
+                  disabled={index === 0}
+                  className={`p-4 rounded-2xl border border-zinc-800 ${index === 0 ? "bg-zinc-900/20 opacity-30" : "bg-zinc-900/40"}`}
+                >
+                  <ArrowUp
+                    size={16}
+                    color={index === 0 ? "#3f3f46" : "#E31C25"}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => moveExercise(index, "down")}
+                  disabled={index === exercises.length - 1}
+                  className={`p-4 rounded-2xl border border-zinc-800 ${index === exercises.length - 1 ? "bg-zinc-900/20 opacity-30" : "bg-zinc-900/40"}`}
+                >
+                  <ArrowDown
+                    size={16}
+                    color={
+                      index === exercises.length - 1 ? "#3f3f46" : "#E31C25"
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
           <TouchableOpacity
@@ -702,7 +754,6 @@ export default function LogWorkoutScreen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* MODAL LIBRARY */}
         <Modal
           visible={isModalVisible}
           animationType="slide"
@@ -847,7 +898,6 @@ export default function LogWorkoutScreen() {
               />
             </View>
 
-            {/* MODAL DE FILTROS */}
             <Modal
               visible={isFilterModalVisible}
               transparent
@@ -914,7 +964,6 @@ export default function LogWorkoutScreen() {
           </SafeAreaView>
         </Modal>
 
-        {/* MODAL SET TYPE */}
         <Modal visible={!!typeModal} transparent animationType="fade">
           <TouchableOpacity
             activeOpacity={1}
@@ -927,10 +976,10 @@ export default function LogWorkoutScreen() {
               </Text>
               <View className="flex-row justify-between mb-10">
                 {[
-                  { l: "Normal", v: "1", c: "text-white" },
-                  { l: "Warmup", v: "W", c: "text-amber-500" },
-                  { l: "Drop", v: "D", c: "text-purple-500" },
-                  { l: "Fail", v: "F", c: "text-[#E31C25]" },
+                  { l: "Normal", v: "1", i: "1", c: "text-white" },
+                  { l: "Warmup", v: "W", i: "W", c: "text-amber-500" },
+                  { l: "Drop", v: "D", i: "D", c: "text-purple-500" },
+                  { l: "Fail", v: "F", i: "F", c: "text-[#E31C25]" },
                 ].map((i) => (
                   <TouchableOpacity
                     key={i.v}
@@ -947,7 +996,7 @@ export default function LogWorkoutScreen() {
                     className="bg-zinc-900 w-[22%] aspect-square rounded-[25px] items-center justify-center border border-zinc-800 shadow-md"
                   >
                     <Text className={`${i.c} font-black text-2xl italic`}>
-                      {i.v === "1" ? "1" : i.v}
+                      {i.i}
                     </Text>
                     <Text
                       className={`${i.c} text-[8px] font-black uppercase mt-1 italic`}
@@ -961,7 +1010,6 @@ export default function LogWorkoutScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* MODAL REST TIMER PARA ANDROID/IOS */}
         <Modal visible={restModal.visible} transparent animationType="fade">
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -1019,7 +1067,6 @@ export default function LogWorkoutScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* NOVO: MODAL PERSONALIZADO DE CONFIRMAÇÃO DE REMOÇÃO (Estética Invictus) */}
         <Modal
           visible={removeExerciseModal.visible}
           transparent
@@ -1027,7 +1074,6 @@ export default function LogWorkoutScreen() {
         >
           <View className="flex-1 bg-black/90 justify-center items-center px-6">
             <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
-              {/* Ícone e Título */}
               <View className="bg-[#E31C25]/10 p-4 rounded-full mb-6">
                 <Trash2 color="#ef4444" size={32} />
               </View>
@@ -1037,11 +1083,10 @@ export default function LogWorkoutScreen() {
               </Text>
 
               <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
-                Are you sure you want to remove {removeExerciseModal.name} from
-                this workout?
+                Are you sure you want to remove {removeExerciseModal.name}
+                from this workout?
               </Text>
 
-              {/* Botões Personalizados */}
               <View className="flex-row w-full justify-between gap-x-4">
                 <TouchableOpacity
                   onPress={() =>

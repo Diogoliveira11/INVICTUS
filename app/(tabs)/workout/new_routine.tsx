@@ -4,6 +4,7 @@ import { Image } from "expo-image"; // Importar para as imagens
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
+  AlertCircle,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -15,7 +16,6 @@ import {
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   FlatList,
   Modal,
   SafeAreaView,
@@ -57,6 +57,13 @@ export default function NewRoutineScreen() {
   const [dbExercises, setDbExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState("");
 
+  // NOVOS ESTADOS PARA MODAIS CUSTOMIZADOS
+  const [showAttentionModal, setShowAttentionModal] = useState({
+    visible: false,
+    message: "",
+  });
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   // Estados para filtros (Igual ao Explore)
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<string | null>(
@@ -84,19 +91,17 @@ export default function NewRoutineScreen() {
             [email],
           );
 
-          // Verificação de segurança para o TypeScript
           if (!userRow) return;
 
-          const currentUserId = userRow.id; // Criamos a variável aqui
+          const currentUserId = userRow.id;
 
           const res = await db.getFirstAsync<{ name: string }>(
             "SELECT name FROM routines WHERE id = ? AND user_id = ?",
-            [Number(routineId), currentUserId], // Agora o TS sabe que currentUserId é um número
+            [Number(routineId), currentUserId],
           );
 
           if (res) {
             setName(res.name);
-            // O aviso 'res' is assigned a value but never used desaparece aqui
           }
 
           const exes = await db.getAllAsync<Exercise>(
@@ -137,7 +142,6 @@ export default function NewRoutineScreen() {
       const rows = await db.getAllAsync<Exercise>(query, params);
       setDbExercises(rows);
 
-      // Carregar opções de filtro se ainda não existirem
       if (muscleOptions.length === 0) {
         const muscles = await db.getAllAsync<{ muscle_group: string }>(
           "SELECT DISTINCT muscle_group FROM exercises WHERE muscle_group IS NOT NULL ORDER BY muscle_group ASC",
@@ -154,37 +158,37 @@ export default function NewRoutineScreen() {
     }
   }, [search, selectedMuscle, selectedEquipment, db]);
 
-  // Atualiza o useEffect para observar os novos filtros
   useEffect(() => {
     if (isModalVisible) fetchModalExercises();
   }, [isModalVisible, fetchModalExercises, selectedMuscle, selectedEquipment]);
 
-  useEffect(() => {
-    if (isModalVisible) fetchModalExercises();
-  }, [isModalVisible, fetchModalExercises]);
-
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert("Aviso", "Dá um nome à tua rotina.");
+    if (!name.trim())
+      return setShowAttentionModal({
+        visible: true,
+        message: "Please name your routine.",
+      });
     if (selectedExercises.length === 0)
-      return Alert.alert("Aviso", "Adiciona exercícios.");
+      return setShowAttentionModal({
+        visible: true,
+        message: "Add at least one exercise.",
+      });
 
     try {
-      // 1. Obter o email e depois o ID do utilizador
       const email = await AsyncStorage.getItem("userEmail");
       const userRow = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM users WHERE email = ?",
         [email],
       );
 
-      // 2. Verificação crucial para o TypeScript e segurança
       if (!userRow) {
-        return Alert.alert(
-          "Erro",
-          "Utilizador não encontrado. Faz login novamente.",
-        );
+        return setShowAttentionModal({
+          visible: true,
+          message: "User not found. Please login again.",
+        });
       }
 
-      const currentUserId = userRow.id; // Agora temos o ID garantido como número
+      const currentUserId = userRow.id;
       let currentRoutineId: number;
 
       if (mode === "edit" && routineId) {
@@ -198,10 +202,9 @@ export default function NewRoutineScreen() {
           [currentRoutineId],
         );
       } else {
-        // 3. USAR O ID QUE BUSCÁMOS ACIMA
         const result = await db.runAsync(
           "INSERT INTO routines (name, user_id) VALUES (?, ?)",
-          [name, currentUserId], // Mudado de userId para currentUserId
+          [name, currentUserId],
         );
         currentRoutineId = result.lastInsertRowId;
       }
@@ -213,13 +216,13 @@ export default function NewRoutineScreen() {
         );
       }
 
-      Alert.alert("Success", "Routine saved!");
-      setName("");
-      setSelectedExercises([]);
-      router.replace("/workout");
+      setShowSuccessModal(true);
     } catch (e: any) {
       console.error("ERROR WHILE SAVING:", e);
-      Alert.alert("Error", "Error saving to the database.");
+      setShowAttentionModal({
+        visible: true,
+        message: "Error saving to the database.",
+      });
     }
   };
 
@@ -255,10 +258,10 @@ export default function NewRoutineScreen() {
           placeholderTextColor="#52525b"
           value={name}
           onChangeText={setName}
-          autoCorrect={false} // Desativa a correção automática
-          spellCheck={false} // Desativa a verificação ortográfica
-          textContentType="none" // Impede o Android de sugerir preenchimentos automáticos
-          keyboardType="visible-password" // Força o teclado a não tentar "adivinhar" a palavra
+          autoCorrect={false}
+          spellCheck={false}
+          textContentType="none"
+          keyboardType="visible-password"
           className="text-white text-3xl font-black italic border-b border-zinc-800 pb-3 uppercase"
         />
 
@@ -269,8 +272,6 @@ export default function NewRoutineScreen() {
 
           {selectedExercises.map((ex) => {
             const imageKey = ex.image?.trim();
-
-            // Lógica de prioridade
             const isCustomImage =
               imageKey?.startsWith("file://") || imageKey?.startsWith("http");
             const imageSource = isCustomImage
@@ -357,7 +358,6 @@ export default function NewRoutineScreen() {
               />
             </View>
 
-            {/* FILTROS PADRONIZADOS */}
             <View className="flex-row justify-between mb-6 gap-x-3">
               <TouchableOpacity
                 onPress={() => {
@@ -401,8 +401,6 @@ export default function NewRoutineScreen() {
                   (e) => e.id === item.id,
                 );
                 const imageKey = item.image?.trim();
-
-                // Mesma lógica de fallback
                 const isCustomImage =
                   imageKey?.startsWith("file://") ||
                   imageKey?.startsWith("http");
@@ -463,7 +461,6 @@ export default function NewRoutineScreen() {
                 );
               }}
             />
-            {/* MODAL DE SELEÇÃO DE FILTRO */}
             <Modal
               visible={isFilterModalVisible}
               transparent
@@ -474,7 +471,6 @@ export default function NewRoutineScreen() {
               >
                 <View className="flex-1 bg-black/80 justify-end">
                   <TouchableWithoutFeedback>
-                    {/* ALTURA: h-[60%] em vez de min-h */}
                     <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
                       <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
                       <Text className="text-white text-xl font-black uppercase italic mb-6">
@@ -532,6 +528,67 @@ export default function NewRoutineScreen() {
             </Modal>
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* MODAL DE ATENÇÃO (AVISO) */}
+      <Modal
+        visible={showAttentionModal.visible}
+        transparent
+        animationType="fade"
+      >
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
+              <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              Attention
+            </Text>
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              {showAttentionModal.message}
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                setShowAttentionModal({ visible: false, message: "" })
+              }
+              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
+            >
+              <Text className="text-white font-black uppercase italic text-lg">
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL DE SUCESSO (ESTILO INVICTUS) */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
+              <Check color="#22c55e" size={32} strokeWidth={3} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              Success
+            </Text>
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              Routine saved!
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowSuccessModal(false);
+                setName("");
+                setSelectedExercises([]);
+                router.replace("/workout");
+              }}
+              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
+            >
+              <Text className="text-white font-black uppercase italic text-lg">
+                Great!
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

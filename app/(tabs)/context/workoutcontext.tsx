@@ -1,4 +1,6 @@
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
+import { Trash2 } from "lucide-react-native"; // Ícone para combinar com o estilo de descarte
 import React, {
   createContext,
   useContext,
@@ -6,7 +8,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Alert, AppState } from "react-native";
+import {
+  AppState,
+  Modal,
+  Platform,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export type SetType = "W" | "1" | "F" | "D";
 
@@ -64,6 +73,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [seconds, setSeconds] = useState(0);
   const startTimeRef = useRef<number | null>(null);
 
+  // Estado para o Modal customizado
+  const [isDiscardModalVisible, setIsDiscardModalVisible] = useState(false);
+
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const endTimeRef = useRef<number | null>(null);
 
@@ -119,19 +131,29 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   }, [restTimer]);
 
   const scheduleRestNotification = async (secs: number) => {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    endTimeRef.current = Date.now() + secs * 1000;
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Rest period over! 🔔",
-        body: "Time for the next series.",
-        sound: true,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: secs,
-      },
-    });
+    const isExpoGo = Constants.appOwnership === "expo";
+    if (Platform.OS === "android" && isExpoGo) {
+      endTimeRef.current = Date.now() + secs * 1000;
+      return;
+    }
+
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      endTimeRef.current = Date.now() + secs * 1000;
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Rest period over! 🔔",
+          body: "Time for the next series.",
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secs,
+        },
+      });
+    } catch (e) {
+      console.log("Erro ao agendar notificação:", e);
+    }
   };
 
   const toggleSetCompleted = (exLogId: string, setId: string) => {
@@ -149,7 +171,14 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
                 } else if (!newState) {
                   setRestTimer(null);
                   endTimeRef.current = null;
-                  Notifications.cancelAllScheduledNotificationsAsync();
+                  if (
+                    !(
+                      Platform.OS === "android" &&
+                      Constants.appOwnership === "expo"
+                    )
+                  ) {
+                    Notifications.cancelAllScheduledNotificationsAsync();
+                  }
                 }
                 return { ...s, completed: newState };
               }
@@ -198,24 +227,27 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setLastExercise(name);
   };
 
-  const stopWorkout = (confirm = false) => {
-    const clear = () => {
-      setIsActive(false);
-      setIsMinimized(false);
-      setExercises([]);
-      setSeconds(0);
-      startTimeRef.current = null;
-      setRestTimer(null);
-      endTimeRef.current = null;
-      setLastExercise("");
+  const clearWorkoutData = () => {
+    setIsActive(false);
+    setIsMinimized(false);
+    setExercises([]);
+    setSeconds(0);
+    startTimeRef.current = null;
+    setRestTimer(null);
+    endTimeRef.current = null;
+    setLastExercise("");
+    if (!(Platform.OS === "android" && Constants.appOwnership === "expo")) {
       Notifications.cancelAllScheduledNotificationsAsync();
-    };
-    if (confirm)
-      Alert.alert("Skip the workout?", "Are you sure?", [
-        { text: "Cancel" },
-        { text: "Discard", style: "destructive", onPress: clear },
-      ]);
-    else clear();
+    }
+    setIsDiscardModalVisible(false);
+  };
+
+  const stopWorkout = (confirm = false) => {
+    if (confirm) {
+      setIsDiscardModalVisible(true);
+    } else {
+      clearWorkoutData();
+    }
   };
 
   return (
@@ -238,6 +270,122 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+
+      {/* MODAL DE DESCARTE PERSONALIZADO (ESTILO INVICTUS) */}
+      <Modal
+        visible={isDiscardModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsDiscardModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.9)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#121212",
+              width: "100%",
+              padding: 32,
+              borderRadius: 40,
+              borderWidth: 1,
+              borderColor: "#27272a",
+              alignItems: "center",
+            }}
+          >
+            {/* Ícone superior */}
+            <View
+              style={{
+                backgroundColor: "rgba(227, 28, 37, 0.1)",
+                borderRadius: 100,
+                marginBottom: 24,
+                padding: 16,
+              }}
+            >
+              <Trash2 color="#E31C25" size={32} />
+            </View>
+
+            <Text
+              style={{
+                color: "white",
+                fontSize: 24,
+                fontWeight: "900",
+                fontStyle: "italic",
+                textTransform: "uppercase",
+                marginBottom: 12,
+                textAlign: "center",
+              }}
+            >
+              Discard workout?
+            </Text>
+
+            <Text
+              style={{
+                color: "#71717a",
+                fontSize: 14,
+                fontWeight: "600",
+                textTransform: "uppercase",
+                marginBottom: 32,
+                textAlign: "center",
+              }}
+            >
+              Are you sure you want to stop? All progress will be lost.
+            </Text>
+
+            <View style={{ flexDirection: "row", width: "100%", gap: 16 }}>
+              <TouchableOpacity
+                onPress={() => setIsDiscardModalVisible(false)}
+                style={{
+                  flex: 1,
+                  backgroundColor: "#18181b",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: "#27272a",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#a1a1aa",
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={clearWorkoutData}
+                style={{
+                  flex: 1,
+                  backgroundColor: "#E31C25",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    fontStyle: "italic",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Discard
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </WorkoutContext.Provider>
   );
 }

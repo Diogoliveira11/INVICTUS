@@ -3,11 +3,11 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
-import { ArrowLeft, HelpCircle } from "lucide-react-native";
+import { ArrowLeft, Check, HelpCircle } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  Modal,
   ScrollView,
   Text,
   TextInput,
@@ -30,6 +30,9 @@ export default function EditProfile() {
   const [height, setHeight] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
+  // Estado para o Modal de Sucesso
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   const redColor = "#E31C25";
 
   useEffect(() => {
@@ -45,12 +48,12 @@ export default function EditProfile() {
 
         if (userRow) {
           setName(userRow.username || "");
-          setWeight(userRow.weight || "");
-          setHeight(userRow.height || "");
+          setWeight(userRow.weight ? String(userRow.weight) : "");
+          setHeight(userRow.height ? String(userRow.height) : "");
           setProfileImage(userRow.profile_picture || null);
         }
       } catch (error) {
-        console.error("Erro ao carregar dados:", error);
+        console.error("Error loading data:", error);
       } finally {
         setLoading(false);
       }
@@ -68,12 +71,10 @@ export default function EditProfile() {
         [name, weight, height, email],
       );
 
-      Alert.alert("Sucesso", "Perfil atualizado!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      // Mostra o modal customizado em vez do Alert
+      setShowSuccessModal(true);
     } catch (error) {
-      console.error("Erro ao guardar:", error);
-      Alert.alert("Erro", "Falha ao gravar dados na base de dados.");
+      console.error("Error saving:", error);
     }
   };
 
@@ -135,13 +136,12 @@ export default function EditProfile() {
           </TouchableOpacity>
         </View>
 
-        {/* INPUTS ENQUADRADOS */}
+        {/* INPUTS */}
         <View className="px-6 mt-10">
           <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest mb-4 italic">
             Athlete Data
           </Text>
 
-          {/* Campo Username */}
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
             <Text className="text-zinc-400 font-bold uppercase italic text-xs">
               Username
@@ -156,10 +156,9 @@ export default function EditProfile() {
             />
           </View>
 
-          {/* Campo Peso */}
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
             <Text className="text-zinc-400 font-bold uppercase italic text-xs">
-              Weight
+              Weight (kg)
             </Text>
             <TextInput
               value={weight}
@@ -172,10 +171,9 @@ export default function EditProfile() {
             />
           </View>
 
-          {/* Campo Altura */}
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
             <Text className="text-zinc-400 font-bold uppercase italic text-xs">
-              Height
+              Height (cm)
             </Text>
             <TextInput
               value={height}
@@ -189,7 +187,7 @@ export default function EditProfile() {
           </View>
         </View>
 
-        {/* ACCOUNT INFO */}
+        {/* PERSONAL INFO */}
         <View className="px-6 mt-10">
           <View className="flex-row items-center mb-5 gap-2">
             <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest italic">
@@ -223,6 +221,37 @@ export default function EditProfile() {
           </View>
         </View>
       </ScrollView>
+
+      {/* SUCCESS MODAL (INVICTUS STYLE) */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
+              <Check color="#22c55e" size={32} strokeWidth={3} />
+            </View>
+
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              Success!
+            </Text>
+
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              Profile updated successfully.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowSuccessModal(false);
+                router.back();
+              }}
+              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
+            >
+              <Text className="text-white font-black uppercase italic text-lg">
+                Great!
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -1,10 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { Check, ChevronLeft } from "lucide-react-native"; // Adicionei o Check
+import { AlertCircle, Check, ChevronLeft } from "lucide-react-native"; // Adicionado AlertCircle
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -23,8 +22,9 @@ export default function SaveWorkoutScreen() {
   const [description, setDescription] = useState("");
   const { routineName } = useLocalSearchParams<{ routineName: string }>();
 
-  // NOVO: Estado para o modal de sucesso
+  // ESTADOS PARA OS MODAIS
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showAttentionModal, setShowAttentionModal] = useState(false); // Novo estado
 
   const checkPersonalRecord = async (
     exerciseId: number,
@@ -69,7 +69,7 @@ export default function SaveWorkoutScreen() {
 
   const handleSave = async () => {
     if (stats.totalSets === 0) {
-      Alert.alert("Attention", "Do at least one set!");
+      setShowAttentionModal(true); // Substituído Alert.alert por modal
       return;
     }
     try {
@@ -131,12 +131,11 @@ export default function SaveWorkoutScreen() {
         }
       }
 
-      // FINALIZAÇÃO: Para o timer global e mostra o modal de sucesso
       stopWorkout();
       setShowSuccessModal(true);
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "Could not save workout.");
+      // Opcional: Criar um modal de erro também
     }
   };
 
@@ -204,11 +203,38 @@ export default function SaveWorkoutScreen() {
         />
       </ScrollView>
 
-      {/* MODAL DE SUCESSO - ESTÉTICA INVICTUS */}
+      {/* NOVO: MODAL DE ATENÇÃO (Substitui o Alerta Nativo) */}
+      <Modal visible={showAttentionModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
+              <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
+            </View>
+
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              Attention
+            </Text>
+
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              Do at least one set!
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => setShowAttentionModal(false)}
+              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
+            >
+              <Text className="text-white font-black uppercase italic text-lg">
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL DE SUCESSO */}
       <Modal visible={showSuccessModal} transparent animationType="fade">
         <View className="flex-1 bg-black/90 justify-center items-center px-6">
           <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
-            {/* Ícone de Sucesso */}
             <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
               <Check color="#22c55e" size={32} strokeWidth={3} />
             </View>
@@ -221,13 +247,12 @@ export default function SaveWorkoutScreen() {
               Saved workout!
             </Text>
 
-            {/* Botão de Fechar */}
             <TouchableOpacity
               onPress={() => {
                 setShowSuccessModal(false);
                 router.replace("/(tabs)/home");
               }}
-              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center shadow-lg"
+              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
             >
               <Text className="text-white font-black uppercase italic text-lg">
                 Great!
