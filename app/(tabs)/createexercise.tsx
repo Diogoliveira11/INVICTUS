@@ -25,35 +25,22 @@ import {
 } from "react-native";
 
 const MUSCLE_GROUPS = [
-  "Abdominals",
+  "Abs",
   "Abductors",
   "Adductors",
   "Biceps",
   "Calves",
   "Chest",
   "Forearms",
-  "Full Body",
   "Glutes",
   "Hamstrings",
   "Lats",
-  "Lower Back",
-  "Quads",
+  "Quadriceps",
   "Shoulders",
   "Triceps",
-  "Upper Back",
 ];
 
-const EQUIPMENTS = [
-  "None",
-  "Barbell",
-  "Dumbbell",
-  "Kettlebell",
-  "Machine",
-  "Plate",
-  "Resistance Band",
-  "Suspension Band",
-  "Other",
-];
+const EQUIPMENTS = ["Barbell", "Cable", "Dumbbell", "Machine", "Other"];
 
 export default function CreateExerciseScreen() {
   const router = useRouter();

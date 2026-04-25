@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
-import { Trash2 } from "lucide-react-native"; // Ícone para combinar com o estilo de descarte
+import { Trash2 } from "lucide-react-native";
 import React, {
   createContext,
   useContext,
@@ -74,28 +74,56 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [seconds, setSeconds] = useState(0);
   const startTimeRef = useRef<number | null>(null);
 
-  // Estado para o Modal customizado
   const [isDiscardModalVisible, setIsDiscardModalVisible] = useState(false);
 
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const endTimeRef = useRef<number | null>(null);
+  const restIntervalRef = useRef<any>(null);
 
+  // 1. SINCRONIZAÇÃO AO VOLTAR (Segundo Plano)
+  // 1 & 3. SINCRONIZAÇÃO E CONTROLO DOS TIMERS
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active" && endTimeRef.current) {
-        const now = Date.now();
+    const updateTimers = () => {
+      const now = Date.now();
+
+      // Atualiza Rest Timer (Descanso)
+      if (endTimeRef.current) {
         const remaining = Math.round((endTimeRef.current - now) / 1000);
-        if (remaining > 0) {
-          setRestTimer(remaining);
-        } else {
+        if (remaining <= 0) {
           setRestTimer(null);
           endTimeRef.current = null;
+        } else {
+          setRestTimer(remaining);
         }
       }
-    });
-    return () => subscription.remove();
-  }, []);
 
+      // Atualiza Duração (Duration)
+      if (isActive && startTimeRef.current) {
+        const elapsed = Math.floor((now - startTimeRef.current) / 1000);
+        setSeconds(elapsed);
+      }
+    };
+
+    // Atualiza logo ao montar ou mudar estado
+    updateTimers();
+
+    // Cria o intervalo único para ambos
+    const masterInterval = setInterval(updateTimers, 1000);
+
+    // Escuta quando a app volta do segundo plano para forçar atualização
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        updateTimers();
+      }
+    });
+
+    return () => {
+      clearInterval(masterInterval);
+      subscription.remove();
+    };
+  }, [isActive]); // Apenas depende se o treino está ativo ou não
+
+  // 2. TIMER GLOBAL (Duração)
   useEffect(() => {
     let interval: any;
     if (isActive) {
@@ -110,37 +138,47 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           setSeconds(elapsed);
         }
       }, 1000);
-    } else {
-      clearInterval(interval);
-      startTimeRef.current = null;
     }
     return () => clearInterval(interval);
   }, [isActive]);
 
+  // 3. REST TIMER (Descanso) - CORRIGIDO
   useEffect(() => {
-    let interval: any;
+    // Limpamos sempre o intervalo anterior para não haver conflitos
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+
     if (restTimer !== null && restTimer > 0) {
-      interval = setInterval(() => {
-        setRestTimer((prev) => {
-          if (prev && prev > 1) return prev - 1;
-          endTimeRef.current = null;
-          return null;
-        });
+      restIntervalRef.current = setInterval(() => {
+        if (endTimeRef.current) {
+          const now = Date.now();
+          const remaining = Math.round((endTimeRef.current - now) / 1000);
+
+          if (remaining <= 0) {
+            setRestTimer(null);
+            endTimeRef.current = null;
+            clearInterval(restIntervalRef.current);
+          } else {
+            // Só atualizamos o estado se o valor mudar para evitar renders infinitos
+            setRestTimer(remaining);
+          }
+        }
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, [restTimer]);
+
+    return () => {
+      if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    };
+  }, [restTimer === null, isActive]); // Dependência ajustada para ativar/desativar corretamente
 
   const scheduleRestNotification = async (secs: number) => {
+    const targetTime = Date.now() + secs * 1000;
+    endTimeRef.current = targetTime;
+
     const isExpoGo = Constants.appOwnership === "expo";
-    if (Platform.OS === "android" && isExpoGo) {
-      endTimeRef.current = Date.now() + secs * 1000;
-      return;
-    }
+    if (Platform.OS === "android" && isExpoGo) return;
 
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
-      endTimeRef.current = Date.now() + secs * 1000;
       await Notifications.scheduleNotificationAsync({
         content: {
           title: "Rest period over! 🔔",
@@ -167,11 +205,15 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
               if (s.id === setId) {
                 const newState = !s.completed;
                 if (newState && ex.rest_time > 0) {
+                  // Iniciamos o descanso
                   setRestTimer(ex.rest_time);
                   scheduleRestNotification(ex.rest_time);
                 } else if (!newState) {
+                  // Cancelamos o descanso
                   setRestTimer(null);
                   endTimeRef.current = null;
+                  if (restIntervalRef.current)
+                    clearInterval(restIntervalRef.current);
                   if (
                     !(
                       Platform.OS === "android" &&
@@ -229,6 +271,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearWorkoutData = () => {
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     setIsActive(false);
     setIsMinimized(false);
     setExercises([]);
@@ -272,7 +315,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
 
-      {/* MODAL DE DESCARTE PERSONALIZADO (ESTILO INVICTUS) */}
       <Modal
         visible={isDiscardModalVisible}
         transparent
@@ -299,7 +341,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
               alignItems: "center",
             }}
           >
-            {/* Ícone superior */}
             <View
               style={{
                 backgroundColor: "rgba(227, 28, 37, 0.1)",
@@ -361,7 +402,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
                   Cancel
                 </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 onPress={clearWorkoutData}
                 style={{
