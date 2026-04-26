@@ -223,7 +223,7 @@ export default function LogWorkoutScreen() {
             );
 
             const prRes = await db.getFirstAsync<any>(
-              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
+              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY weight DESC, reps DESC LIMIT 1",
               [ex.id],
             );
 
@@ -319,23 +319,39 @@ export default function LogWorkoutScreen() {
     }
     const newExs = await Promise.all(
       tempSelected.map(async (ex) => {
+        // Último set feito (para sugestão de peso/reps)
+        const prevRes = await db.getFirstAsync<any>(
+          "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC LIMIT 1",
+          [ex.id],
+        );
+
+        // Melhor set histórico (para deteção de PR) — peso máximo, desempate por reps
+        const prRes = await db.getFirstAsync<any>(
+          "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY weight DESC, reps DESC LIMIT 1",
+          [ex.id],
+        );
+
         return {
           logId: `${ex.id}-${Math.random().toString(36).substr(2, 9)}`,
           id: ex.id,
           name: ex.name,
-          muscle_group: ex.muscle_group, // Adicionado
+          muscle_group: ex.muscle_group,
           image_url: ex.image,
           notes: "",
           rest_time: 0,
-          personalRecords: [],
+          personalRecords: prRes
+            ? [{ weight: prRes.weight, reps: prRes.reps }]
+            : [],
           sets: [
             {
               id: Math.random().toString(),
               type: "1" as SetType,
               weight: "",
               reps: "",
+              suggestedWeight: prevRes ? String(prevRes.weight) : "0",
+              suggestedReps: prevRes ? String(prevRes.reps) : "0",
               completed: false,
-              previous: "-",
+              previous: prevRes ? `${prevRes.weight}kg x ${prevRes.reps}` : "-",
             },
           ],
         };
