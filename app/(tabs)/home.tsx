@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useUnits } from "../(tabs)/context/units_context";
 
 interface Workout {
   id: number;
@@ -28,6 +29,7 @@ interface Workout {
 
 interface WorkoutExercise {
   exercise_name: string;
+  muscle_group: string;
   weight: number;
   reps: number;
   set_type: string;
@@ -51,6 +53,9 @@ export default function ProgressResult() {
   const [volumeByExercise, setVolumeByExercise] = useState<
     { name: string; volume: number }[]
   >([]);
+
+  const { weightUnit } = useUnits();
+  const weightUnitLower = weightUnit.toLowerCase();
 
   // Estados Dinâmicos do Utilizador
   const [userName, setUserName] = useState("Invictus User");
@@ -81,6 +86,12 @@ export default function ProgressResult() {
       console.error("Erro perfil:", e);
     }
   }, [db]);
+
+  const secondsToTime = (secs: number): string => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? "0" + s : s}`;
+  };
 
   // 2. CARREGAR ESTATÍSTICAS
   const loadStats = useCallback(async () => {
@@ -171,16 +182,17 @@ export default function ProgressResult() {
     try {
       const details = await db.getAllAsync<WorkoutExercise>(
         `SELECT 
-          e.name as exercise_name, 
-          ws.weight, 
-          ws.reps, 
-          ws.set_type, 
-          ws.index_order,
-          ws.is_personal_record
-        FROM workout_sets ws
-        JOIN exercises e ON ws.exercise_id = e.id
-        WHERE ws.workout_exercise_id = ?
-        ORDER BY e.name ASC, ws.index_order ASC`,
+    e.name as exercise_name,
+    e.muscle_group,
+    ws.weight, 
+    ws.reps, 
+    ws.set_type, 
+    ws.index_order,
+    ws.is_personal_record
+  FROM workout_sets ws
+  JOIN exercises e ON ws.exercise_id = e.id
+  WHERE ws.workout_exercise_id = ?
+  ORDER BY e.name ASC, ws.index_order ASC`,
         [workout.id],
       );
 
@@ -334,7 +346,10 @@ export default function ProgressResult() {
                     <View className="flex-row items-center mt-2">
                       <Clock size={12} color="#52525b" />
                       <Text className="text-zinc-500 text-[10px] font-black ml-1 uppercase italic">
-                        {workout.duration} • {workout.total_volume}kg
+                        {workout.duration} •{" "}
+                        {workout.total_volume > 0
+                          ? `${workout.total_volume}${weightUnitLower}`
+                          : "Cardio"}
                       </Text>
                     </View>
                   </View>
@@ -385,7 +400,11 @@ export default function ProgressResult() {
                     Volume Total
                   </Text>
                   <Text className="text-white font-black italic">
-                    {selectedWorkout?.total_volume}kg
+                    {workoutExercises.some(
+                      (e) => e.muscle_group?.toLowerCase() === "cardio",
+                    )
+                      ? "Cardio"
+                      : `${selectedWorkout?.total_volume}${weightUnitLower}`}
                   </Text>
                 </View>
                 <View className="w-[1px] h-full bg-zinc-800" />
@@ -438,10 +457,14 @@ export default function ProgressResult() {
                       Type
                     </Text>
                     <Text className="text-zinc-600 text-[8px] font-black uppercase w-16 text-center">
-                      Weight
+                      {group.sets[0]?.muscle_group?.toLowerCase() === "cardio"
+                        ? "Dist."
+                        : "Weight"}
                     </Text>
                     <Text className="text-zinc-600 text-[8px] font-black uppercase w-12 text-right">
-                      Reps
+                      {group.sets[0]?.muscle_group?.toLowerCase() === "cardio"
+                        ? "Time"
+                        : "Reps"}
                     </Text>
                   </View>
                   {group.sets.map((set, sIdx) => {
@@ -489,7 +512,10 @@ export default function ProgressResult() {
                           </View>
                         </View>
                         <Text className="text-white font-black italic w-16 text-center">
-                          {set.weight}kg
+                          {set.weight}
+                          {set.muscle_group?.toLowerCase() === "cardio"
+                            ? "km"
+                            : weightUnitLower}
                           {set.is_personal_record === 1 && (
                             <Trophy
                               size={10}
@@ -499,7 +525,9 @@ export default function ProgressResult() {
                           )}
                         </Text>
                         <Text className="text-zinc-200 font-black italic w-12 text-right">
-                          {set.reps}
+                          {set.muscle_group?.toLowerCase() === "cardio"
+                            ? secondsToTime(set.reps)
+                            : set.reps}
                         </Text>
                       </View>
                     );
@@ -560,7 +588,9 @@ export default function ProgressResult() {
                       <Text className="text-[#E31C25] font-black italic text-lg">
                         {/* .toLocaleString() para formatar ex: 1.250 */}
                         {Number(item.volume).toLocaleString()}{" "}
-                        <Text className="text-[10px] text-zinc-600">KG</Text>
+                        <Text className="text-[10px] text-zinc-600">
+                          {weightUnit}
+                        </Text>
                       </Text>
                       <View className="h-1 bg-zinc-900 w-24 rounded-full mt-2 overflow-hidden">
                         <View

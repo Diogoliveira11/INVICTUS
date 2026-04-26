@@ -9,10 +9,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useUnits } from "./(tabs)/context/units_context";
 
 const { width, height } = Dimensions.get("window");
 
-const slides = [
+const slides: {
+  id: number;
+  title: string;
+  btn: string;
+  img: any;
+  isUnits?: boolean;
+}[] = [
   {
     id: 1,
     title: "Make Every Rep Count",
@@ -28,14 +35,22 @@ const slides = [
   {
     id: 3,
     title: "Embrace the Burn",
+    btn: "Next",
+    img: require("../assets/images/onboarding3.png"),
+  },
+  {
+    id: 4,
+    title: "Choose Your Units",
     btn: "SIGN UP",
     img: require("../assets/images/onboarding3.png"),
+    isUnits: true,
   },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const [index, setIndex] = useState(0);
+  const { weightUnit, heightUnit, setWeightUnit, setHeightUnit } = useUnits();
 
   const handlePress = () => {
     if (index < slides.length - 1) {
@@ -45,20 +60,19 @@ export default function OnboardingScreen() {
     }
   };
 
+  const slide = slides[index];
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      {/* 1. Imagem de fundo absoluta */}
       <Image
         key={index}
-        source={slides[index].img}
+        source={slide.img}
         style={StyleSheet.absoluteFillObject}
         resizeMode="cover"
       />
 
-      {/* 2. Gradiente e Conteúdo */}
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.5)", "#000"]}
-        // O justifyContent: 'flex-end' garante que o conteúdo desça para o fundo no iOS
         style={{
           flex: 1,
           justifyContent: "flex-end",
@@ -68,21 +82,70 @@ export default function OnboardingScreen() {
       >
         <View className="items-center">
           <Text className="text-white text-3xl font-bold text-center mb-2">
-            {slides[index].title}
+            {slide.title}
           </Text>
 
-          <Text className="text-gray-400 text-base mb-10 italic">
-            Your Journey Begins Here
-          </Text>
+          {!slide.isUnits && (
+            <Text className="text-gray-400 text-base mb-10 italic">
+              Your Journey Begins Here
+            </Text>
+          )}
 
-          {/* Indicadores (Barras de progresso) */}
+          {/* Slide de escolha de unidades */}
+          {slide.isUnits === true && (
+            <View className="w-full mb-8 mt-4">
+              {/* Peso */}
+              <View className="items-center">
+                <Text className="text-gray-400 text-xs uppercase tracking-widest mb-3">
+                  Weight Unit
+                </Text>
+                <View className="flex-row bg-zinc-900 rounded-full p-1 w-52">
+                  {(["KG", "LB"] as const).map((u) => (
+                    <TouchableOpacity
+                      key={u}
+                      className={`flex-1 py-3 items-center rounded-full ${weightUnit === u ? "bg-[#E31C25]" : ""}`}
+                      onPress={() => setWeightUnit(u)}
+                    >
+                      <Text
+                        className={`font-bold ${weightUnit === u ? "text-white" : "text-gray-400"}`}
+                      >
+                        {u}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Altura */}
+              <View className="items-center mb-5">
+                <Text className="text-gray-400 text-xs uppercase tracking-widest mb-3">
+                  Height Unit
+                </Text>
+                <View className="flex-row bg-zinc-900 rounded-full p-1 w-52">
+                  {(["CM", "FT"] as const).map((u) => (
+                    <TouchableOpacity
+                      key={u}
+                      className={`flex-1 py-3 items-center rounded-full ${heightUnit === u ? "bg-[#E31C25]" : ""}`}
+                      onPress={() => setHeightUnit(u)}
+                    >
+                      <Text
+                        className={`font-bold ${heightUnit === u ? "text-white" : "text-gray-400"}`}
+                      >
+                        {u}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Indicadores */}
           <View className="flex-row mb-8">
             {slides.map((_, i) => (
               <View
                 key={i}
-                className={`h-1 mx-1 rounded-full ${
-                  i === index ? "w-7 bg-white" : "w-3 bg-gray-600"
-                }`}
+                className={`h-1 mx-1 rounded-full ${i === index ? "w-7 bg-white" : "w-3 bg-gray-600"}`}
               />
             ))}
           </View>
@@ -93,7 +156,7 @@ export default function OnboardingScreen() {
             onPress={handlePress}
           >
             <Text className="text-white font-bold text-lg tracking-widest">
-              {slides[index].btn}
+              {slide.btn}
             </Text>
           </TouchableOpacity>
         </View>

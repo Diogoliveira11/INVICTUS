@@ -1,7 +1,6 @@
+import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-
-import { Image } from "expo-image";
 import {
   ArrowDown,
   ArrowUp,
@@ -32,6 +31,7 @@ import {
   View,
 } from "react-native";
 import { IMAGE_MAP } from "../../../constants/exercise_images";
+import { useUnits } from "../context/units_context";
 import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
 
 // @ts-ignore
@@ -77,6 +77,70 @@ const isNewRecord = (
   return false;
 };
 
+// --- CORREÇÃO: componente memoizado para cada item do modal de seleção ---
+const ExerciseListItem = React.memo(
+  ({
+    item,
+    isSelected,
+    onNavigate,
+    onToggle,
+  }: {
+    item: any;
+    isSelected: boolean;
+    onNavigate: () => void;
+    onToggle: () => void;
+  }) => {
+    const imageKey = item.image?.trim();
+    const isExternal =
+      imageKey?.startsWith("file") || imageKey?.startsWith("http");
+    const imageSource = isExternal
+      ? { uri: imageKey }
+      : imageKey && IMAGE_MAP[imageKey]
+        ? IMAGE_MAP[imageKey]
+        : InvictusLogo;
+
+    return (
+      <View className="flex-row items-center py-4 border-b border-zinc-900/50">
+        <TouchableOpacity
+          className="flex-1 flex-row items-center"
+          onPress={onNavigate}
+        >
+          <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
+            <Image
+              source={imageSource}
+              style={{ width: "100%", height: "100%" }}
+              contentFit={imageSource === InvictusLogo ? "contain" : "cover"}
+              cachePolicy="memory-disk"
+            />
+          </View>
+          <View className="flex-1">
+            <Text
+              className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+            >
+              {item.name}
+            </Text>
+            <Text className="text-zinc-500 text-xs mt-1 uppercase font-medium">
+              {item.muscle_group} • {item.equipment}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onToggle}
+          className="w-12 h-12 items-center justify-center"
+        >
+          <View
+            className={`w-7 h-7 rounded-full items-center justify-center border-2 ${isSelected ? "bg-[#E31C25] border-[#E31C25]" : "border-zinc-800"}`}
+          >
+            {isSelected && <Check color="white" size={14} strokeWidth={4} />}
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  },
+);
+
+ExerciseListItem.displayName = "ExerciseListItem";
+
 export default function LogWorkoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -111,13 +175,15 @@ export default function LogWorkoutScreen() {
   const [dbExercises, setDbExercises] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [tempSelected, setTempSelected] = useState<any[]>([]);
-  const [weightUnit] = useState("kg");
 
   const [typeModal, setTypeModal] = useState<{
     visible: boolean;
     exId: string;
     setId: string;
   } | null>(null);
+
+  const { weightUnit: weightUnitRaw } = useUnits();
+  const weightUnit = weightUnitRaw.toLowerCase(); // "kg" ou "lb"
 
   const [restModal, setRestModal] = useState<{
     visible: boolean;
@@ -140,45 +206,59 @@ export default function LogWorkoutScreen() {
     }, [setIsMinimized]),
   );
 
+  // --- CORREÇÃO: fetch de opções separado, sem loop ---
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const muscles = await db.getAllAsync<{ muscle_group: string }>(
+        "SELECT DISTINCT muscle_group FROM exercises ORDER BY muscle_group ASC",
+      );
+      setMuscleOptions(muscles.map((m) => m.muscle_group));
+      const equipment = await db.getAllAsync<{ equipment: string }>(
+        "SELECT DISTINCT equipment FROM exercises ORDER BY equipment ASC",
+      );
+      setEquipmentOptions(equipment.map((e) => e.equipment));
+    } catch (error) {
+      console.error("Erro ao carregar opções:", error);
+    }
+  }, [db]);
+
+  // --- CORREÇÃO: muscleOptions.length removido das deps, sem loop ---
   const fetchLibraryExercises = useCallback(async () => {
     try {
       let query =
         "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
-      let params: any[] = [];
+      let queryParams: any[] = [];
       if (search.trim()) {
         query += " AND name LIKE ? COLLATE NOCASE";
-        params.push(`%${search.trim()}%`);
+        queryParams.push(`%${search.trim()}%`);
       }
       if (selectedMuscle) {
         query += " AND muscle_group = ?";
-        params.push(selectedMuscle);
+        queryParams.push(selectedMuscle);
       }
       if (selectedEquipment) {
         query += " AND equipment = ?";
-        params.push(selectedEquipment);
+        queryParams.push(selectedEquipment);
       }
       query += " ORDER BY name ASC";
-      const rows = await db.getAllAsync<any>(query, params);
+      const rows = await db.getAllAsync<any>(query, queryParams);
       setDbExercises(rows);
-
-      if (muscleOptions.length === 0) {
-        const muscles = await db.getAllAsync<{ muscle_group: string }>(
-          "SELECT DISTINCT muscle_group FROM exercises ORDER BY muscle_group ASC",
-        );
-        setMuscleOptions(muscles.map((m) => m.muscle_group));
-        const equipment = await db.getAllAsync<{ equipment: string }>(
-          "SELECT DISTINCT equipment FROM exercises ORDER BY equipment ASC",
-        );
-        setEquipmentOptions(equipment.map((e) => e.equipment));
-      }
     } catch (error) {
       console.error("Erro ao carregar biblioteca:", error);
     }
-  }, [search, selectedMuscle, selectedEquipment, db, muscleOptions.length]);
+  }, [search, selectedMuscle, selectedEquipment, db]);
 
   useEffect(() => {
-    if (isModalVisible) fetchLibraryExercises();
-  }, [isModalVisible, fetchLibraryExercises]);
+    if (isModalVisible) {
+      fetchLibraryExercises();
+      if (muscleOptions.length === 0) fetchFilterOptions();
+    }
+  }, [
+    isModalVisible,
+    fetchLibraryExercises,
+    fetchFilterOptions,
+    muscleOptions.length,
+  ]);
 
   const stats = useMemo(() => {
     let totalSets = 0,
@@ -358,7 +438,11 @@ export default function LogWorkoutScreen() {
               suggestedWeight: prevRes ? String(prevRes.weight) : "0",
               suggestedReps: prevRes ? String(prevRes.reps) : "0",
               completed: false,
-              previous: prevRes ? `${prevRes.weight}kg x ${prevRes.reps}` : "-",
+              previous: prevRes
+                ? ex.muscle_group?.toLowerCase() === "cardio"
+                  ? `${prevRes.weight}km x ${prevRes.reps}s`
+                  : `${prevRes.weight}${weightUnit} x ${prevRes.reps}`
+                : "-",
             },
           ],
         };
@@ -482,6 +566,7 @@ export default function LogWorkoutScreen() {
                             source={InvictusLogo}
                             style={{ width: "100%", height: "100%" }}
                             contentFit="contain"
+                            cachePolicy="memory-disk"
                           />
                         );
                       const isExternal =
@@ -497,6 +582,7 @@ export default function LogWorkoutScreen() {
                           contentFit={
                             imageSource === InvictusLogo ? "contain" : "cover"
                           }
+                          cachePolicy="memory-disk"
                         />
                       );
                     })()}
@@ -785,7 +871,8 @@ export default function LogWorkoutScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setModalType("equipment");
-                    setIsFilterModalVisible(true);
+                    setIsModalVisible(false);
+                    setTimeout(() => setIsFilterModalVisible(true), 400);
                   }}
                   className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedEquipment ? "bg-[#E31C25]" : "bg-zinc-900"}`}
                 >
@@ -800,7 +887,8 @@ export default function LogWorkoutScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setModalType("muscle");
-                    setIsFilterModalVisible(true);
+                    setIsModalVisible(false);
+                    setTimeout(() => setIsFilterModalVisible(true), 400);
                   }}
                   className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedMuscle ? "bg-[#E31C25]" : "bg-zinc-900"}`}
                 >
@@ -814,6 +902,7 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* --- CORREÇÃO: FlatList otimizado com React.memo no renderItem --- */}
               <FlatList
                 data={dbExercises.filter(
                   (ex) =>
@@ -821,70 +910,35 @@ export default function LogWorkoutScreen() {
                     !exercises.some((ae: any) => ae.id === ex.id),
                 )}
                 keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => {
-                  const isSelected = tempSelected.some((e) => e.id === item.id);
-                  const imageKey = item.image?.trim();
-                  const isExternal =
-                    imageKey?.startsWith("file") ||
-                    imageKey?.startsWith("http");
-                  const imageSource = isExternal
-                    ? { uri: imageKey }
-                    : imageKey && IMAGE_MAP[imageKey]
-                      ? IMAGE_MAP[imageKey]
-                      : InvictusLogo;
-                  return (
-                    <View className="flex-row items-center py-4 border-b border-zinc-900/50">
-                      <TouchableOpacity
-                        className="flex-1 flex-row items-center"
-                        onPress={() => {
-                          setIsModalVisible(false);
-                          router.push({
-                            pathname: "/workout/[id]",
-                            params: { id: item.id, from: "workout" },
-                          } as any);
-                        }}
-                      >
-                        <View className="w-16 h-16 rounded-2xl bg-zinc-900 items-center justify-center mr-4 border border-zinc-800 overflow-hidden">
-                          <Image
-                            source={imageSource}
-                            style={{ width: "100%", height: "100%" }}
-                            contentFit={
-                              imageSource === InvictusLogo ? "contain" : "cover"
-                            }
-                          />
-                        </View>
-                        <View className="flex-1">
-                          <Text
-                            className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}
-                          >
-                            {item.name}
-                          </Text>
-                          <Text className="text-zinc-500 text-xs mt-1 uppercase font-medium">
-                            {item.muscle_group} • {item.equipment}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() =>
-                          isSelected
-                            ? setTempSelected(
-                                tempSelected.filter((e) => e.id !== item.id),
-                              )
-                            : setTempSelected([...tempSelected, item])
-                        }
-                        className="w-12 h-12 items-center justify-center"
-                      >
-                        <View
-                          className={`w-7 h-7 rounded-full items-center justify-center border-2 ${isSelected ? "bg-[#E31C25] border-[#E31C25]" : "border-zinc-800"}`}
-                        >
-                          {isSelected && (
-                            <Check color="white" size={14} strokeWidth={4} />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                }}
+                initialNumToRender={15}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                removeClippedSubviews={true}
+                getItemLayout={(_, index) => ({
+                  length: 88,
+                  offset: 88 * index,
+                  index,
+                })}
+                renderItem={({ item }) => (
+                  <ExerciseListItem
+                    item={item}
+                    isSelected={tempSelected.some((e) => e.id === item.id)}
+                    onNavigate={() => {
+                      setIsModalVisible(false);
+                      router.push({
+                        pathname: "/workout/[id]",
+                        params: { id: item.id, from: "workout" },
+                      } as any);
+                    }}
+                    onToggle={() =>
+                      tempSelected.some((e) => e.id === item.id)
+                        ? setTempSelected(
+                            tempSelected.filter((e) => e.id !== item.id),
+                          )
+                        : setTempSelected([...tempSelected, item])
+                    }
+                  />
+                )}
               />
             </View>
           </SafeAreaView>
@@ -893,7 +947,10 @@ export default function LogWorkoutScreen() {
         {/* MODAL DE FILTROS COM IMAGENS */}
         <Modal visible={isFilterModalVisible} transparent animationType="slide">
           <TouchableWithoutFeedback
-            onPress={() => setIsFilterModalVisible(false)}
+            onPress={() => {
+              setIsFilterModalVisible(false);
+              setTimeout(() => setIsModalVisible(true), 400);
+            }}
           >
             <View className="flex-1 bg-black/80 justify-end">
               <TouchableWithoutFeedback>
@@ -911,6 +968,7 @@ export default function LogWorkoutScreen() {
                         if (modalType === "muscle") setSelectedMuscle(null);
                         else setSelectedEquipment(null);
                         setIsFilterModalVisible(false);
+                        setTimeout(() => setIsModalVisible(true), 400);
                       }}
                       className="flex-row items-center py-4 border-b border-zinc-900"
                     >
@@ -919,6 +977,7 @@ export default function LogWorkoutScreen() {
                           source={FILTER_ICONS["ALL"]}
                           style={{ width: "100%", height: "100%" }}
                           contentFit="cover"
+                          cachePolicy="memory-disk"
                         />
                       </View>
                       <Text className="text-white text-lg flex-1 font-bold italic uppercase">
@@ -941,6 +1000,7 @@ export default function LogWorkoutScreen() {
                           if (modalType === "muscle") setSelectedMuscle(opt);
                           else setSelectedEquipment(opt);
                           setIsFilterModalVisible(false);
+                          setTimeout(() => setIsModalVisible(true), 400);
                         }}
                         className="flex-row items-center py-4 border-b border-zinc-900"
                       >
@@ -950,6 +1010,7 @@ export default function LogWorkoutScreen() {
                               source={FILTER_ICONS[opt.toUpperCase()]}
                               style={{ width: "100%", height: "100%" }}
                               contentFit="cover"
+                              cachePolicy="memory-disk"
                             />
                           ) : (
                             <View className="w-full h-full bg-zinc-800" />

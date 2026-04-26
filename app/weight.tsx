@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { updateUserWeight } from "../src/database";
+import { useUnits } from "./(tabs)/context/units_context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -34,10 +35,15 @@ const weightData = Array.from(
 export default function WeightSelection() {
   const router = useRouter();
   const db = useSQLiteContext();
-  const [weight, setWeight] = useState(DEFAULT_WEIGHT_KG);
-  const [unit, setUnit] = useState<"KG" | "LB">("KG");
+  const { weightUnit: unit } = useUnits();
+
+  // Estado interno sempre em KG para a FlatList
+  const [weightKg, setWeightKg] = useState(DEFAULT_WEIGHT_KG);
   const flatListRef = useRef<FlatList>(null);
-  const isSwitchingUnit = useRef(false);
+
+  // Valor exibido: converte para LB se necessário
+  const displayWeight =
+    unit === "LB" ? Math.round(weightKg * 2.20462) : weightKg;
 
   useEffect(() => {
     const initialIndex = weightData.indexOf(DEFAULT_WEIGHT_KG);
@@ -50,53 +56,12 @@ export default function WeightSelection() {
     return () => clearTimeout(timer);
   }, []);
 
-  const toggleUnit = (newUnit: "KG" | "LB") => {
-    if (unit === newUnit) return;
-    isSwitchingUnit.current = true;
-
-    let convertedValue: number;
-    if (newUnit === "LB") {
-      convertedValue = Math.round(weight * 2.20462);
-      convertedValue = Math.max(MIN_LB, Math.min(MAX_LB, convertedValue));
-    } else {
-      convertedValue = Math.round(weight / 2.20462);
-      convertedValue = Math.max(MIN_KG, Math.min(MAX_KG, convertedValue));
-    }
-
-    setWeight(convertedValue);
-    setUnit(newUnit);
-
-    const scrollWeight =
-      newUnit === "LB" ? Math.round(convertedValue / 2.20462) : convertedValue;
-    const index = weightData.indexOf(
-      Math.max(MIN_KG, Math.min(MAX_KG, scrollWeight)),
-    );
-
-    if (index !== -1) {
-      flatListRef.current?.scrollToOffset({
-        offset: index * ITEM_WIDTH,
-        animated: true,
-      });
-    }
-
-    setTimeout(() => {
-      isSwitchingUnit.current = false;
-    }, 500);
-  };
-
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (isSwitchingUnit.current) return;
     const x = event.nativeEvent.contentOffset.x;
     const index = Math.round(x / ITEM_WIDTH);
     if (index >= 0 && index < weightData.length) {
       const kgValue = weightData[index];
-      if (unit === "KG") {
-        if (weight !== kgValue) setWeight(kgValue);
-      } else {
-        const lbValue = Math.round(kgValue * 2.20462);
-        const finalLb = Math.max(MIN_LB, Math.min(MAX_LB, lbValue));
-        if (weight !== finalLb) setWeight(finalLb);
-      }
+      if (weightKg !== kgValue) setWeightKg(kgValue);
     }
   };
 
@@ -108,8 +73,12 @@ export default function WeightSelection() {
         router.replace("/auth/signup");
         return;
       }
-      await updateUserWeight(db, userEmail, weight);
-      await AsyncStorage.setItem("userUnit", unit);
+
+      // Guardamos sempre o valor na unidade selecionada pelo utilizador
+      const weightToSave =
+        unit === "LB" ? Math.round(weightKg * 2.20462) : weightKg;
+
+      await updateUserWeight(db, userEmail, weightToSave);
       router.replace("/height");
     } catch (e) {
       console.error("❌ Erro ao guardar weight:", e);
@@ -119,9 +88,8 @@ export default function WeightSelection() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
-      {/* View SEM px-6 para o ruler poder ocupar full width */}
       <View className="flex-1 justify-between py-10">
-        {/* Título — com px-6 */}
+        {/* Título */}
         <View className="px-6 items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center italic">
             What´s your weight?
@@ -131,15 +99,15 @@ export default function WeightSelection() {
           </Text>
         </View>
 
-        {/* Número — com px-6 */}
+        {/* Número */}
         <View className="px-6 flex-row items-baseline justify-center">
-          <Text className="text-white text-8xl font-bold">{weight}</Text>
+          <Text className="text-white text-8xl font-bold">{displayWeight}</Text>
           <Text className="text-gray-400 text-2xl ml-2 font-medium">
             {unit.toLowerCase()}
           </Text>
         </View>
 
-        {/* Ruler — SEM px-6, ocupa SCREEN_WIDTH completo */}
+        {/* Ruler — full width */}
         <View className="h-[120px] items-center justify-center relative">
           <View
             pointerEvents="none"
@@ -180,33 +148,14 @@ export default function WeightSelection() {
           />
         </View>
 
-        {/* Toggle KG/LB — com px-6 */}
+        {/* Unidade selecionada (só informativo, não editável aqui) */}
         <View className="px-6 items-center">
-          <View className="flex-row bg-[#2D2F33] rounded-full p-1 w-52">
-            <TouchableOpacity
-              className={`flex-1 h-11 justify-center items-center rounded-full ${unit === "KG" ? "bg-[#E31C25]" : ""}`}
-              onPress={() => toggleUnit("KG")}
-            >
-              <Text
-                className={`font-bold text-base ${unit === "KG" ? "text-white" : "text-gray-400"}`}
-              >
-                KG
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className={`flex-1 h-11 justify-center items-center rounded-full ${unit === "LB" ? "bg-[#E31C25]" : ""}`}
-              onPress={() => toggleUnit("LB")}
-            >
-              <Text
-                className={`font-bold text-base ${unit === "LB" ? "text-white" : "text-gray-400"}`}
-              >
-                LB
-              </Text>
-            </TouchableOpacity>
+          <View className="bg-[#2D2F33] rounded-full px-8 py-3">
+            <Text className="text-white font-bold text-base">{unit}</Text>
           </View>
         </View>
 
-        {/* Botões — com px-6 */}
+        {/* Botões */}
         <View className="px-6 flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"

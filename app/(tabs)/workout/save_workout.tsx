@@ -74,6 +74,14 @@ export default function SaveWorkoutScreen() {
     return { totalVolume, totalSets };
   }, [exercises]);
 
+  const timeToSeconds = (time: string): number => {
+    if (!time) return 0;
+    const parts = time.split(":").map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return Number(time) || 0;
+  };
+
   const handleSave = async () => {
     if (
       !routineName ||
@@ -135,14 +143,19 @@ export default function SaveWorkoutScreen() {
               Number(set.reps),
             );
 
+            const repsToSave =
+              ex.muscle_group?.toLowerCase() === "cardio"
+                ? timeToSeconds(set.reps)
+                : Number(set.reps) || 0;
+
             await db.runAsync(
               "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
               [
                 currentSetId,
-                newWorkoutId, // workout_exercise_id usado como workout_id (estrutura atual da BD)
+                newWorkoutId,
                 ex.id,
                 Number(set.weight) || 0,
-                Number(set.reps) || 0,
+                repsToSave,
                 set.type,
                 setIndex,
                 isPR,
