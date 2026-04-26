@@ -1,4 +1,3 @@
-import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Trash2 } from "lucide-react-native";
 import React, {
@@ -14,6 +13,7 @@ import {
   Platform,
   Text,
   TouchableOpacity,
+  Vibration,
   View,
 } from "react-native";
 
@@ -47,6 +47,7 @@ type WorkoutContextType = {
   isMinimized: boolean;
   timer: string;
   restTimer: number | null;
+  activeRestSetId: string | null;
   exercises: ActiveExercise[];
   lastExercise: string;
   setExercises: React.Dispatch<React.SetStateAction<ActiveExercise[]>>;
@@ -64,6 +65,17 @@ type WorkoutContextType = {
   startWorkout: (name: string) => void;
 };
 
+// Fora do componente — configura como as notificações se comportam quando a app está em foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
@@ -73,6 +85,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [lastExercise, setLastExercise] = useState("");
   const [seconds, setSeconds] = useState(0);
   const startTimeRef = useRef<number | null>(null);
+  const [activeRestSetId, setActiveRestSetId] = useState<string | null>(null);
 
   const [isDiscardModalVisible, setIsDiscardModalVisible] = useState(false);
 
@@ -80,37 +93,51 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const endTimeRef = useRef<number | null>(null);
   const restIntervalRef = useRef<any>(null);
 
-  // 1. SINCRONIZAÇÃO AO VOLTAR (Segundo Plano)
-  // 1 & 3. SINCRONIZAÇÃO E CONTROLO DOS TIMERS
+  // Pedir permissões e criar canal Android
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        console.log("Permissão de notificações negada");
+      }
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("rest-timer", {
+          name: "Rest Timer",
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 400, 100, 400],
+          sound: "default",
+        });
+      }
+    };
+    requestPermissions();
+  }, []);
+
+  // Timer master — sincroniza duration e rest timer, incluindo ao voltar do background
   useEffect(() => {
     const updateTimers = () => {
       const now = Date.now();
 
-      // Atualiza Rest Timer (Descanso)
       if (endTimeRef.current) {
         const remaining = Math.round((endTimeRef.current - now) / 1000);
         if (remaining <= 0) {
           setRestTimer(null);
+          setActiveRestSetId(null);
           endTimeRef.current = null;
+          Vibration.vibrate([0, 400, 100, 400]);
         } else {
           setRestTimer(remaining);
         }
       }
 
-      // Atualiza Duração (Duration)
       if (isActive && startTimeRef.current) {
         const elapsed = Math.floor((now - startTimeRef.current) / 1000);
         setSeconds(elapsed);
       }
     };
 
-    // Atualiza logo ao montar ou mudar estado
     updateTimers();
-
-    // Cria o intervalo único para ambos
     const masterInterval = setInterval(updateTimers, 1000);
 
-    // Escuta quando a app volta do segundo plano para forçar atualização
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
         updateTimers();
@@ -121,9 +148,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       clearInterval(masterInterval);
       subscription.remove();
     };
-  }, [isActive]); // Apenas depende se o treino está ativo ou não
+  }, [isActive]);
 
-  // 2. TIMER GLOBAL (Duração)
+  // Timer de duração do treino
   useEffect(() => {
     let interval: any;
     if (isActive) {
@@ -142,9 +169,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [isActive]);
 
-  // 3. REST TIMER (Descanso) - CORRIGIDO
+  // Rest timer com intervalo próprio
   useEffect(() => {
-    // Limpamos sempre o intervalo anterior para não haver conflitos
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
 
     if (restTimer !== null && restTimer > 0) {
@@ -152,13 +178,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         if (endTimeRef.current) {
           const now = Date.now();
           const remaining = Math.round((endTimeRef.current - now) / 1000);
-
           if (remaining <= 0) {
             setRestTimer(null);
+            setActiveRestSetId(null);
             endTimeRef.current = null;
             clearInterval(restIntervalRef.current);
+            Vibration.vibrate([0, 400, 100, 400]);
           } else {
-            // Só atualizamos o estado se o valor mudar para evitar renders infinitos
             setRestTimer(remaining);
           }
         }
@@ -168,14 +194,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     };
-  }, [restTimer === null, isActive]); // Dependência ajustada para ativar/desativar corretamente
+  }, [restTimer === null, isActive]);
 
   const scheduleRestNotification = async (secs: number) => {
     const targetTime = Date.now() + secs * 1000;
     endTimeRef.current = targetTime;
-
-    const isExpoGo = Constants.appOwnership === "expo";
-    if (Platform.OS === "android" && isExpoGo) return;
 
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
@@ -188,6 +211,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
           seconds: secs,
+          channelId: "rest-timer",
         },
       });
     } catch (e) {
@@ -205,23 +229,16 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
               if (s.id === setId) {
                 const newState = !s.completed;
                 if (newState && ex.rest_time > 0) {
-                  // Iniciamos o descanso
                   setRestTimer(ex.rest_time);
+                  setActiveRestSetId(setId);
                   scheduleRestNotification(ex.rest_time);
                 } else if (!newState) {
-                  // Cancelamos o descanso
                   setRestTimer(null);
+                  setActiveRestSetId(null);
                   endTimeRef.current = null;
                   if (restIntervalRef.current)
                     clearInterval(restIntervalRef.current);
-                  if (
-                    !(
-                      Platform.OS === "android" &&
-                      Constants.appOwnership === "expo"
-                    )
-                  ) {
-                    Notifications.cancelAllScheduledNotificationsAsync();
-                  }
+                  Notifications.cancelAllScheduledNotificationsAsync();
                 }
                 return { ...s, completed: newState };
               }
@@ -278,11 +295,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setSeconds(0);
     startTimeRef.current = null;
     setRestTimer(null);
+    setActiveRestSetId(null);
     endTimeRef.current = null;
     setLastExercise("");
-    if (!(Platform.OS === "android" && Constants.appOwnership === "expo")) {
-      Notifications.cancelAllScheduledNotificationsAsync();
-    }
+    Notifications.cancelAllScheduledNotificationsAsync();
     setIsDiscardModalVisible(false);
   };
 
@@ -298,6 +314,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     <WorkoutContext.Provider
       value={{
         isActive,
+        activeRestSetId,
         isMinimized,
         timer: formatTime(seconds),
         restTimer,

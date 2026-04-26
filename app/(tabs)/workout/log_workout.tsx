@@ -29,8 +29,7 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Vibration,
-  View,
+  View
 } from "react-native";
 import { IMAGE_MAP } from "../../../constants/exercise_images";
 import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
@@ -62,6 +61,8 @@ export default function LogWorkoutScreen() {
 
   const {
     timer,
+    restTimer,
+    activeRestSetId,
     exercises,
     setExercises,
     updateSet,
@@ -88,9 +89,7 @@ export default function LogWorkoutScreen() {
   const [search, setSearch] = useState("");
   const [tempSelected, setTempSelected] = useState<any[]>([]);
   const [weightUnit] = useState("kg");
-  const [activeRestTimers, setActiveRestTimers] = useState<
-    Record<string, number>
-  >({});
+
   const [typeModal, setTypeModal] = useState<{
     visible: boolean;
     exId: string;
@@ -167,27 +166,6 @@ export default function LogWorkoutScreen() {
   useEffect(() => {
     if (isModalVisible) fetchLibraryExercises();
   }, [isModalVisible, fetchLibraryExercises]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveRestTimers((prev: Record<string, number>) => {
-        const next = { ...prev };
-        let changed = false;
-        Object.keys(next).forEach((key) => {
-          if (next[key] > 1) {
-            next[key] -= 1;
-            changed = true;
-          } else if (next[key] === 1) {
-            Vibration.vibrate(500);
-            delete next[key];
-            changed = true;
-          }
-        });
-        return changed ? next : prev;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const stats = useMemo(() => {
     let totalSets = 0,
@@ -321,19 +299,6 @@ export default function LogWorkoutScreen() {
         currentSet.suggestedReps !== "0"
       )
         updateSet(exLogId, setId, "reps", currentSet.suggestedReps);
-
-      if ((exercise.rest_time ?? 0) > 0) {
-        setActiveRestTimers((prev) => ({
-          ...prev,
-          [setId]: exercise.rest_time,
-        }));
-      }
-    } else {
-      setActiveRestTimers((prev) => {
-        const next = { ...prev };
-        delete next[setId];
-        return next;
-      });
     }
     toggleSetCompleted(exLogId, setId);
   };
@@ -691,7 +656,7 @@ export default function LogWorkoutScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {activeRestTimers[set.id] && (
+                  {activeRestSetId === set.id && restTimer !== null && (
                     <View className="mt-1.5 mx-1">
                       <View className="bg-amber-500/15 flex-row items-center justify-between px-5 py-2.5 rounded-xl border border-amber-500/30">
                         <View className="flex-row items-center">
@@ -701,7 +666,7 @@ export default function LogWorkoutScreen() {
                           </Text>
                         </View>
                         <Text className="text-white text-base font-black italic tracking-tighter">
-                          {activeRestTimers[set.id]}
+                          {restTimer}
                           <Text className="text-zinc-400 text-xs">s</Text>
                         </Text>
                       </View>
