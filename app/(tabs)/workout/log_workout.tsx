@@ -29,7 +29,7 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View
+  View,
 } from "react-native";
 import { IMAGE_MAP } from "../../../constants/exercise_images";
 import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
@@ -45,13 +45,13 @@ const isNewRecord = (
 ) => {
   const w = parseFloat(currentW) || 0;
   const r = parseInt(currentR) || 0;
-
   if (w === 0 || r === 0) return false;
 
-  const currentVolume = w * r;
-  const bestVolume = prWeight * prReps;
+  if (w > prWeight) return true;
 
-  return currentVolume > bestVolume;
+  if (w === prWeight && r > prReps) return true;
+
+  return false;
 };
 
 export default function LogWorkoutScreen() {

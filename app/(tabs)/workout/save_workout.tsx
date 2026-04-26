@@ -26,27 +26,34 @@ export default function SaveWorkoutScreen() {
   const [showAttentionModal, setShowAttentionModal] = useState(false);
   const [attentionMessage, setAttentionMessage] = useState("");
 
+  // Verifica se o set atual é um PR comparando com TODOS os sets anteriores na BD
+  // Critério: peso mais alto. Se mesmo peso, mais reps.
   const checkPersonalRecord = async (
     exerciseId: number,
     weight: number,
     reps: number,
-  ) => {
+  ): Promise<number> => {
     try {
-      const bestForThisWeight = await db.getFirstAsync<{ reps: number }>(
-        "SELECT MAX(reps) as reps FROM workout_sets WHERE exercise_id = ? AND weight = ?",
-        [exerciseId, weight],
-      );
       const absoluteMaxWeight = await db.getFirstAsync<{ weight: number }>(
         "SELECT MAX(weight) as weight FROM workout_sets WHERE exercise_id = ?",
         [exerciseId],
       );
-      if (!absoluteMaxWeight?.weight || weight > absoluteMaxWeight.weight)
-        return 1;
-      if (
-        weight === absoluteMaxWeight.weight &&
-        reps > (bestForThisWeight?.reps || 0)
-      )
-        return 1;
+
+      // Nunca fez este exercício — é automaticamente um PR
+      if (!absoluteMaxWeight?.weight) return 1;
+
+      // Peso superior ao máximo histórico — PR
+      if (weight > absoluteMaxWeight.weight) return 1;
+
+      // Mesmo peso máximo — verificar se bate mais reps
+      if (weight === absoluteMaxWeight.weight) {
+        const bestRepsAtMaxWeight = await db.getFirstAsync<{ reps: number }>(
+          "SELECT MAX(reps) as reps FROM workout_sets WHERE exercise_id = ? AND weight = ?",
+          [exerciseId, weight],
+        );
+        if (reps > (bestRepsAtMaxWeight?.reps || 0)) return 1;
+      }
+
       return 0;
     } catch (e) {
       return 0;
@@ -68,7 +75,6 @@ export default function SaveWorkoutScreen() {
   }, [exercises]);
 
   const handleSave = async () => {
-    // VALIDAÇÃO CORRIGIDA: Verifica se o nome existe, não é nulo e não é apenas espaços
     if (
       !routineName ||
       String(routineName).trim() === "" ||
@@ -93,6 +99,7 @@ export default function SaveWorkoutScreen() {
       );
       if (!user) return;
 
+      // Inserir o treino
       const lastWorkout = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM workouts ORDER BY id DESC LIMIT 1",
       );
@@ -111,6 +118,7 @@ export default function SaveWorkoutScreen() {
         ],
       );
 
+      // Inserir os sets — checkPersonalRecord antes de inserir cada um
       const lastSet = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM workout_sets ORDER BY id DESC LIMIT 1",
       );
@@ -120,16 +128,18 @@ export default function SaveWorkoutScreen() {
         let setIndex = 1;
         for (const set of ex.sets) {
           if (set.completed) {
+            // Verificar PR ANTES de inserir (ainda não está na BD)
             const isPR = await checkPersonalRecord(
               ex.id,
               Number(set.weight),
               Number(set.reps),
             );
+
             await db.runAsync(
               "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
               [
                 currentSetId,
-                newWorkoutId,
+                newWorkoutId, // workout_exercise_id usado como workout_id (estrutura atual da BD)
                 ex.id,
                 Number(set.weight) || 0,
                 Number(set.reps) || 0,
