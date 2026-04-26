@@ -103,25 +103,13 @@ export default function WeightSelection() {
   const handleNext = async () => {
     try {
       const userEmail = await AsyncStorage.getItem("userEmail");
-
       if (!userEmail) {
         Alert.alert("Error", "User session lost.");
         router.replace("/auth/signup");
         return;
       }
-
-      // Em vez de converter, guardamos o valor que está no estado 'weight'
-      // que já é o valor correto baseado na unidade selecionada.
-      const weightToSave = weight;
-
-      console.log(`Peso a guardar: ${weightToSave} ${unit}`);
-
-      // Atualiza na SQLite com o valor real (70 se for KG, 154 se for LB)
-      await updateUserWeight(db, userEmail, weightToSave);
-
-      // IMPORTANTE: Guarda também a unidade no Storage para saberes ler depois
+      await updateUserWeight(db, userEmail, weight);
       await AsyncStorage.setItem("userUnit", unit);
-
       router.replace("/height");
     } catch (e) {
       console.error("❌ Erro ao guardar weight:", e);
@@ -131,8 +119,10 @@ export default function WeightSelection() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
-      <View className="flex-1 px-6 justify-between py-10">
-        <View className="items-center mt-5">
+      {/* View SEM px-6 para o ruler poder ocupar full width */}
+      <View className="flex-1 justify-between py-10">
+        {/* Título — com px-6 */}
+        <View className="px-6 items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center italic">
             What´s your weight?
           </Text>
@@ -141,18 +131,19 @@ export default function WeightSelection() {
           </Text>
         </View>
 
-        <View className="flex-row items-baseline justify-center">
+        {/* Número — com px-6 */}
+        <View className="px-6 flex-row items-baseline justify-center">
           <Text className="text-white text-8xl font-bold">{weight}</Text>
           <Text className="text-gray-400 text-2xl ml-2 font-medium">
             {unit.toLowerCase()}
           </Text>
         </View>
 
+        {/* Ruler — SEM px-6, ocupa SCREEN_WIDTH completo */}
         <View className="h-[120px] items-center justify-center relative">
           <View
             pointerEvents="none"
-            className="absolute h-24 w-1 bg-[#E31C25] rounded-full z-10"
-            style={{ left: SCREEN_WIDTH / 2 - 27 }}
+            className="absolute h-24 w-[2px] bg-[#E31C25] rounded-full z-10"
           />
           <FlatList
             ref={flatListRef}
@@ -189,7 +180,8 @@ export default function WeightSelection() {
           />
         </View>
 
-        <View className="items-center">
+        {/* Toggle KG/LB — com px-6 */}
+        <View className="px-6 items-center">
           <View className="flex-row bg-[#2D2F33] rounded-full p-1 w-52">
             <TouchableOpacity
               className={`flex-1 h-11 justify-center items-center rounded-full ${unit === "KG" ? "bg-[#E31C25]" : ""}`}
@@ -214,7 +206,8 @@ export default function WeightSelection() {
           </View>
         </View>
 
-        <View className="flex-row justify-between items-center mb-2">
+        {/* Botões — com px-6 */}
+        <View className="px-6 flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
             onPress={() => router.push("/birthday")}

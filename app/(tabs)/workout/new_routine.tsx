@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
-import { Image } from "expo-image"; // Importar para as imagens
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -33,6 +33,32 @@ import { IMAGE_MAP } from "../../../constants/exercise_images";
 // @ts-ignore
 import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";
 
+const FILTER_ICONS: { [key: string]: any } = {
+  ALL: require("../../../assets/equipment/equipment_all.png"),
+  BARBELL: require("../../../assets/equipment/equipment_barbell.jpg"),
+  CABLE: require("../../../assets/equipment/equipment_cable.jpg"),
+  DUMBBELL: require("../../../assets/equipment/equipment_dumbbell.avif"),
+  MACHINE: require("../../../assets/equipment/equipment_machine.jpg"),
+  OTHER: require("../../../assets/equipment/equipment_other.png"),
+
+  ABDUCTORS: require("../../../assets/all_muscles/abductors.png"),
+  ABS: require("../../../assets/all_muscles/abs.png"),
+  ADDUCTORS: require("../../../assets/all_muscles/adductors.png"),
+  BACK: require("../../../assets/all_muscles/back.png"),
+  BICEPS: require("../../../assets/all_muscles/biceps.png"),
+  CALVES: require("../../../assets/all_muscles/calves.png"),
+  CARDIO: require("../../../assets/all_muscles/cardio.png"),
+  CHEST: require("../../../assets/all_muscles/chest.png"),
+  FOREARMS: require("../../../assets/all_muscles/forearms.png"),
+  GLUTES: require("../../../assets/all_muscles/glutes.png"),
+  HAMSTRINGS: require("../../../assets/all_muscles/hamstrings.png"),
+  LATS: require("../../../assets/all_muscles/lats.png"),
+  QUADRICEPS: require("../../../assets/all_muscles/quadriceps.png"),
+  SHOULDERS: require("../../../assets/all_muscles/shoulders.png"),
+  TRAPS: require("../../../assets/all_muscles/traps.png"),
+  TRICEPS: require("../../../assets/all_muscles/triceps.png"),
+};
+
 type Exercise = {
   id: number;
   name: string;
@@ -57,14 +83,12 @@ export default function NewRoutineScreen() {
   const [dbExercises, setDbExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState("");
 
-  // NOVOS ESTADOS PARA MODAIS CUSTOMIZADOS
   const [showAttentionModal, setShowAttentionModal] = useState({
     visible: false,
     message: "",
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Estados para filtros (Igual ao Explore)
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<string | null>(
     null,
@@ -90,20 +114,12 @@ export default function NewRoutineScreen() {
             "SELECT id FROM users WHERE email = ?",
             [email],
           );
-
           if (!userRow) return;
-
-          const currentUserId = userRow.id;
-
           const res = await db.getFirstAsync<{ name: string }>(
             "SELECT name FROM routines WHERE id = ? AND user_id = ?",
-            [Number(routineId), currentUserId],
+            [Number(routineId), userRow.id],
           );
-
-          if (res) {
-            setName(res.name);
-          }
-
+          if (res) setName(res.name);
           const exes = await db.getAllAsync<Exercise>(
             `SELECT e.* FROM exercises e 
             JOIN routine_exercises re ON e.id = re.exercise_id 
@@ -124,7 +140,6 @@ export default function NewRoutineScreen() {
       let query =
         "SELECT id, name, muscle_group, equipment, image FROM exercises WHERE 1=1";
       let params: any[] = [];
-
       if (search.trim()) {
         query += " AND name LIKE ? COLLATE NOCASE";
         params.push(`%${search.trim()}%`);
@@ -137,7 +152,6 @@ export default function NewRoutineScreen() {
         query += " AND equipment = ?";
         params.push(selectedEquipment);
       }
-
       query += " ORDER BY name ASC";
       const rows = await db.getAllAsync<Exercise>(query, params);
       setDbExercises(rows);
@@ -147,7 +161,6 @@ export default function NewRoutineScreen() {
           "SELECT DISTINCT muscle_group FROM exercises WHERE muscle_group IS NOT NULL ORDER BY muscle_group ASC",
         );
         setMuscleOptions(muscles.map((m) => m.muscle_group));
-
         const equipment = await db.getAllAsync<{ equipment: string }>(
           "SELECT DISTINCT equipment FROM exercises WHERE equipment IS NOT NULL ORDER BY equipment ASC",
         );
@@ -156,7 +169,7 @@ export default function NewRoutineScreen() {
     } catch (error) {
       console.error("Erro modal:", error);
     }
-  }, [search, selectedMuscle, selectedEquipment, db]);
+  }, [search, selectedMuscle, selectedEquipment, db, muscleOptions.length]);
 
   useEffect(() => {
     if (isModalVisible) fetchModalExercises();
@@ -180,7 +193,6 @@ export default function NewRoutineScreen() {
         "SELECT id FROM users WHERE email = ?",
         [email],
       );
-
       if (!userRow) {
         return setShowAttentionModal({
           visible: true,
@@ -188,9 +200,7 @@ export default function NewRoutineScreen() {
         });
       }
 
-      const currentUserId = userRow.id;
       let currentRoutineId: number;
-
       if (mode === "edit" && routineId) {
         currentRoutineId = Number(routineId);
         await db.runAsync("UPDATE routines SET name = ? WHERE id = ?", [
@@ -204,7 +214,7 @@ export default function NewRoutineScreen() {
       } else {
         const result = await db.runAsync(
           "INSERT INTO routines (name, user_id) VALUES (?, ?)",
-          [name, currentUserId],
+          [name, userRow.id],
         );
         currentRoutineId = result.lastInsertRowId;
       }
@@ -215,7 +225,6 @@ export default function NewRoutineScreen() {
           [selectedExercises[i].id, currentRoutineId, i],
         );
       }
-
       setShowSuccessModal(true);
     } catch (e: any) {
       console.error("ERROR WHILE SAVING:", e);
@@ -237,7 +246,6 @@ export default function NewRoutineScreen() {
     <View style={{ flex: 1, backgroundColor: "#000", paddingTop: insets.top }}>
       <StatusBar barStyle="light-content" />
 
-      {/* HEADER */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-zinc-900">
         <TouchableOpacity onPress={() => router.replace("/workout")}>
           <ChevronLeft size={28} color="#E31C25" />
@@ -286,7 +294,6 @@ export default function NewRoutineScreen() {
                 className="flex-row items-center bg-zinc-900/50 p-4 rounded-2xl mb-3 border border-zinc-800"
               >
                 <GripVertical size={20} color="#3f3f46" />
-
                 <View className="w-12 h-12 rounded-xl bg-zinc-900 items-center justify-center ml-2 border border-zinc-800 overflow-hidden">
                   <Image
                     source={imageSource}
@@ -296,7 +303,6 @@ export default function NewRoutineScreen() {
                     }
                   />
                 </View>
-
                 <View className="flex-1 ml-3">
                   <Text className="text-white font-bold uppercase italic">
                     {ex.name}
@@ -305,7 +311,6 @@ export default function NewRoutineScreen() {
                     {ex.muscle_group}
                   </Text>
                 </View>
-
                 <TouchableOpacity onPress={() => toggleSelection(ex)}>
                   <Trash2 size={20} color="#ef4444" />
                 </TouchableOpacity>
@@ -358,6 +363,7 @@ export default function NewRoutineScreen() {
               />
             </View>
 
+            {/* Botões de filtro */}
             <View className="flex-row justify-between mb-6 gap-x-3">
               <TouchableOpacity
                 onPress={() => {
@@ -432,7 +438,6 @@ export default function NewRoutineScreen() {
                           }
                         />
                       </View>
-
                       <View className="flex-1">
                         <Text
                           className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}
@@ -444,7 +449,6 @@ export default function NewRoutineScreen() {
                         </Text>
                       </View>
                     </TouchableOpacity>
-
                     <TouchableOpacity
                       onPress={() => toggleSelection(item)}
                       className="w-12 h-12 items-center justify-center"
@@ -461,76 +465,95 @@ export default function NewRoutineScreen() {
                 );
               }}
             />
-            <Modal
-              visible={isFilterModalVisible}
-              transparent
-              animationType="slide"
-            >
-              <TouchableWithoutFeedback
-                onPress={() => setIsFilterModalVisible(false)}
-              >
-                <View className="flex-1 bg-black/80 justify-end">
-                  <TouchableWithoutFeedback>
-                    <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
-                      <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
-                      <Text className="text-white text-xl font-black uppercase italic mb-6">
-                        {modalType === "muscle" ? "Muscles" : "Equipment"}
-                      </Text>
-
-                      <ScrollView showsVerticalScrollIndicator={false}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            if (modalType === "muscle") setSelectedMuscle(null);
-                            else setSelectedEquipment(null);
-                            setIsFilterModalVisible(false);
-                          }}
-                          className="flex-row items-center py-4 border-b border-zinc-900"
-                        >
-                          <Text className="text-white text-lg flex-1 font-bold italic uppercase">
-                            All
-                          </Text>
-                          {(modalType === "muscle"
-                            ? !selectedMuscle
-                            : !selectedEquipment) && (
-                            <Check color="#E31C25" size={24} />
-                          )}
-                        </TouchableOpacity>
-
-                        {(modalType === "muscle"
-                          ? muscleOptions
-                          : equipmentOptions
-                        ).map((opt) => (
-                          <TouchableOpacity
-                            key={opt}
-                            onPress={() => {
-                              if (modalType === "muscle")
-                                setSelectedMuscle(opt);
-                              else setSelectedEquipment(opt);
-                              setIsFilterModalVisible(false);
-                            }}
-                            className="flex-row items-center py-4 border-b border-zinc-900"
-                          >
-                            <Text className="text-white text-lg flex-1 font-bold italic uppercase">
-                              {opt}
-                            </Text>
-                            {(modalType === "muscle"
-                              ? selectedMuscle
-                              : selectedEquipment) === opt && (
-                              <Check color="#E31C25" size={24} />
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  </TouchableWithoutFeedback>
-                </View>
-              </TouchableWithoutFeedback>
-            </Modal>
           </View>
         </SafeAreaView>
       </Modal>
 
-      {/* MODAL DE ATENÇÃO (AVISO) */}
+      {/* MODAL DE FILTROS COM IMAGENS */}
+      <Modal visible={isFilterModalVisible} transparent animationType="slide">
+        <TouchableWithoutFeedback
+          onPress={() => setIsFilterModalVisible(false)}
+        >
+          <View className="flex-1 bg-black/80 justify-end">
+            <TouchableWithoutFeedback>
+              <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
+                <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
+                <Text className="text-white text-xl font-black uppercase italic mb-6">
+                  {modalType === "muscle" ? "Muscles" : "Equipment"}
+                </Text>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 40 }}
+                >
+                  {/* Opção "All" */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (modalType === "muscle") setSelectedMuscle(null);
+                      else setSelectedEquipment(null);
+                      setIsFilterModalVisible(false);
+                    }}
+                    className="flex-row items-center py-4 border-b border-zinc-900"
+                  >
+                    <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
+                      <Image
+                        source={FILTER_ICONS["ALL"]}
+                        style={{ width: "100%", height: "100%" }}
+                        contentFit="cover"
+                      />
+                    </View>
+                    <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                      All
+                    </Text>
+                    {(modalType === "muscle"
+                      ? !selectedMuscle
+                      : !selectedEquipment) && (
+                      <Check color="#E31C25" size={24} />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Opções filtradas */}
+                  {(modalType === "muscle"
+                    ? muscleOptions
+                    : equipmentOptions
+                  ).map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => {
+                        if (modalType === "muscle") setSelectedMuscle(opt);
+                        else setSelectedEquipment(opt);
+                        setIsFilterModalVisible(false);
+                      }}
+                      className="flex-row items-center py-4 border-b border-zinc-900"
+                    >
+                      <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
+                        {FILTER_ICONS[opt.toUpperCase()] ? (
+                          <Image
+                            source={FILTER_ICONS[opt.toUpperCase()]}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <View className="w-full h-full bg-zinc-800" />
+                        )}
+                      </View>
+                      <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                        {opt}
+                      </Text>
+                      {(modalType === "muscle"
+                        ? selectedMuscle
+                        : selectedEquipment) === opt && (
+                        <Check color="#E31C25" size={24} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* MODAL DE ATENÇÃO */}
       <Modal
         visible={showAttentionModal.visible}
         transparent
@@ -561,7 +584,7 @@ export default function NewRoutineScreen() {
         </View>
       </Modal>
 
-      {/* MODAL DE SUCESSO (ESTILO INVICTUS) */}
+      {/* MODAL DE SUCESSO */}
       <Modal visible={showSuccessModal} transparent animationType="fade">
         <View className="flex-1 bg-black/90 justify-center items-center px-6">
           <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
