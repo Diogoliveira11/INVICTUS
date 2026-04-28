@@ -6,7 +6,8 @@ import {
 } from "@react-navigation/native";
 import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
-import { Stack } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { Stack, useRouter } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { Suspense, useEffect, useState } from "react";
@@ -42,7 +43,23 @@ async function loadDatabase(): Promise<void> {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [dbReady, setDbReady] = useState(false);
+  const router = useRouter();
 
+  // Listener para notificações
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        console.log(
+          "Notificação clicada:",
+          response.notification.request.content.title,
+        );
+        // Opcional: router.push("/workout/log_workout");
+      },
+    );
+    return () => subscription.remove();
+  }, []);
+
+  // Inicialização do banco de dados
   useEffect(() => {
     loadDatabase()
       .then(() => setDbReady(true))

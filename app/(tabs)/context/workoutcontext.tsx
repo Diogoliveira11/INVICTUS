@@ -2,6 +2,7 @@ import * as Notifications from "expo-notifications";
 import { Trash2 } from "lucide-react-native";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -169,7 +170,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [isActive]);
 
-  // Rest timer com intervalo próprio
   useEffect(() => {
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
 
@@ -258,25 +258,31 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return `${hrs > 0 ? hrs + ":" : ""}${mins < 10 && hrs > 0 ? "0" + mins : mins}:${secs < 10 ? "0" + secs : secs}`;
   };
 
-  const updateSet = (
-    logId: string,
-    setId: string,
-    field: any,
-    value: string,
-  ) => {
-    setExercises((prev) =>
-      prev.map((ex) =>
-        ex.logId === logId
-          ? {
-              ...ex,
-              sets: ex.sets.map((s) =>
-                s.id === setId ? { ...s, [field]: value } : s,
-              ),
-            }
-          : ex,
-      ),
-    );
-  };
+  const updateSet = useCallback(
+    (logId: string, setId: string, field: any, value: string) => {
+      setExercises((prev) => {
+        // Encontrar o exercício e o set alvo primeiro
+        const exIndex = prev.findIndex((e) => e.logId === logId);
+        if (exIndex === -1) return prev;
+
+        const setIndex = prev[exIndex].sets.findIndex((s) => s.id === setId);
+        if (setIndex === -1) return prev;
+
+        // Se o valor for exatamente igual ao anterior, não atualiza o estado (evita re-render)
+        if (prev[exIndex].sets[setIndex][field as keyof WorkoutSet] === value) {
+          return prev;
+        }
+
+        const newExercises = [...prev];
+        const newSets = [...newExercises[exIndex].sets];
+        newSets[setIndex] = { ...newSets[setIndex], [field]: value };
+        newExercises[exIndex] = { ...newExercises[exIndex], sets: newSets };
+
+        return newExercises;
+      });
+    },
+    [],
+  );
 
   const startWorkout = (name: string) => {
     startTimeRef.current = Date.now();

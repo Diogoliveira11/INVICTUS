@@ -80,67 +80,99 @@ const isNewRecord = (
 // Componente de input de tempo HH:MM:SS com 3 campos separados
 const TimeInput = React.memo(
   ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
-    const parts = value.split(":");
-    const hh = parts[0] ?? "00";
-    const mm = parts[1] ?? "00";
-    const ss = parts[2] ?? "00";
+    const parts = (value || "00:00:00").split(":");
+
+    // Estados locais
+    const [h, setH] = useState(parts[0]);
+    const [m, setM] = useState(parts[1]);
+    const [s, setS] = useState(parts[2]);
+    const [isFocused, setIsFocused] = useState<number | null>(null);
 
     const mmRef = React.useRef<any>(null);
     const ssRef = React.useRef<any>(null);
 
-    // Função auxiliar para atualizar apenas uma parte do tempo
-    const updatePart = (index: number, val: string) => {
-      const newParts = [...parts];
-      // Remove caracteres não numéricos e limita a 2 dígitos
+    // Sincroniza com o global APENAS se o utilizador não estiver a escrever naquele campo
+    useEffect(() => {
+      const p = value.split(":");
+      if (isFocused !== 0) setH(p[0]);
+      if (isFocused !== 1) setM(p[1]);
+      if (isFocused !== 2) setS(p[2]);
+    }, [value, isFocused]);
+
+    const save = (newH: string, newM: string, newS: string) => {
+      const final = `${newH.padStart(2, "0")}:${newM.padStart(2, "0")}:${newS.padStart(2, "0")}`;
+      onChange(final);
+    };
+
+    const handleText = (index: number, val: string) => {
       const clean = val.replace(/\D/g, "").slice(0, 2);
-      newParts[index] = clean;
 
-      // Se estiver vazio, mantemos vazio para o usuário conseguir apagar
-      // Se tiver 2 dígitos, formatamos com padStart e pulamos para o próximo
-      const finalParts = newParts.map((p, i) =>
-        p === "" ? "00" : p.padStart(2, "0"),
-      );
-      onChange(finalParts.join(":"));
-
-      if (clean.length === 2) {
-        if (index === 0) mmRef.current?.focus();
-        if (index === 1) ssRef.current?.focus();
+      if (index === 0) {
+        setH(clean);
+        if (clean.length === 2) {
+          mmRef.current?.focus();
+          save(clean, m, s);
+        }
+      } else if (index === 1) {
+        setM(clean);
+        if (clean.length === 2) {
+          ssRef.current?.focus();
+          save(h, clean, s);
+        }
+      } else {
+        setS(clean);
+        if (clean.length === 2) save(h, m, clean);
       }
     };
 
     return (
       <View className="flex-row items-center h-10 bg-zinc-950 rounded-xl mx-0.5 border border-zinc-800 px-1">
         <TextInput
-          keyboardType="numeric"
-          value={hh === "00" ? "" : hh} // Mostra vazio se for 00 para facilitar digitar
+          keyboardType="number-pad"
+          value={isFocused === 0 ? h : h === "00" ? "" : h}
           placeholder="00"
           placeholderTextColor="#52525b"
           maxLength={2}
-          onChangeText={(v) => updatePart(0, v)}
+          onFocus={() => setIsFocused(0)}
+          onBlur={() => {
+            setIsFocused(null);
+            save(h, m, s);
+          }}
+          onChangeText={(v) => handleText(0, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
           className="text-white font-black italic text-xs"
         />
         <Text className="text-zinc-600 font-black text-xs">:</Text>
         <TextInput
           ref={mmRef}
-          keyboardType="numeric"
-          value={mm === "00" ? "" : mm}
+          keyboardType="number-pad"
+          value={isFocused === 1 ? m : m === "00" ? "" : m}
           placeholder="00"
           placeholderTextColor="#52525b"
           maxLength={2}
-          onChangeText={(v) => updatePart(1, v)}
+          onFocus={() => setIsFocused(1)}
+          onBlur={() => {
+            setIsFocused(null);
+            save(h, m, s);
+          }}
+          onChangeText={(v) => handleText(1, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
           className="text-white font-black italic text-xs"
         />
         <Text className="text-zinc-600 font-black text-xs">:</Text>
         <TextInput
           ref={ssRef}
-          keyboardType="numeric"
-          value={ss === "00" ? "" : ss}
+          keyboardType="number-pad"
+          value={isFocused === 2 ? s : s === "00" ? "" : s}
           placeholder="00"
           placeholderTextColor="#52525b"
           maxLength={2}
-          onChangeText={(v) => updatePart(2, v)}
+          onFocus={() => setIsFocused(2)}
+          onBlur={() => {
+            setIsFocused(null);
+            save(h, m, s);
+          }}
+          onChangeText={(v) => handleText(2, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
           className="text-white font-black italic text-xs"
         />
@@ -857,7 +889,9 @@ export default function LogWorkoutScreen() {
                                   suggestedReps:
                                     e.sets[e.sets.length - 1]?.reps || "0",
                                   completed: false,
-                                  previous: "-",
+                                  previous: e.sets[e.sets.length - 1]
+                                    ? "${e.sets[e.sets.length - 1].weight}${weightUnit} x ${e.sets[e.sets.length - 1].reps}"
+                                    : "-",
                                 },
                               ],
                             }
