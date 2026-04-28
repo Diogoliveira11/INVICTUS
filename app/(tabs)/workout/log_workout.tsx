@@ -905,7 +905,12 @@ export default function LogWorkoutScreen() {
           <SafeAreaView className="flex-1 bg-black">
             <View className="flex-1 px-6 pt-6">
               <View className="flex-row items-center justify-between mb-8">
-                <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsModalVisible(false);
+                    setTempSelected([]);
+                  }}
+                >
                   <X color="white" size={30} />
                 </TouchableOpacity>
                 <Text className="text-white text-2xl font-black italic uppercase tracking-tighter">

@@ -3,6 +3,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
+  Check,
   Edit3,
   List,
   MoreHorizontal,
@@ -12,7 +13,6 @@ import {
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   Modal,
   ScrollView,
   StatusBar,
@@ -33,6 +33,8 @@ export default function WorkoutTabScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const isFocused = useIsFocused();
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
@@ -97,49 +99,27 @@ export default function WorkoutTabScreen() {
     setIsOptionsVisible(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (!selectedRoutineId) return;
+    setIsOptionsVisible(false);
+    setTimeout(() => setShowDeleteConfirmModal(true), 300);
+  };
 
-    Alert.alert(
-      "Delete Routine",
-      "Are you sure you want to delete this routine?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // PASSO 1: Ativar Foreign Keys (Boa prática)
-              await db.execAsync("PRAGMA foreign_keys = ON;");
-
-              // PASSO 2: Apagar primeiro as associações dos exercícios desta rotina
-              await db.runAsync(
-                "DELETE FROM routine_exercises WHERE routine_id = ?",
-                [selectedRoutineId],
-              );
-
-              // PASSO 3: Apagar a rotina em si
-              await db.runAsync("DELETE FROM routines WHERE id = ?", [
-                selectedRoutineId,
-              ]);
-
-              // PASSO 4: Fechar modal e recarregar lista
-              setIsOptionsVisible(false);
-              loadRoutines();
-
-              Alert.alert("Success", "Routine deleted successfully.");
-            } catch (e) {
-              console.error("Erro ao apagar:", e);
-              Alert.alert(
-                "Error",
-                "Could not delete routine. Make sure it's not being used in other records.",
-              );
-            }
-          },
-        },
-      ],
-    );
+  const executeDelete = async () => {
+    try {
+      await db.execAsync("PRAGMA foreign_keys = ON;");
+      await db.runAsync("DELETE FROM routine_exercises WHERE routine_id = ?", [
+        selectedRoutineId,
+      ]);
+      await db.runAsync("DELETE FROM routines WHERE id = ?", [
+        selectedRoutineId,
+      ]);
+      setShowDeleteConfirmModal(false);
+      setTimeout(() => setShowDeleteSuccessModal(true), 300);
+      loadRoutines();
+    } catch (e) {
+      console.error("Erro ao apagar:", e);
+    }
   };
 
   return (
@@ -298,6 +278,65 @@ export default function WorkoutTabScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+      {/* MODAL CONFIRMAÇÃO DELETE */}
+      <Modal visible={showDeleteConfirmModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            <View className="bg-[#E31C25]/10 p-4 rounded-full mb-6 border border-[#E31C25]/20">
+              <Trash2 color="#E31C25" size={32} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              Delete Routine?
+            </Text>
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              Are you sure you want to delete this routine?
+            </Text>
+            <View className="flex-row w-full gap-x-4">
+              <TouchableOpacity
+                onPress={() => setShowDeleteConfirmModal(false)}
+                className="flex-1 bg-zinc-900 py-4 rounded-2xl items-center border border-zinc-800"
+              >
+                <Text className="text-zinc-400 font-bold uppercase">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={executeDelete}
+                className="flex-1 bg-[#E31C25] py-4 rounded-2xl items-center"
+              >
+                <Text className="text-white font-black uppercase italic">
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL SUCESSO DELETE */}
+      <Modal visible={showDeleteSuccessModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
+              <Check color="#22c55e" size={32} strokeWidth={3} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              Deleted!
+            </Text>
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              Routine deleted successfully.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDeleteSuccessModal(false)}
+              className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
+            >
+              <Text className="text-white font-black uppercase italic text-lg">
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
