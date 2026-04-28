@@ -77,31 +77,69 @@ const isNewRecord = (
   return false;
 };
 
-// Formata input numérico para HH:MM:SS
-// Recebe apenas os dígitos novos que o utilizador acabou de escrever
-// e constrói sempre da direita para a esquerda (como uma calculadora)
-const formatTimeInput = (currentFormatted: string, newRaw: string): string => {
-  // Extrai dígitos do valor atual formatado
-  const currentDigits = currentFormatted.replace(/\D/g, "");
-  // Extrai dígitos do novo valor (o que o utilizador escreveu)
-  const newDigits = newRaw.replace(/\D/g, "");
+// Componente de input de tempo HH:MM:SS com 3 campos separados
+const TimeInput = React.memo(
+  ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+    const parts = value.split(":");
+    const hh = parts[0] ?? "00";
+    const mm = parts[1] ?? "00";
+    const ss = parts[2] ?? "00";
 
-  let digits: string;
-  if (newDigits.length > currentDigits.length) {
-    // Adicionou dígito — pega os últimos 6 dígitos
-    digits = (currentDigits + newDigits.slice(currentDigits.length)).slice(-6);
-  } else {
-    // Apagou dígito — remove o último
-    digits = currentDigits.slice(0, -1);
-  }
+    const mmRef = React.useRef<any>(null);
+    const ssRef = React.useRef<any>(null);
 
-  // Preenche com zeros à esquerda até ter 6 dígitos
-  const padded = digits.padStart(6, "0");
-  const hh = padded.slice(0, 2);
-  const mm = padded.slice(2, 4);
-  const ss = padded.slice(4, 6);
-  return `${hh}:${mm}:${ss}`;
-};
+    return (
+      <View className="flex-row items-center h-10 bg-zinc-950 rounded-xl mx-0.5 border border-zinc-800 px-1">
+        <TextInput
+          keyboardType="numeric"
+          value={hh}
+          maxLength={2}
+          placeholder="00"
+          placeholderTextColor="#52525b"
+          onChangeText={(v) => {
+            const clean = v.replace(/\D/g, "").slice(0, 2);
+            onChange(`${clean.padStart(2, "0")}:${mm}:${ss}`);
+            if (clean.length === 2) mmRef.current?.focus();
+          }}
+          style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
+          className="text-white font-black italic text-xs"
+        />
+        <Text className="text-zinc-600 font-black text-xs">:</Text>
+        <TextInput
+          ref={mmRef}
+          keyboardType="numeric"
+          value={mm}
+          maxLength={2}
+          placeholder="00"
+          placeholderTextColor="#52525b"
+          onChangeText={(v) => {
+            const clean = v.replace(/\D/g, "").slice(0, 2);
+            onChange(`${hh}:${clean.padStart(2, "0")}:${ss}`);
+            if (clean.length === 2) ssRef.current?.focus();
+          }}
+          style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
+          className="text-white font-black italic text-xs"
+        />
+        <Text className="text-zinc-600 font-black text-xs">:</Text>
+        <TextInput
+          ref={ssRef}
+          keyboardType="numeric"
+          value={ss}
+          maxLength={2}
+          placeholder="00"
+          placeholderTextColor="#52525b"
+          onChangeText={(v) => {
+            const clean = v.replace(/\D/g, "").slice(0, 2);
+            onChange(`${hh}:${mm}:${clean.padStart(2, "0")}`);
+          }}
+          style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
+          className="text-white font-black italic text-xs"
+        />
+      </View>
+    );
+  },
+);
+TimeInput.displayName = "TimeInput";
 
 // --- CORREÇÃO: componente memoizado para cada item do modal de seleção ---
 const ExerciseListItem = React.memo(
@@ -727,24 +765,9 @@ export default function LogWorkoutScreen() {
                       className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
                     />
                     {ex.muscle_group?.toLowerCase() === "cardio" ? (
-                      <TextInput
-                        keyboardType="numeric"
-                        value={set.reps}
-                        placeholder="00:00:00"
-                        placeholderTextColor="#52525b"
-                        onChangeText={(v) => {
-                          const formatted = formatTimeInput(
-                            set.reps || "00:00:00",
-                            v,
-                          );
-                          updateSet(ex.logId, set.id, "reps", formatted);
-                        }}
-                        textAlignVertical="center"
-                        multiline={false}
-                        scrollEnabled={false}
-                        underlineColorAndroid="transparent"
-                        style={{ paddingVertical: 0 }}
-                        className="w-20 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic text-xs"
+                      <TimeInput
+                        value={set.reps || "00:00:00"}
+                        onChange={(v) => updateSet(ex.logId, set.id, "reps", v)}
                       />
                     ) : (
                       <TextInput
@@ -1084,7 +1107,7 @@ export default function LogWorkoutScreen() {
               <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
                 Set Type
               </Text>
-              <View className="flex-row justify-between mb-10">
+              <View className="flex-row justify-between mb-6">
                 {[
                   { l: "Normal", v: "1", i: "1", c: "text-white" },
                   { l: "Warmup", v: "W", i: "W", c: "text-amber-500" },
@@ -1116,6 +1139,37 @@ export default function LogWorkoutScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+              <TouchableOpacity
+                onPress={() => {
+                  if (typeModal) {
+                    const ex = exercises.find(
+                      (e) => e.logId === typeModal.exId,
+                    );
+                    if (ex && ex.sets.length <= 1) {
+                      setTypeModal(null);
+                      return;
+                    }
+                    setExercises((prev: ActiveExercise[]) =>
+                      prev.map((e) =>
+                        e.logId === typeModal.exId
+                          ? {
+                              ...e,
+                              sets: e.sets.filter(
+                                (s) => s.id !== typeModal.setId,
+                              ),
+                            }
+                          : e,
+                      ),
+                    );
+                  }
+                  setTypeModal(null);
+                }}
+                className="w-full py-4 bg-red-500/10 rounded-2xl items-center border border-red-500/20 mb-4"
+              >
+                <Text className="text-red-500 font-black uppercase italic text-sm tracking-widest">
+                  Remove Set
+                </Text>
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </Modal>
