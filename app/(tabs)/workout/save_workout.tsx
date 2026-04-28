@@ -26,8 +26,6 @@ export default function SaveWorkoutScreen() {
   const [showAttentionModal, setShowAttentionModal] = useState(false);
   const [attentionMessage, setAttentionMessage] = useState("");
 
-  // Verifica se o set atual é um PR comparando com TODOS os sets anteriores na BD
-  // Critério: peso mais alto. Se mesmo peso, mais reps.
   const checkPersonalRecord = async (
     exerciseId: number,
     weight: number,
@@ -39,13 +37,9 @@ export default function SaveWorkoutScreen() {
         [exerciseId],
       );
 
-      // Nunca fez este exercício — é automaticamente um PR
       if (!absoluteMaxWeight?.weight) return 1;
-
-      // Peso superior ao máximo histórico — PR
       if (weight > absoluteMaxWeight.weight) return 1;
 
-      // Mesmo peso máximo — verificar se bate mais reps
       if (weight === absoluteMaxWeight.weight) {
         const bestRepsAtMaxWeight = await db.getFirstAsync<{ reps: number }>(
           "SELECT MAX(reps) as reps FROM workout_sets WHERE exercise_id = ? AND weight = ?",
@@ -74,14 +68,6 @@ export default function SaveWorkoutScreen() {
     return { totalVolume, totalSets };
   }, [exercises]);
 
-  const timeToSeconds = (time: string): number => {
-    if (!time) return 0;
-    const parts = time.split(":").map(Number);
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    return Number(time) || 0;
-  };
-
   const handleSave = async () => {
     if (
       !routineName ||
@@ -107,7 +93,6 @@ export default function SaveWorkoutScreen() {
       );
       if (!user) return;
 
-      // Inserir o treino
       const lastWorkout = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM workouts ORDER BY id DESC LIMIT 1",
       );
@@ -126,7 +111,6 @@ export default function SaveWorkoutScreen() {
         ],
       );
 
-      // Inserir os sets — checkPersonalRecord antes de inserir cada um
       const lastSet = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM workout_sets ORDER BY id DESC LIMIT 1",
       );
@@ -136,29 +120,51 @@ export default function SaveWorkoutScreen() {
         let setIndex = 1;
         for (const set of ex.sets) {
           if (set.completed) {
-            // Verificar PR ANTES de inserir (ainda não está na BD)
+            const isCardio = ex.muscle_group?.toLowerCase() === "cardio";
+
+            // --- DEBUG: ver o que está a ser inserido ---
+            console.log(
+              `[save_workout] exercise: ${ex.name}, isCardio: ${isCardio}`,
+            );
+            console.log(
+              `[save_workout] set.weight: "${set.weight}", set.reps: "${set.reps}"`,
+            );
+
             const isPR = await checkPersonalRecord(
               ex.id,
               Number(set.weight),
               Number(set.reps),
             );
 
-            const repsToSave =
-              ex.muscle_group?.toLowerCase() === "cardio"
-                ? timeToSeconds(set.reps)
-                : Number(set.reps) || 0;
+            // Para cardio:
+            // - weight = 0 (não aplicável)
+            // - reps = 0 (não aplicável)
+            // - distance = km (set.weight)
+            // - time = tempo (set.reps, formato HH:MM:SS)
+            const distanceValue = isCardio
+              ? parseFloat(String(set.weight).replace(",", ".")) || 0
+              : null;
+            const timeValue = isCardio ? set.reps || null : null;
+            const weightValue = isCardio ? 0 : Number(set.weight) || 0;
+            const repsValue = isCardio ? 0 : Number(set.reps) || 0;
+
+            console.log(
+              `[save_workout] -> distance: ${distanceValue}, time: ${timeValue}, weight: ${weightValue}, reps: ${repsValue}`,
+            );
 
             await db.runAsync(
-              "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+              "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record, distance, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
               [
                 currentSetId,
                 newWorkoutId,
                 ex.id,
-                Number(set.weight) || 0,
-                repsToSave,
+                weightValue,
+                repsValue,
                 set.type,
                 setIndex,
                 isPR,
+                distanceValue,
+                timeValue,
               ],
             );
             currentSetId++;
@@ -170,7 +176,7 @@ export default function SaveWorkoutScreen() {
       stopWorkout();
       setShowSuccessModal(true);
     } catch (e) {
-      console.error(e);
+      console.error("[save_workout] erro:", e);
     }
   };
 

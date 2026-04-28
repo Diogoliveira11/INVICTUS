@@ -35,6 +35,8 @@ interface WorkoutExercise {
   set_type: string;
   index_order: number;
   is_personal_record: number;
+  distance: number | null;
+  time: string | null;
 }
 
 export default function ProgressResult() {
@@ -43,7 +45,6 @@ export default function ProgressResult() {
   const db = useSQLiteContext();
   const { height: screenHeight } = useWindowDimensions();
 
-  // Estados de Estatísticas
   const [workoutsCount, setWorkoutsCount] = useState(0);
   const [totalVolume, setTotalVolume] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
@@ -57,11 +58,9 @@ export default function ProgressResult() {
   const { weightUnit } = useUnits();
   const weightUnitLower = weightUnit.toLowerCase();
 
-  // Estados Dinâmicos do Utilizador
   const [userName, setUserName] = useState("Invictus User");
   const [weeklyGoal, setWeeklyGoal] = useState(0);
 
-  // Estados de UI
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
@@ -69,7 +68,6 @@ export default function ProgressResult() {
     [],
   );
 
-  // 1. CARREGAR DADOS DO PERFIL
   const loadUserData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
@@ -93,11 +91,9 @@ export default function ProgressResult() {
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
-  // 2. CARREGAR ESTATÍSTICAS
   const loadStats = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
-      // Primeiro, precisamos do ID do utilizador atual
       const userRow = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM users WHERE email = ?",
         [email],
@@ -113,10 +109,15 @@ export default function ProgressResult() {
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
-      // ADICIONADO: user_id = ? para filtrar o histórico
       const historyRows = await db.getAllAsync<Workout>(
         "SELECT * FROM workouts WHERE date >= ? AND user_id = ? ORDER BY date DESC",
         [firstDayISO, userRow.id],
+      );
+
+      // --- DEBUG: ver os treinos carregados ---
+      console.log(
+        "[loadStats] workouts esta semana:",
+        JSON.stringify(historyRows, null, 2),
       );
 
       setWeeklyHistory(historyRows || []);
@@ -131,7 +132,6 @@ export default function ProgressResult() {
       let totalSeconds = 0;
       historyRows.forEach((item) => {
         if (item.duration) {
-          // CORRIGIDO: Usar .duration
           const parts = item.duration.split(":").map(Number);
           if (parts.length === 3)
             totalSeconds += parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -156,7 +156,6 @@ export default function ProgressResult() {
 
       if (!userRow) return;
 
-      // Query robusta: Força conversão de tipos e filtra por utilizador
       const query = `
       SELECT 
         e.name as name, 
@@ -171,7 +170,6 @@ export default function ProgressResult() {
     `;
 
       const result = await db.getAllAsync<any>(query, [userRow.id]);
-
       setVolumeByExercise(result);
     } catch (e) {
       console.error("Erro ao carregar volume por exercício:", e);
@@ -180,20 +178,35 @@ export default function ProgressResult() {
 
   const loadWorkoutDetails = async (workout: Workout) => {
     try {
+      // --- DEBUG: ver o workout selecionado ---
+      console.log(
+        "[loadWorkoutDetails] workout selecionado:",
+        JSON.stringify(workout, null, 2),
+      );
+
+      // --- CORREÇÃO: query correta com parâmetro passado separadamente ---
       const details = await db.getAllAsync<WorkoutExercise>(
         `SELECT 
-    e.name as exercise_name,
-    e.muscle_group,
-    ws.weight, 
-    ws.reps, 
-    ws.set_type, 
-    ws.index_order,
-    ws.is_personal_record
-  FROM workout_sets ws
-  JOIN exercises e ON ws.exercise_id = e.id
-  WHERE ws.workout_exercise_id = ?
-  ORDER BY e.name ASC, ws.index_order ASC`,
-        [workout.id],
+          e.name as exercise_name,
+          e.muscle_group,
+          ws.weight, 
+          ws.reps,
+          ws.distance,
+          ws.time,
+          ws.set_type, 
+          ws.index_order,
+          ws.is_personal_record
+        FROM workout_sets ws
+        JOIN exercises e ON ws.exercise_id = e.id
+        WHERE ws.workout_exercise_id = ?
+        ORDER BY e.name ASC, ws.index_order ASC`,
+        [workout.id], // <-- CORREÇÃO: era `...`[workout.id] (índice de string)
+      );
+
+      // --- DEBUG: ver os sets carregados ---
+      console.log(
+        "[loadWorkoutDetails] sets encontrados:",
+        JSON.stringify(details, null, 2),
       );
 
       setSelectedWorkout(workout);
@@ -201,6 +214,7 @@ export default function ProgressResult() {
       setIsHistoryVisible(false);
       setTimeout(() => setIsDetailsVisible(true), 300);
     } catch (e) {
+      console.error("[loadWorkoutDetails] erro:", e);
       Alert.alert("Erro", "Não foi possível carregar os detalhes.");
     }
   };
@@ -456,12 +470,12 @@ export default function ProgressResult() {
                     <Text className="text-zinc-600 text-[8px] font-black uppercase flex-1 text-center">
                       Type
                     </Text>
-                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-16 text-center">
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-20 text-center">
                       {group.sets[0]?.muscle_group?.toLowerCase() === "cardio"
                         ? "Dist."
                         : "Weight"}
                     </Text>
-                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-12 text-right">
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-24 text-right">
                       {group.sets[0]?.muscle_group?.toLowerCase() === "cardio"
                         ? "Time"
                         : "Reps"}
@@ -511,11 +525,15 @@ export default function ProgressResult() {
                             </Text>
                           </View>
                         </View>
-                        <Text className="text-white font-black italic w-16 text-center">
-                          {set.weight}
-                          {set.muscle_group?.toLowerCase() === "cardio"
-                            ? "km"
-                            : weightUnitLower}
+                        <View className="w-20 flex-row items-center justify-center">
+                          <Text
+                            className="text-white font-black italic text-center"
+                            numberOfLines={1}
+                          >
+                            {set.muscle_group?.toLowerCase() === "cardio"
+                              ? `${parseFloat(String(set.distance ?? set.weight ?? 0).replace(",", "."))}km`
+                              : `${set.weight}${weightUnitLower}`}
+                          </Text>
                           {set.is_personal_record === 1 && (
                             <Trophy
                               size={10}
@@ -523,10 +541,13 @@ export default function ProgressResult() {
                               style={{ marginLeft: 2 }}
                             />
                           )}
-                        </Text>
-                        <Text className="text-zinc-200 font-black italic w-12 text-right">
+                        </View>
+                        <Text
+                          className="text-zinc-200 font-black italic w-24 text-right"
+                          numberOfLines={1}
+                        >
                           {set.muscle_group?.toLowerCase() === "cardio"
-                            ? secondsToTime(set.reps)
+                            ? (set.time ?? "00:00:00")
                             : set.reps}
                         </Text>
                       </View>
@@ -546,9 +567,8 @@ export default function ProgressResult() {
           </View>
         </View>
       </Modal>
+
       {/* MODAL 3: ANÁLISE DE VOLUME */}
-      {/* MODAL: VOLUME POR EXERCÍCIO */}
-      {/* MODAL: VOLUME POR EXERCÍCIO */}
       <Modal visible={isVolumeModalVisible} animationType="slide" transparent>
         <View className="flex-1 bg-black/90 justify-end">
           <View className="h-[75%] bg-[#080808] rounded-t-[50px] border-t border-zinc-800">
@@ -586,7 +606,6 @@ export default function ProgressResult() {
                     </View>
                     <View className="items-end">
                       <Text className="text-[#E31C25] font-black italic text-lg">
-                        {/* .toLocaleString() para formatar ex: 1.250 */}
                         {Number(item.volume).toLocaleString()}{" "}
                         <Text className="text-[10px] text-zinc-600">
                           {weightUnit}
