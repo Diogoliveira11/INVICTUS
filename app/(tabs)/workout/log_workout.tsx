@@ -88,19 +88,35 @@ const TimeInput = React.memo(
     const mmRef = React.useRef<any>(null);
     const ssRef = React.useRef<any>(null);
 
+    // Função auxiliar para atualizar apenas uma parte do tempo
+    const updatePart = (index: number, val: string) => {
+      const newParts = [...parts];
+      // Remove caracteres não numéricos e limita a 2 dígitos
+      const clean = val.replace(/\D/g, "").slice(0, 2);
+      newParts[index] = clean;
+
+      // Se estiver vazio, mantemos vazio para o usuário conseguir apagar
+      // Se tiver 2 dígitos, formatamos com padStart e pulamos para o próximo
+      const finalParts = newParts.map((p, i) =>
+        p === "" ? "00" : p.padStart(2, "0"),
+      );
+      onChange(finalParts.join(":"));
+
+      if (clean.length === 2) {
+        if (index === 0) mmRef.current?.focus();
+        if (index === 1) ssRef.current?.focus();
+      }
+    };
+
     return (
       <View className="flex-row items-center h-10 bg-zinc-950 rounded-xl mx-0.5 border border-zinc-800 px-1">
         <TextInput
           keyboardType="numeric"
-          value={hh}
-          maxLength={2}
+          value={hh === "00" ? "" : hh} // Mostra vazio se for 00 para facilitar digitar
           placeholder="00"
           placeholderTextColor="#52525b"
-          onChangeText={(v) => {
-            const clean = v.replace(/\D/g, "").slice(0, 2);
-            onChange(`${clean.padStart(2, "0")}:${mm}:${ss}`);
-            if (clean.length === 2) mmRef.current?.focus();
-          }}
+          maxLength={2}
+          onChangeText={(v) => updatePart(0, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
           className="text-white font-black italic text-xs"
         />
@@ -108,15 +124,11 @@ const TimeInput = React.memo(
         <TextInput
           ref={mmRef}
           keyboardType="numeric"
-          value={mm}
-          maxLength={2}
+          value={mm === "00" ? "" : mm}
           placeholder="00"
           placeholderTextColor="#52525b"
-          onChangeText={(v) => {
-            const clean = v.replace(/\D/g, "").slice(0, 2);
-            onChange(`${hh}:${clean.padStart(2, "0")}:${ss}`);
-            if (clean.length === 2) ssRef.current?.focus();
-          }}
+          maxLength={2}
+          onChangeText={(v) => updatePart(1, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
           className="text-white font-black italic text-xs"
         />
@@ -124,14 +136,11 @@ const TimeInput = React.memo(
         <TextInput
           ref={ssRef}
           keyboardType="numeric"
-          value={ss}
-          maxLength={2}
+          value={ss === "00" ? "" : ss}
           placeholder="00"
           placeholderTextColor="#52525b"
-          onChangeText={(v) => {
-            const clean = v.replace(/\D/g, "").slice(0, 2);
-            onChange(`${hh}:${mm}:${clean.padStart(2, "0")}`);
-          }}
+          maxLength={2}
+          onChangeText={(v) => updatePart(2, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
           className="text-white font-black italic text-xs"
         />
