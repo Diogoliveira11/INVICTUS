@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { ChevronRight, Mars, Venus } from "lucide-react-native";
+import { ArrowLeft, ChevronRight, Mars, Venus } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -89,15 +89,24 @@ export default function GenderSelection() {
           </TouchableOpacity>
         </View>
 
-        {/* Next Button */}
-        <View className="flex-row justify-end items-center mb-2">
+        {/* Button */}
+        <View className="flex-row justify-between items-center mb-2">
+          {/* Back Button */}
+          <TouchableOpacity
+            className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
+            onPress={() => router.replace("/units")}
+          >
+            <ArrowLeft color="white" size={24} />
+          </TouchableOpacity>
+
+          {/* Next Button */}
           <TouchableOpacity
             disabled={!isReady}
             activeOpacity={0.8}
             onPress={handleNext}
             className={`flex-row items-center py-4 px-8 rounded-full ${
-              isReady ? "bg-[#E31C25]" : "bg-zinc-800 opacity-50"
-            }`}
+              isReady ? "bg-[#E31C25]" : "bg-zinc-800"
+            } ${!isReady && "opacity-50"}`}
           >
             <Text
               className={`text-lg font-bold mr-2 ${

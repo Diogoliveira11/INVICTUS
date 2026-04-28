@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useUnits } from "../context/units_context";
 import { useWorkout } from "../context/workoutcontext";
 
 export default function SaveWorkoutScreen() {
@@ -21,6 +22,8 @@ export default function SaveWorkoutScreen() {
   const { timer, exercises, stopWorkout } = useWorkout();
   const [description, setDescription] = useState("");
   const { routineName } = useLocalSearchParams<{ routineName: string }>();
+  const { weightUnit: weightUnitRaw } = useUnits();
+  const weightUnit = weightUnitRaw.toLowerCase();
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showAttentionModal, setShowAttentionModal] = useState(false);
@@ -218,7 +221,8 @@ export default function SaveWorkoutScreen() {
               Volume
             </Text>
             <Text className="text-white text-xl font-black italic">
-              {stats.totalVolume}kg
+              {stats.totalVolume}
+              {weightUnit}
             </Text>
           </View>
           <View className="items-end">

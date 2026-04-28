@@ -659,7 +659,8 @@ export default function LogWorkoutScreen() {
                       <View className="flex-row items-center bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 self-start mt-1">
                         <Target size={12} color="#EAB308" />
                         <Text className="text-[#EAB308] text-[10px] font-bold ml-1 uppercase">
-                          PR: {ex.personalRecords[0].weight}kg
+                          PR: {ex.personalRecords[0].weight}
+                          {weightUnit}
                         </Text>
                       </View>
                     )}
@@ -711,7 +712,9 @@ export default function LogWorkoutScreen() {
                   Previous
                 </Text>
                 <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
-                  {ex.muscle_group?.toLowerCase() === "cardio" ? "KM" : "KG"}
+                  {ex.muscle_group?.toLowerCase() === "cardio"
+                    ? "KM"
+                    : weightUnit.toUpperCase()}
                 </Text>
                 <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
                   {ex.muscle_group?.toLowerCase() === "cardio"

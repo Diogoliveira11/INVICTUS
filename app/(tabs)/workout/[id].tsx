@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useUnits } from "../context/units_context";
 
 const GIF_MAP: { [key: string]: any } = {
   "assets/exercises_gifs/back_extension.gif": require("../../../assets/exercises_gifs/back_extension.gif"),
@@ -167,6 +168,8 @@ export default function ExerciseDetailScreen() {
   const router = useRouter();
   const { id, from } = useLocalSearchParams<{ id: string; from: string }>();
   const db = useSQLiteContext();
+  const { weightUnit: weightUnitRaw } = useUnits();
+  const weightUnit = weightUnitRaw.toLowerCase();
 
   const [exercise, setExercise] = useState<ExerciseDetails | null>(null);
   const [history, setHistory] = useState<WorkoutHistory[]>([]);
@@ -197,7 +200,6 @@ export default function ExerciseDetailScreen() {
         }
 
         // 2. Query de Histórico "Segura"
-        // Se esta falhar, o problema está nos JOINS ou nomes das tabelas
         if (email) {
           try {
             const historyRows = await db.getAllAsync<WorkoutHistory>(
@@ -378,7 +380,9 @@ export default function ExerciseDetailScreen() {
                   <View className="items-end">
                     <Text className="text-[#E31C25] font-black text-lg italic">
                       {item.weight}
-                      <Text className="text-zinc-500 text-xs">kg</Text>
+                      <Text className="text-zinc-500 text-xs">
+                        {weightUnit}
+                      </Text>
                     </Text>
                     <Text className="text-zinc-400 text-xs font-bold">
                       {item.reps} Reps

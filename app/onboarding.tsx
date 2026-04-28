@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useUnits } from "./(tabs)/context/units_context";
 
 const { width, height } = Dimensions.get("window");
 
@@ -18,7 +17,6 @@ const slides: {
   title: string;
   btn: string;
   img: any;
-  isUnits?: boolean;
 }[] = [
   {
     id: 1,
@@ -35,22 +33,14 @@ const slides: {
   {
     id: 3,
     title: "Embrace the Burn",
-    btn: "Next",
-    img: require("../assets/images/onboarding3.png"),
-  },
-  {
-    id: 4,
-    title: "Choose Your Units",
     btn: "SIGN UP",
     img: require("../assets/images/onboarding3.png"),
-    isUnits: true,
   },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const [index, setIndex] = useState(0);
-  const { weightUnit, heightUnit, setWeightUnit, setHeightUnit } = useUnits();
 
   const handlePress = () => {
     if (index < slides.length - 1) {
@@ -84,62 +74,9 @@ export default function OnboardingScreen() {
           <Text className="text-white text-3xl font-bold text-center mb-2">
             {slide.title}
           </Text>
-
-          {!slide.isUnits && (
-            <Text className="text-gray-400 text-base mb-10 italic">
-              Your Journey Begins Here
-            </Text>
-          )}
-
-          {/* Slide de escolha de unidades */}
-          {slide.isUnits === true && (
-            <View className="w-full mb-8 mt-4">
-              {/* Peso */}
-              <View className="items-center">
-                <Text className="text-gray-400 text-xs uppercase tracking-widest mb-3">
-                  Weight Unit
-                </Text>
-                <View className="flex-row bg-zinc-900 rounded-full p-1 w-52">
-                  {(["KG", "LB"] as const).map((u) => (
-                    <TouchableOpacity
-                      key={u}
-                      className={`flex-1 py-3 items-center rounded-full ${weightUnit === u ? "bg-[#E31C25]" : ""}`}
-                      onPress={() => setWeightUnit(u)}
-                    >
-                      <Text
-                        className={`font-bold ${weightUnit === u ? "text-white" : "text-gray-400"}`}
-                      >
-                        {u}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Altura */}
-              <View className="items-center mb-5">
-                <Text className="text-gray-400 text-xs uppercase tracking-widest mb-3">
-                  Height Unit
-                </Text>
-                <View className="flex-row bg-zinc-900 rounded-full p-1 w-52">
-                  {(["CM", "FT"] as const).map((u) => (
-                    <TouchableOpacity
-                      key={u}
-                      className={`flex-1 py-3 items-center rounded-full ${heightUnit === u ? "bg-[#E31C25]" : ""}`}
-                      onPress={() => setHeightUnit(u)}
-                    >
-                      <Text
-                        className={`font-bold ${heightUnit === u ? "text-white" : "text-gray-400"}`}
-                      >
-                        {u}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-          )}
-
+          <Text className="text-gray-400 text-base mb-10 italic">
+            Your Journey Begins Here
+          </Text>
           {/* Indicadores */}
           <View className="flex-row mb-8">
             {slides.map((_, i) => (

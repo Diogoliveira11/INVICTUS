@@ -47,7 +47,7 @@ export default function SignupScreen() {
       await AsyncStorage.setItem("profileComplete", "false");
       await AsyncStorage.setItem("hasOnboarded", "false");
 
-      router.replace("/gender");
+      router.replace("/units");
     } catch (e) {
       console.error("❌ [Signup] Erro fatal:", e);
       setError("An error occurred during signup.");

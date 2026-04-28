@@ -201,7 +201,7 @@ export default function ProgressResult() {
         JOIN exercises e ON ws.exercise_id = e.id
         WHERE ws.workout_exercise_id = ?
         ORDER BY e.name ASC, ws.index_order ASC`,
-        [workout.id], // <-- CORREÇÃO: era `...`[workout.id] (índice de string)
+        [workout.id],
       );
 
       // --- DEBUG: ver os sets carregados ---

@@ -96,6 +96,10 @@ export default function RootLayout() {
                     options={{ gestureEnabled: false }}
                   />
                   <Stack.Screen
+                    name="units"
+                    options={{ gestureEnabled: false }}
+                  />
+                  <Stack.Screen
                     name="birthday"
                     options={{ gestureEnabled: false }}
                   />
