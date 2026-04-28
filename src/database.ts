@@ -10,8 +10,6 @@ const logDB = (operation: string, params: any[], success: boolean) => {
 };
 
 // --- FUNÇÕES PARA ACCOUNT SETTINGS ---
-// --- FUNÇÃO PARA ALTERAR USERNAME ---
-
 export const updateUsername = async (
   db: SQLiteDatabase,
   currentUsername: string,
@@ -34,7 +32,7 @@ export const updateUsername = async (
       return { success: true };
     } else {
       logDB("UPDATE (Username)", params, false);
-      return { success: false, message: "Username or password are incorrect" };
+      return { success: false, message: "Username or pass are incorrect" };
     }
   } catch (e) {
     console.log("❌ Erro SQL:", e);
@@ -42,6 +40,28 @@ export const updateUsername = async (
   }
 };
 // --- FUNÇÃO PARA ALTERAR EMAIL ---
+
+export const resetPassword = async (
+  db: any,
+  email: string,
+  name: string,
+  newPassword: string,
+) => {
+  try {
+    // Primeiro verificamos se o utilizador existe com esse nome e email
+    // Ajusta o nome da tabela e colunas (ex: 'users', 'email', 'name', 'password')
+    const result = await db.runAsync(
+      "UPDATE users SET pass = ? WHERE LOWER(email) = ? AND username = ?",
+      [newPassword, email.toLowerCase(), name],
+    );
+
+    // Se changes > 0, significa que encontrou o utilizador e atualizou
+    return result.changes > 0;
+  } catch (error) {
+    console.error("Error updating password:", error);
+    return false;
+  }
+};
 
 export const updateEmail = async (
   db: SQLiteDatabase,
