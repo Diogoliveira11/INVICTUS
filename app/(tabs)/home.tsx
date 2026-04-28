@@ -157,17 +157,18 @@ export default function ProgressResult() {
       if (!userRow) return;
 
       const query = `
-      SELECT 
-        e.name as name, 
-        SUM(CAST(ws.weight AS REAL) * CAST(ws.reps AS INTEGER)) as volume
-      FROM workout_sets ws
-      JOIN exercises e ON ws.exercise_id = e.id
-      JOIN workouts w ON ws.workout_exercise_id = w.id
-      WHERE w.user_id = ? 
-      AND w.date >= date('now', '-7 days')
-      GROUP BY e.id
-      ORDER BY volume DESC
-    `;
+  SELECT 
+    e.name as name, 
+    SUM(CAST(ws.weight AS REAL) * CAST(ws.reps AS INTEGER)) as volume
+  FROM workout_sets ws
+  JOIN exercises e ON ws.exercise_id = e.id
+  JOIN workouts w ON ws.workout_exercise_id = w.id
+  WHERE w.user_id = ? 
+  AND w.date >= date('now', '-7 days')
+  AND e.muscle_group != 'CARDIO'
+  GROUP BY e.id
+  ORDER BY volume DESC
+`;
 
       const result = await db.getAllAsync<any>(query, [userRow.id]);
       setVolumeByExercise(result);
@@ -184,7 +185,7 @@ export default function ProgressResult() {
         JSON.stringify(workout, null, 2),
       );
 
-      // --- CORREÇÃO: query correta com parâmetro passado separadamente ---
+      // Query correta com parâmetro passado separadamente ---
       const details = await db.getAllAsync<WorkoutExercise>(
         `SELECT 
           e.name as exercise_name,
