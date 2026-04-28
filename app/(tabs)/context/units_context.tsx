@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSQLiteContext } from "expo-sqlite";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 type WeightUnit = "KG" | "LB";
@@ -7,39 +8,60 @@ type HeightUnit = "CM" | "FT";
 interface UnitsContextType {
   weightUnit: WeightUnit;
   heightUnit: HeightUnit;
-  setWeightUnit: (u: WeightUnit) => void;
-  setHeightUnit: (u: HeightUnit) => void;
+  setWeightUnit: (unit: WeightUnit) => void;
+  setHeightUnit: (unit: HeightUnit) => void;
 }
 
-const UnitsContext = createContext<UnitsContextType>({
-  weightUnit: "KG",
-  heightUnit: "CM",
-  setWeightUnit: () => {},
-  setHeightUnit: () => {},
-});
+const UnitsContext = createContext<UnitsContextType | undefined>(undefined);
 
 export function UnitsProvider({ children }: { children: React.ReactNode }) {
+  const db = useSQLiteContext();
   const [weightUnit, setWeightUnitState] = useState<WeightUnit>("KG");
   const [heightUnit, setHeightUnitState] = useState<HeightUnit>("CM");
 
+  // Carregar unidades da BD ao iniciar
   useEffect(() => {
-    async function load() {
-      const wu = await AsyncStorage.getItem("userWeightUnit");
-      const hu = await AsyncStorage.getItem("userHeightUnit");
-      if (wu === "KG" || wu === "LB") setWeightUnitState(wu);
-      if (hu === "CM" || hu === "FT") setHeightUnitState(hu);
-    }
-    load();
-  }, []);
+    async function loadUnits() {
+      try {
+        const email = await AsyncStorage.getItem("userEmail");
+        if (!email) return;
 
-  const setWeightUnit = async (u: WeightUnit) => {
-    setWeightUnitState(u);
-    await AsyncStorage.setItem("userWeightUnit", u);
+        const row = await db.getFirstAsync<any>(
+          "SELECT weight_unit, height_unit FROM user_settings WHERE user_id = (SELECT id FROM users WHERE email = ?)",
+          [email],
+        );
+
+        if (row) {
+          setWeightUnitState(row.weight_unit as WeightUnit);
+          setHeightUnitState(row.height_unit as HeightUnit);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar unidades da BD:", e);
+      }
+    }
+    loadUnits();
+  }, [db]);
+
+  const setWeightUnit = async (unit: WeightUnit) => {
+    setWeightUnitState(unit);
+    const email = await AsyncStorage.getItem("userEmail");
+    if (email) {
+      await db.runAsync(
+        "UPDATE user_settings SET weight_unit = ? WHERE user_id = (SELECT id FROM users WHERE email = ?)",
+        [unit, email],
+      );
+    }
   };
 
-  const setHeightUnit = async (u: HeightUnit) => {
-    setHeightUnitState(u);
-    await AsyncStorage.setItem("userHeightUnit", u);
+  const setHeightUnit = async (unit: HeightUnit) => {
+    setHeightUnitState(unit);
+    const email = await AsyncStorage.getItem("userEmail");
+    if (email) {
+      await db.runAsync(
+        "UPDATE user_settings SET height_unit = ? WHERE user_id = (SELECT id FROM users WHERE email = ?)",
+        [unit, email],
+      );
+    }
   };
 
   return (
@@ -51,4 +73,8 @@ export function UnitsProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useUnits = () => useContext(UnitsContext);
+export const useUnits = () => {
+  const context = useContext(UnitsContext);
+  if (!context) throw new Error("useUnits must be used within UnitsProvider");
+  return context;
+};

@@ -63,6 +63,21 @@ export const resetPassword = async (
   }
 };
 
+export const getUserData = async (db: any, email: string) => {
+  try {
+    // Procura o utilizador pelo email
+    // IMPORTANTE: Verifique se o nome da sua tabela é 'users'
+    const user = await db.getFirstAsync(
+      "SELECT * FROM users WHERE LOWER(email) = ?",
+      [email.toLowerCase().trim()],
+    );
+    return user; // Retorna o objeto do utilizador ou null se não encontrar
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    return null;
+  }
+};
+
 export const updateEmail = async (
   db: SQLiteDatabase,
   currentEmail: string,

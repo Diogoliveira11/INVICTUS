@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Image } from "expo-image";
+import { Image } from "expo-image"; // Mantemos para o logo padrão
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -22,8 +22,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"; // Adiciona o Image nativo
+} from "react-native"; // Importante para URIs locais
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useUnits } from "./(tabs)/context/units_context"; // IMPORTAÇÃO DO CONTEXTO
 
 // @ts-ignore
 import InvictusLogo from "../assets/images/logo_invictus.jpeg";
@@ -32,6 +33,7 @@ export default function EditProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const db = useSQLiteContext();
+  const { weightUnit, heightUnit } = useUnits(); // ACESSO ÀS UNIDADES
 
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -46,7 +48,6 @@ export default function EditProfile() {
 
   const redColor = "#E31C25";
 
-  // 1. CARREGAR DADOS DA BD (Incluindo profile_picture)
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -76,7 +77,7 @@ export default function EditProfile() {
           }
         }
       } catch (error) {
-        console.error("Error loading data from DB:", error);
+        console.error("Error loading data:", error);
       } finally {
         setLoading(false);
       }
@@ -84,19 +85,14 @@ export default function EditProfile() {
     loadUserData();
   }, [db]);
 
-  // 2. LÓGICA DE SELEÇÃO DE IMAGEM
   const pickImage = async (useCamera: boolean) => {
     setShowImageModal(false);
-
     const permissionResult = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      Alert.alert(
-        "Permission Required",
-        "Allow access to your camera/gallery.",
-      );
+      Alert.alert("Permission Required", "Need access to camera/gallery.");
       return;
     }
 
@@ -112,35 +108,23 @@ export default function EditProfile() {
           quality: 0.5,
         }));
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const newUri = result.assets[0].uri;
-
-      // SOLUÇÃO: Forçar a atualização do estado com a nova URI
-      setProfileImage(null); // Primeiro limpamos
-      setTimeout(() => {
-        setProfileImage(newUri); // Depois de um milissegundo, colocamos a nova
-      }, 10);
-
-      console.log("📷 Nova URI definida no estado:", newUri);
+    if (!result.canceled) {
+      setProfileImage(result.assets[0].uri);
     }
   };
 
-  // 3. GUARDAR ALTERAÇÕES NA BD
   const handleSave = async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
-      // UPDATE na tabela users filtrando pelo email do utilizador logado
       await db.runAsync(
         "UPDATE users SET weight = ?, height = ?, profile_picture = ? WHERE email = ?",
         [weight, height, profileImage, email],
       );
-
       setShowSuccessModal(true);
     } catch (error) {
-      console.error("Error saving to DB:", error);
-      Alert.alert("Error", "Could not update profile.");
+      console.error("Error saving:", error);
     }
   };
 
@@ -181,13 +165,13 @@ export default function EditProfile() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* FOTO DE PERFIL COM KEY DINÂMICA PARA RE-RENDER */}
+        {/* AVATAR */}
         <View className="items-center mt-6">
           <View className="w-24 h-24 rounded-full border-2 border-[#E31C25] p-1">
             <View className="w-full h-full rounded-full bg-zinc-900 overflow-hidden border border-zinc-800">
               {profileImage ? (
                 <RNImage
-                  key={profileImage}
+                  key={profileImage} // Força o refresh visual
                   source={{ uri: profileImage }}
                   style={{ width: "100%", height: "100%" }}
                   resizeMode="cover"
@@ -214,7 +198,7 @@ export default function EditProfile() {
           </TouchableOpacity>
         </View>
 
-        {/* DATA DO ATLETA */}
+        {/* ATLETA DATA COM UNIDADES DINÂMICAS */}
         <View className="px-6 mt-10">
           <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest mb-4 italic">
             Athlete Data
@@ -231,7 +215,7 @@ export default function EditProfile() {
 
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
             <Text className="text-zinc-400 font-bold uppercase italic text-xs">
-              Weight (kg)
+              Weight ({weightUnit})
             </Text>
             <TextInput
               value={weight}
@@ -246,7 +230,7 @@ export default function EditProfile() {
 
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
             <Text className="text-zinc-400 font-bold uppercase italic text-xs">
-              Height (cm)
+              Height ({heightUnit})
             </Text>
             <TextInput
               value={height}
@@ -260,7 +244,7 @@ export default function EditProfile() {
           </View>
         </View>
 
-        {/* INFORMAÇÃO PESSOAL (Lida da BD) */}
+        {/* PERSONAL INFO */}
         <View className="px-6 mt-10">
           <View className="flex-row items-center mb-5 gap-2">
             <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest italic">
@@ -295,52 +279,46 @@ export default function EditProfile() {
         </View>
       </ScrollView>
 
-      {/* MODAL PARA ESCOLHER CÂMARA OU GALERIA */}
+      {/* MODAL ESCOLHER IMAGEM */}
       <Modal visible={showImageModal} transparent animationType="slide">
         <TouchableOpacity
-          activeOpacity={1}
-          className="flex-1 bg-black/60 justify-end"
+          className="flex-1 bg-black/50 justify-end"
           onPress={() => setShowImageModal(false)}
         >
-          <View className="bg-[#121212] p-10 rounded-t-[40px] border-t border-zinc-800">
-            <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
+          <View className="bg-[#121212] p-8 rounded-t-[40px] border-t border-zinc-800">
+            <Text className="text-white text-center font-black uppercase italic mb-6">
               Choose Source
             </Text>
-            <View className="flex-row justify-around mb-6">
+            <View className="flex-row justify-around mb-4">
               <TouchableOpacity
                 onPress={() => pickImage(true)}
                 className="items-center"
               >
-                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
-                  <Camera color={redColor} size={32} />
+                <View className="bg-zinc-900 p-4 rounded-full mb-2 border border-zinc-800">
+                  <Camera color={redColor} size={30} />
                 </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
-                  Camera
-                </Text>
+                <Text className="text-white font-bold text-xs">Camera</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 onPress={() => pickImage(false)}
                 className="items-center"
               >
-                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
-                  <ImageIcon color={redColor} size={32} />
+                <View className="bg-zinc-900 p-4 rounded-full mb-2 border border-zinc-800">
+                  <ImageIcon color={redColor} size={30} />
                 </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
-                  Gallery
-                </Text>
+                <Text className="text-white font-bold text-xs">Gallery</Text>
               </TouchableOpacity>
             </View>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* MODAL DE SUCESSO */}
+      {/* MODAL SUCESSO */}
       <Modal visible={showSuccessModal} transparent animationType="fade">
         <View className="flex-1 bg-black/90 justify-center items-center px-6">
           <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
-            <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
-              <Check color="#22c55e" size={32} strokeWidth={3} />
+            <View className="bg-green-500/10 p-4 rounded-full mb-6">
+              <Check color="#22c55e" size={32} />
             </View>
             <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
               Success!

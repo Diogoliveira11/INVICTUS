@@ -7,40 +7,60 @@ import React, { useState } from "react";
 import {
   Dimensions,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { login, resetPassword } from "../../src/database";
+import { getUserData, login, resetPassword } from "../../src/database";
 
 const { width, height } = Dimensions.get("window");
+
+type StatusType = "success" | "error";
 
 export default function LoginScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
 
-  // Estados principais
+  // Login states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false); // Evita cliques múltiplos
+  const [loading, setLoading] = useState(false);
 
-  // Estados Reset Password
+  // Forgot Password states
   const [showModal, setShowModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotName, setForgotName] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [forgotError, setForgotError] = useState("");
 
-  // Estados Status
+  // Status Feedback states
   const [statusVisible, setStatusVisible] = useState(false);
-  const [statusType, setStatusType] = useState<"success" | "error">("success");
+  const [statusType, setStatusType] = useState<StatusType>("success");
   const [statusMessage, setStatusMessage] = useState("");
+
+  const showStatus = (type: StatusType, message: string) => {
+    setStatusType(type);
+    setStatusMessage(message);
+    setStatusVisible(true);
+  };
+
+  const handleCloseForgotModal = () => {
+    Keyboard.dismiss();
+    setShowModal(false);
+    setForgotEmail("");
+    setForgotName("");
+    setNewPassword("");
+    setForgotError("");
+  };
 
   const handleLogin = async () => {
     if (loading) return;
@@ -52,6 +72,7 @@ export default function LoginScreen() {
     try {
       const user = (await login(db, email, password)) as any;
       if (user) {
+        setError("");
         await AsyncStorage.setItem("userEmail", email.toLowerCase().trim());
         await AsyncStorage.setItem("hasOnboarded", "true");
         await AsyncStorage.setItem("profileComplete", "true");
@@ -68,37 +89,64 @@ export default function LoginScreen() {
 
   const handleResetPassword = async () => {
     if (loading) return;
+
+    // Inline validation — show errors inside the modal, not in a status popup
     if (!forgotEmail || !forgotName || !newPassword) {
-      setStatusType("error");
-      setStatusMessage("Please fill in all fields.");
-      setStatusVisible(true);
+      setForgotError("Please fill in all fields.");
       return;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotEmail.trim())) {
+      setForgotError("Please enter a valid email address.");
+      return;
+    }
+
+    setForgotError("");
     setLoading(true);
+
     try {
+      const userData = (await getUserData(
+        db,
+        forgotEmail.toLowerCase().trim(),
+      )) as any;
+
+      if (!userData) {
+        setForgotError("No account found with this email.");
+        setLoading(false);
+        return;
+      }
+
+      if (userData.username.trim() !== forgotName.trim()) {
+        setForgotError(
+          "Name doesn't match. Check uppercase/lowercase letters.",
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (userData.pass === newPassword) {
+        setForgotError("New password must be different from the current one.");
+        setLoading(false);
+        return;
+      }
+
       const success = await resetPassword(
         db,
         forgotEmail.toLowerCase().trim(),
         forgotName,
         newPassword,
       );
+
       if (success) {
-        setStatusType("success");
-        setStatusMessage("Your password has been updated!");
-        setShowModal(false);
-        setTimeout(() => setStatusVisible(true), 500); // Delay suave para não bugar a animação
-        setForgotEmail("");
-        setForgotName("");
-        setNewPassword("");
+        // Close modal first, then show success — no race condition
+        handleCloseForgotModal();
+        showStatus("success", "Your password has been updated successfully!");
       } else {
-        setStatusType("error");
-        setStatusMessage("User not found with these credentials.");
-        setStatusVisible(true);
+        setForgotError("Something went wrong. Please try again.");
       }
     } catch (e) {
-      setStatusType("error");
-      setStatusMessage("Something went wrong.");
-      setStatusVisible(true);
+      setForgotError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -122,186 +170,234 @@ export default function LoginScreen() {
         }}
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+      <View
+        style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24 }}
       >
-        <View className="flex-1 justify-center px-6">
-          <Text
-            className="text-white text-5xl font-bold mb-10 text-center"
-            style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
-          >
-            Log in
+        <Text
+          className="text-white text-5xl font-bold mb-10 text-center"
+          style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
+        >
+          Log in
+        </Text>
+
+        <BlurView
+          intensity={80}
+          tint="dark"
+          className="w-full p-8 rounded-[30px] overflow-hidden border border-white/20"
+        >
+          <Text className="text-white text-2xl font-bold mb-6">
+            Welcome Back
           </Text>
 
-          <BlurView
-            intensity={80}
-            tint="dark"
-            className="w-full p-8 rounded-[30px] overflow-hidden border border-white/20"
-          >
-            <Text className="text-white text-2xl font-bold mb-6">
-              Welcome Back
-            </Text>
+          <View className="mb-5 border-b border-white/30">
+            <Text className="text-white text-xs">Email</Text>
+            <TextInput
+              className="text-white h-11 text-lg"
+              placeholderTextColor="#666"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
 
-            <View className="mb-5 border-b border-white/30">
-              <Text className="text-white text-xs">Email</Text>
-              <TextInput
-                className="text-white h-11 text-lg"
-                placeholderTextColor="#666"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
+          <View className="mb-5 border-b border-white/30">
+            <Text className="text-white text-xs">Password</Text>
+            <TextInput
+              className="text-white h-11 text-lg"
+              secureTextEntry
+              placeholderTextColor="#666"
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
 
-            <View className="mb-5 border-b border-white/30">
-              <Text className="text-white text-xs">Password</Text>
-              <TextInput
-                className="text-white h-11 text-lg"
-                secureTextEntry
-                placeholderTextColor="#666"
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
+          {error ? (
+            <Text className="text-red-400 text-xs mb-3">{error}</Text>
+          ) : null}
 
-            {error ? (
-              <Text className="text-red-400 text-xs mb-3">{error}</Text>
-            ) : null}
-
-            <View className="flex-row justify-between items-center mb-8">
-              <TouchableOpacity
-                onPress={() => setRememberMe(!rememberMe)}
-                className="flex-row items-center"
-              >
-                <View
-                  className={`w-5 h-5 rounded border mr-2 ${rememberMe ? "bg-white" : "border-white/40"}`}
-                >
-                  {rememberMe && (
-                    <Text className="text-black text-center text-[10px]">
-                      ✓
-                    </Text>
-                  )}
-                </View>
-                <Text className="text-white text-xs opacity-70">
-                  Remember me
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowModal(true)}>
-                <Text className="text-white text-xs opacity-70 underline">
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
-            </View>
-
+          <View className="flex-row justify-between items-center mb-8">
             <TouchableOpacity
-              activeOpacity={0.8}
-              className="bg-white h-14 w-full rounded-full justify-center items-center"
-              onPress={handleLogin}
+              onPress={() => setRememberMe(!rememberMe)}
+              className="flex-row items-center"
             >
-              <Text className="text-black font-bold text-lg uppercase">
-                Log In
+              <View
+                className={`w-5 h-5 rounded border mr-2 ${rememberMe ? "bg-white" : "border-white/40"}`}
+              >
+                {rememberMe && (
+                  <Text className="text-black text-center text-[10px]">✓</Text>
+                )}
+              </View>
+              <Text className="text-white text-xs opacity-70">Remember me</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowModal(true)}>
+              <Text className="text-white text-xs opacity-70 underline">
+                Forgot Password?
               </Text>
             </TouchableOpacity>
-          </BlurView>
+          </View>
 
           <TouchableOpacity
-            onPress={() => router.push("/auth/signup")}
-            className="mt-8 items-center"
+            className="bg-white h-14 w-full rounded-full justify-center items-center"
+            onPress={handleLogin}
+            disabled={loading}
           >
-            <Text className="text-white text-sm">
-              Don´t have an account?{" "}
-              <Text className="font-bold underline">Sign up!</Text>
+            <Text className="text-black font-bold text-lg uppercase">
+              {loading ? "Logging in..." : "Log In"}
             </Text>
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+        </BlurView>
+      </View>
 
-      {/* --- MODAL RESET PASSWORD --- */}
+      {/* ── FORGOT PASSWORD MODAL ── */}
       <Modal
         visible={showModal}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowModal(false)}
+        onRequestClose={handleCloseForgotModal}
       >
-        <View className="flex-1 justify-end">
-          <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <TouchableWithoutFeedback onPress={handleCloseForgotModal}>
             <View
               style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
+                flex: 1,
                 backgroundColor: "rgba(0,0,0,0.7)",
+                justifyContent: "flex-end",
               }}
-            />
+            >
+              {/* Inner touchable stops the modal content from closing the modal */}
+              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View
+                  style={{
+                    width: "100%",
+                    backgroundColor: "#121212",
+                    borderTopLeftRadius: 40,
+                    borderTopRightRadius: 40,
+                    borderTopWidth: 1,
+                    borderTopColor: "rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={{
+                      padding: 32,
+                      paddingBottom: Platform.OS === "ios" ? 48 : 32,
+                    }}
+                    bounces={false}
+                  >
+                    {/* Drag handle */}
+                    <View
+                      style={{
+                        width: 48,
+                        height: 4,
+                        backgroundColor: "rgba(255,255,255,0.2)",
+                        borderRadius: 2,
+                        alignSelf: "center",
+                        marginBottom: 24,
+                      }}
+                    />
+
+                    <Text className="text-white text-2xl font-bold mb-2 text-center">
+                      Reset Password
+                    </Text>
+                    <Text className="text-white/40 text-xs text-center mb-8">
+                      Enter your details exactly as registered
+                    </Text>
+
+                    {/* Exact Full Name */}
+                    <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
+                      <TextInput
+                        className="text-white text-base"
+                        placeholder="Exact Full Name"
+                        placeholderTextColor="#666"
+                        autoCapitalize="words"
+                        value={forgotName}
+                        onChangeText={(t) => {
+                          setForgotName(t);
+                          if (forgotError) setForgotError("");
+                        }}
+                      />
+                    </View>
+
+                    {/* Email */}
+                    <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
+                      <TextInput
+                        className="text-white text-base"
+                        placeholder="Email Address"
+                        placeholderTextColor="#666"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        value={forgotEmail}
+                        onChangeText={(t) => {
+                          setForgotEmail(t);
+                          if (forgotError) setForgotError("");
+                        }}
+                      />
+                    </View>
+
+                    {/* New Password */}
+                    <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
+                      <TextInput
+                        className="text-white text-base"
+                        placeholder="New Password"
+                        placeholderTextColor="#666"
+                        secureTextEntry
+                        value={newPassword}
+                        onChangeText={(t) => {
+                          setNewPassword(t);
+                          if (forgotError) setForgotError("");
+                        }}
+                      />
+                    </View>
+
+                    {/* Inline error — stays inside modal, no popup conflict */}
+                    {forgotError ? (
+                      <View className="flex-row items-center mb-4 px-1">
+                        <Text style={{ color: "#f87171", fontSize: 11 }}>
+                          ⚠ {forgotError}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    <TouchableOpacity
+                      onPress={handleResetPassword}
+                      disabled={loading}
+                      className="w-full h-14 rounded-2xl bg-white justify-center items-center mt-2"
+                      style={{ opacity: loading ? 0.6 : 1 }}
+                    >
+                      <Text className="text-black font-black uppercase tracking-widest text-xs">
+                        {loading ? "Updating..." : "Update Password"}
+                      </Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
           </TouchableWithoutFeedback>
-
-          <View className="w-full rounded-t-[40px] overflow-hidden border-t border-white/20">
-            <BlurView intensity={95} tint="dark" className="p-8 pb-12">
-              <View className="w-12 h-1 bg-white/20 rounded-full self-center mb-6" />
-              <Text className="text-white text-2xl font-bold mb-8">
-                Reset Password
-              </Text>
-
-              <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
-                <TextInput
-                  className="text-white text-base"
-                  placeholder="Full Name"
-                  placeholderTextColor="#666"
-                  value={forgotName}
-                  onChangeText={setForgotName}
-                />
-              </View>
-              <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
-                <TextInput
-                  className="text-white text-base"
-                  placeholder="Email Address"
-                  placeholderTextColor="#666"
-                  keyboardType="email-address"
-                  value={forgotEmail}
-                  onChangeText={setForgotEmail}
-                />
-              </View>
-              <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-8">
-                <TextInput
-                  className="text-white text-base"
-                  placeholder="New Password"
-                  placeholderTextColor="#666"
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                />
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleResetPassword}
-                className="w-full h-14 rounded-2xl overflow-hidden bg-white justify-center items-center"
-              >
-                <Text className="text-black font-black uppercase tracking-widest text-xs">
-                  Update Password
-                </Text>
-              </TouchableOpacity>
-            </BlurView>
-          </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* --- MODAL STATUS --- */}
-      <Modal
-        visible={statusVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStatusVisible(false)}
-      >
-        <View className="flex-1 justify-center items-center bg-black/50 px-6">
-          <View className="w-full rounded-[35px] overflow-hidden border border-white/10">
-            <BlurView intensity={100} tint="dark" className="p-8 items-center">
+      {/* ── STATUS MODAL (success only — errors stay inline in the modal) ── */}
+      <Modal visible={statusVisible} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.6)",
+            paddingHorizontal: 24,
+          }}
+        >
+          <View className="w-full rounded-[35px] overflow-hidden border border-white/10 bg-[#1a1a1a]">
+            <View className="p-8 items-center">
               <View
-                className={`w-16 h-16 rounded-full justify-center items-center mb-4 ${statusType === "success" ? "bg-green-500/20" : "bg-red-500/20"}`}
+                className={`w-16 h-16 rounded-full justify-center items-center mb-4 ${
+                  statusType === "success" ? "bg-green-500/20" : "bg-red-500/20"
+                }`}
               >
                 <Text
                   style={{
@@ -313,21 +409,22 @@ export default function LoginScreen() {
                 </Text>
               </View>
               <Text className="text-white text-xl font-bold mb-2">
-                {statusType === "success" ? "Success!" : "Oops!"}
+                {statusType === "success" ? "Success!" : "Error"}
               </Text>
               <Text className="text-white/60 text-center mb-8 text-sm">
                 {statusMessage}
               </Text>
-
               <TouchableOpacity
                 onPress={() => setStatusVisible(false)}
-                className={`w-full h-12 rounded-xl justify-center items-center ${statusType === "success" ? "bg-green-500" : "bg-red-500"}`}
+                className={`w-full h-12 rounded-xl justify-center items-center ${
+                  statusType === "success" ? "bg-green-500" : "bg-red-500"
+                }`}
               >
                 <Text className="text-white font-bold uppercase text-xs tracking-widest">
                   Continue
                 </Text>
               </TouchableOpacity>
-            </BlurView>
+            </View>
           </View>
         </View>
       </Modal>
