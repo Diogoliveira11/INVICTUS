@@ -1,19 +1,21 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
   ArrowLeft,
   BookOpen,
   Calendar,
+  ChevronDown,
   Target,
   Trash2,
   Trophy,
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -21,8 +23,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Svg, {
+  Circle,
+  Line,
+  Path,
+  Polyline,
+  Text as SvgText,
+} from "react-native-svg";
 import { useUnits } from "../context/units_context";
 
+// ─── GIF MAP ────────────────────────────────────────────────────────────────
 const GIF_MAP: { [key: string]: any } = {
   "assets/exercises_gifs/back_extension.gif": require("../../../assets/exercises_gifs/back_extension.gif"),
   "assets/exercises_gifs/back_extension_machine.gif": require("../../../assets/exercises_gifs/back_extension_machine.gif"),
@@ -147,6 +157,7 @@ const GIF_MAP: { [key: string]: any } = {
   "assets/exercises_gifs/wrist_roller.gif": require("../../../assets/exercises_gifs/wrist_roller.gif"),
 };
 
+// ─── TYPES ───────────────────────────────────────────────────────────────────
 type ExerciseDetails = {
   id: number;
   name: string;
@@ -157,13 +168,281 @@ type ExerciseDetails = {
   is_custom: number;
 };
 
-type WorkoutHistory = {
-  id: number;
+type RawSet = {
   weight: number;
   reps: number;
-  date: string;
+  date: string; // from workouts.date
 };
 
+type ChartPoint = { date: string; value: number };
+
+type MetricKey =
+  | "Heaviest Weight"
+  | "One Rep Max"
+  | "Best Set Volume"
+  | "Session Volume"
+  | "Total Reps";
+
+type TimeFilter = "Last 3 months" | "Year" | "All time";
+
+type PersonalRecords = {
+  heaviestWeight: number;
+  best1RM: number;
+  bestSetVolume: { weight: number; reps: number };
+  bestSessionVolume: number;
+  setRecords: { reps: number; weight: number }[];
+};
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function epley1RM(weight: number, reps: number): number {
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
+function filterByTime(sets: RawSet[], filter: TimeFilter): RawSet[] {
+  const now = new Date();
+  return sets.filter((s) => {
+    const d = new Date(s.date);
+    if (filter === "Last 3 months") {
+      const cutoff = new Date(now);
+      cutoff.setMonth(cutoff.getMonth() - 3);
+      return d >= cutoff;
+    }
+    if (filter === "Year") {
+      const cutoff = new Date(now);
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      return d >= cutoff;
+    }
+    return true;
+  });
+}
+
+function buildChartPoints(sets: RawSet[], metric: MetricKey): ChartPoint[] {
+  // Group by date
+  const grouped: { [date: string]: RawSet[] } = {};
+  for (const s of sets) {
+    const key = s.date.slice(0, 10);
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(s);
+  }
+
+  return Object.entries(grouped)
+    .map(([date, rows]) => {
+      let value = 0;
+      if (metric === "Heaviest Weight") {
+        value = Math.max(...rows.map((r) => r.weight));
+      } else if (metric === "One Rep Max") {
+        value = Math.max(...rows.map((r) => epley1RM(r.weight, r.reps)));
+      } else if (metric === "Best Set Volume") {
+        value = Math.max(...rows.map((r) => r.weight * r.reps));
+      } else if (metric === "Session Volume") {
+        value = rows.reduce((acc, r) => acc + r.weight * r.reps, 0);
+      } else if (metric === "Total Reps") {
+        value = rows.reduce((acc, r) => acc + r.reps, 0);
+      }
+      return { date, value: Math.round(value * 10) / 10 };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function calcPersonalRecords(
+  sets: RawSet[],
+  weightUnit: string,
+): PersonalRecords {
+  if (sets.length === 0) {
+    return {
+      heaviestWeight: 0,
+      best1RM: 0,
+      bestSetVolume: { weight: 0, reps: 0 },
+      bestSessionVolume: 0,
+      setRecords: [],
+    };
+  }
+
+  const heaviestWeight = Math.max(...sets.map((s) => s.weight));
+  const best1RM = Math.max(...sets.map((s) => epley1RM(s.weight, s.reps)));
+
+  let bestSetVolume = { weight: 0, reps: 0 };
+  let bestVol = 0;
+  for (const s of sets) {
+    const v = s.weight * s.reps;
+    if (v > bestVol) {
+      bestVol = v;
+      bestSetVolume = { weight: s.weight, reps: s.reps };
+    }
+  }
+
+  // Session volume grouped by date
+  const grouped: { [date: string]: number } = {};
+  for (const s of sets) {
+    const key = s.date.slice(0, 10);
+    grouped[key] = (grouped[key] || 0) + s.weight * s.reps;
+  }
+  const bestSessionVolume = Math.max(...Object.values(grouped));
+
+  // Set records per rep count
+  const repMap: { [reps: number]: number } = {};
+  for (const s of sets) {
+    if (!repMap[s.reps] || s.weight > repMap[s.reps]) {
+      repMap[s.reps] = s.weight;
+    }
+  }
+  const setRecords = Object.entries(repMap)
+    .map(([reps, weight]) => ({ reps: Number(reps), weight }))
+    .sort((a, b) => a.reps - b.reps);
+
+  return {
+    heaviestWeight,
+    best1RM,
+    bestSetVolume,
+    bestSessionVolume,
+    setRecords,
+  };
+}
+
+// ─── SPARKLINE CHART ────────────────────────────────────────────────────────
+function SparkChart({
+  points,
+  metric,
+  weightUnit,
+}: {
+  points: ChartPoint[];
+  metric: MetricKey;
+  weightUnit: string;
+}) {
+  const W = Dimensions.get("window").width - 48;
+  const H = 160;
+  const PAD_LEFT = 52;
+  const PAD_RIGHT = 12;
+  const PAD_TOP = 16;
+  const PAD_BOTTOM = 36;
+  const chartW = W - PAD_LEFT - PAD_RIGHT;
+  const chartH = H - PAD_TOP - PAD_BOTTOM;
+
+  if (points.length === 0) {
+    return (
+      <View
+        style={{ height: H, alignItems: "center", justifyContent: "center" }}
+      >
+        <Text style={{ color: "#52525b", fontWeight: "bold", fontSize: 12 }}>
+          No data yet
+        </Text>
+      </View>
+    );
+  }
+
+  const values = points.map((p) => p.value);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const rangeV = maxV - minV || 1;
+
+  const toX = (i: number) =>
+    PAD_LEFT + (i / Math.max(points.length - 1, 1)) * chartW;
+  const toY = (v: number) => PAD_TOP + chartH - ((v - minV) / rangeV) * chartH;
+
+  // Polyline points string
+  const polyPoints = points
+    .map((p, i) => `${toX(i)},${toY(p.value)}`)
+    .join(" ");
+
+  // Filled area path
+  const firstX = toX(0);
+  const lastX = toX(points.length - 1);
+  const baseY = PAD_TOP + chartH;
+  const areaPath =
+    `M${firstX},${baseY} ` +
+    points.map((p, i) => `L${toX(i)},${toY(p.value)}`).join(" ") +
+    ` L${lastX},${baseY} Z`;
+
+  // Y axis labels (3 levels)
+  const yLabels = [maxV, (maxV + minV) / 2, minV].map((v) => ({
+    v: Math.round(v * 10) / 10,
+    y: toY(v),
+  }));
+
+  // X axis labels (first, middle, last)
+  const xIndices =
+    points.length === 1
+      ? [0]
+      : points.length === 2
+        ? [0, 1]
+        : [0, Math.floor((points.length - 1) / 2), points.length - 1];
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const unit = metric === "Total Reps" ? " reps" : ` ${weightUnit}`;
+
+  return (
+    <Svg width={W} height={H}>
+      {/* Y grid lines */}
+      {yLabels.map((yl, i) => (
+        <Line
+          key={i}
+          x1={PAD_LEFT}
+          y1={yl.y}
+          x2={W - PAD_RIGHT}
+          y2={yl.y}
+          stroke="#27272a"
+          strokeWidth={1}
+          strokeDasharray="4,4"
+        />
+      ))}
+
+      {/* Y labels */}
+      {yLabels.map((yl, i) => (
+        <SvgText
+          key={i}
+          x={PAD_LEFT - 6}
+          y={yl.y + 4}
+          fontSize={9}
+          fill="#71717a"
+          textAnchor="end"
+          fontWeight="bold"
+        >
+          {yl.v}
+        </SvgText>
+      ))}
+
+      {/* Area fill */}
+      <Path d={areaPath} fill="#E31C25" fillOpacity={0.08} />
+
+      {/* Line */}
+      <Polyline
+        points={polyPoints}
+        fill="none"
+        stroke="#E31C25"
+        strokeWidth={2.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+
+      {/* Dots */}
+      {points.map((p, i) => (
+        <Circle key={i} cx={toX(i)} cy={toY(p.value)} r={3.5} fill="#E31C25" />
+      ))}
+
+      {/* X labels */}
+      {xIndices.map((idx) => (
+        <SvgText
+          key={idx}
+          x={toX(idx)}
+          y={PAD_TOP + chartH + 18}
+          fontSize={9}
+          fill="#71717a"
+          textAnchor="middle"
+          fontWeight="bold"
+        >
+          {formatDate(points[idx].date)}
+        </SvgText>
+      ))}
+    </Svg>
+  );
+}
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 export default function ExerciseDetailScreen() {
   const router = useRouter();
   const { id, from } = useLocalSearchParams<{ id: string; from: string }>();
@@ -172,51 +451,58 @@ export default function ExerciseDetailScreen() {
   const weightUnit = weightUnitRaw.toLowerCase();
 
   const [exercise, setExercise] = useState<ExerciseDetails | null>(null);
-  const [history, setHistory] = useState<WorkoutHistory[]>([]);
+  const [allSets, setAllSets] = useState<RawSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("");
 
+  // Summary tab state
+  const [activeMetric, setActiveMetric] =
+    useState<MetricKey>("Heaviest Weight");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("Last 3 months");
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showPR, setShowPR] = useState(false);
+
+  const metrics: MetricKey[] = [
+    "Heaviest Weight",
+    "One Rep Max",
+    "Best Set Volume",
+    "Session Volume",
+    "Total Reps",
+  ];
+
+  const timeFilters: TimeFilter[] = ["Last 3 months", "Year", "All time"];
+
+  // ── Load data ──
   useEffect(() => {
     async function loadData() {
       try {
-        const email = await AsyncStorage.getItem("userEmail");
-
-        // 1. Carregar o exercício
         const result = await db.getFirstAsync<ExerciseDetails>(
           "SELECT * FROM exercises WHERE id = ?",
           [id as string],
         );
-
         if (result) {
           setExercise(result);
-
-          // --- LÓGICA DE ABA PADRÃO ---
-          // Se for customizado (1), abre no History. Caso contrário, Summary.
-          if (result.is_custom === 1) {
-            setActiveTab("History");
-          } else {
-            setActiveTab("Summary");
-          }
+          setActiveTab(result.is_custom === 1 ? "History" : "Summary");
         }
 
-        // 2. Query de Histórico "Segura"
-        if (email) {
-          try {
-            const historyRows = await db.getAllAsync<WorkoutHistory>(
-              `SELECT weight, reps, '2026-04-21' as date 
-               FROM workout_sets 
-               WHERE exercise_id = ? 
-               LIMIT 10`,
-              [id as string],
-            );
-            console.log("Histórico encontrado:", historyRows);
-            setHistory(historyRows);
-          } catch (historyErr) {
-            console.error("Erro específico no histórico:", historyErr);
-          }
-        }
+        // Fetch sets with real workout date via joins
+        const rows = await db.getAllAsync<RawSet>(
+          `SELECT 
+             ws.weight, 
+             ws.reps, 
+             w.date
+           FROM workout_sets ws
+           JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+           JOIN workouts w ON we.workout_id = w.id
+           WHERE ws.exercise_id = ?
+             AND ws.weight > 0
+             AND ws.reps > 0
+           ORDER BY w.date ASC`,
+          [id as string],
+        );
+        setAllSets(rows);
       } catch (e) {
-        console.error("Erro geral no loadData:", e);
+        console.error("loadData error:", e);
       } finally {
         setLoading(false);
       }
@@ -224,6 +510,34 @@ export default function ExerciseDetailScreen() {
     loadData();
   }, [id, db]);
 
+  // ── Derived data ──
+  const filteredSets = useMemo(
+    () => filterByTime(allSets, timeFilter),
+    [allSets, timeFilter],
+  );
+
+  const chartPoints = useMemo(
+    () => buildChartPoints(filteredSets, activeMetric),
+    [filteredSets, activeMetric],
+  );
+
+  const personalRecords = useMemo(
+    () => calcPersonalRecords(allSets, weightUnit),
+    [allSets, weightUnit],
+  );
+
+  // Latest value for the metric header
+  const latestPoint = chartPoints[chartPoints.length - 1] ?? null;
+  const latestValue = latestPoint?.value ?? null;
+  const latestDate = latestPoint?.date ?? null;
+
+  const formatMetricValue = (v: number | null) => {
+    if (v === null) return "—";
+    if (activeMetric === "Total Reps") return `${v} reps`;
+    return `${v} ${weightUnit}`;
+  };
+
+  // ── Handlers ──
   const handleBack = () => {
     if (from === "workout") {
       router.replace("/(tabs)/workout/log_workout" as any);
@@ -246,7 +560,7 @@ export default function ExerciseDetailScreen() {
               id as string,
             ]);
             router.replace("/workout/explore_exercises");
-          } catch (error) {
+          } catch {
             Alert.alert("Error", "It could not be deleted.");
           }
         },
@@ -254,6 +568,7 @@ export default function ExerciseDetailScreen() {
     ]);
   };
 
+  // ── Loading / not found ──
   if (loading)
     return (
       <View className="flex-1 bg-black justify-center items-center">
@@ -273,8 +588,9 @@ export default function ExerciseDetailScreen() {
       ? ["History", "How to"]
       : ["Summary", "History", "How to"];
 
-  const gifSource = exercise.gif ? GIF_MAP[exercise.gif] || null : null;
+  const gifSource = exercise.gif ? (GIF_MAP[exercise.gif] ?? null) : null;
 
+  // ── Render ──
   return (
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
@@ -317,10 +633,11 @@ export default function ExerciseDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* SUMMARY TAB */}
+        {/* ══════════════ SUMMARY TAB ══════════════ */}
         {activeTab === "Summary" && (
-          <View className="p-5">
-            <View className="w-full h-80 bg-white rounded-[40px] overflow-hidden mb-6 items-center justify-center border-4 border-zinc-900">
+          <View>
+            {/* GIF */}
+            <View className="mx-5 mt-5 h-56 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
               {gifSource ? (
                 <Image
                   source={gifSource}
@@ -329,67 +646,240 @@ export default function ExerciseDetailScreen() {
                 />
               ) : (
                 <View className="items-center justify-center gap-2">
-                  <Target size={48} color="#d4d4d8" />
+                  <Target size={40} color="#d4d4d8" />
                   <Text className="text-zinc-400 font-bold uppercase text-xs">
-                    No preview available
+                    No preview
                   </Text>
                 </View>
               )}
             </View>
-            <View className="bg-zinc-900/50 p-6 rounded-[30px] border border-zinc-800">
-              <Text className="text-zinc-500 uppercase font-black text-[10px] mb-1">
+
+            {/* Muscle tag */}
+            <View className="mx-5 mt-3 bg-zinc-900/60 px-5 py-3 rounded-2xl border border-zinc-800 flex-row items-center justify-between">
+              <Text className="text-zinc-500 uppercase font-black text-[10px]">
                 Target Muscle
               </Text>
-              <Text className="text-white text-2xl font-black italic uppercase">
+              <Text className="text-white font-black italic uppercase text-sm">
                 {exercise.muscle_group}
               </Text>
+            </View>
+
+            {/* ── Chart Card ── */}
+            <View className="mx-5 mt-4 bg-zinc-900/40 rounded-[28px] border border-zinc-800 overflow-hidden pb-4">
+              {/* Header row: value + time filter */}
+              <View className="flex-row items-start justify-between px-5 pt-5 pb-2">
+                <View>
+                  <Text className="text-[#E31C25] text-2xl font-black italic">
+                    {formatMetricValue(latestValue)}
+                    {latestDate && (
+                      <Text className="text-zinc-500 text-sm font-bold">
+                        {" "}
+                        {new Date(latestDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </Text>
+                    )}
+                  </Text>
+                  <Text className="text-zinc-500 text-[10px] font-bold uppercase mt-0.5">
+                    {activeMetric}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowTimeModal(true)}
+                  className="flex-row items-center bg-zinc-800 rounded-xl px-3 py-2 gap-1"
+                >
+                  <Text className="text-white font-bold text-xs">
+                    {timeFilter}
+                  </Text>
+                  <ChevronDown size={12} color="#a1a1aa" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Chart */}
+              <View className="px-0 mt-2">
+                <SparkChart
+                  points={chartPoints}
+                  metric={activeMetric}
+                  weightUnit={weightUnit}
+                />
+              </View>
+
+              {/* Metric selector */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  gap: 8,
+                  paddingTop: 8,
+                }}
+              >
+                {metrics.map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    onPress={() => setActiveMetric(m)}
+                    style={{
+                      backgroundColor:
+                        activeMetric === m ? "#E31C25" : "#27272a",
+                      borderRadius: 20,
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: activeMetric === m ? "#fff" : "#71717a",
+                        fontWeight: "800",
+                        fontSize: 11,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {m}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* ── Personal Records Card ── */}
+            <View className="mx-5 mt-4 mb-8 bg-zinc-900/40 rounded-[28px] border border-zinc-800 overflow-hidden">
+              <TouchableOpacity
+                onPress={() => setShowPR(!showPR)}
+                className="flex-row items-center justify-between px-5 py-4"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Trophy size={18} color="#E31C25" />
+                  <Text className="text-white font-black uppercase italic text-sm ml-2">
+                    Personal Records
+                  </Text>
+                </View>
+                <ChevronDown
+                  size={18}
+                  color="#71717a"
+                  style={{
+                    transform: [{ rotate: showPR ? "180deg" : "0deg" }],
+                  }}
+                />
+              </TouchableOpacity>
+
+              {showPR && (
+                <View className="px-5 pb-5">
+                  {/* PR rows */}
+                  {[
+                    {
+                      label: "Heaviest Weight",
+                      value: `${personalRecords.heaviestWeight}${weightUnit}`,
+                    },
+                    {
+                      label: "Best 1RM",
+                      value: `${Math.round(personalRecords.best1RM * 10) / 10}${weightUnit}`,
+                    },
+                    {
+                      label: "Best Set Volume",
+                      value: `${personalRecords.bestSetVolume.weight}${weightUnit} × ${personalRecords.bestSetVolume.reps}`,
+                    },
+                    {
+                      label: "Best Session Volume",
+                      value: `${Math.round(personalRecords.bestSessionVolume)}${weightUnit}`,
+                    },
+                  ].map((row) => (
+                    <View
+                      key={row.label}
+                      className="flex-row justify-between py-3 border-b border-zinc-800"
+                    >
+                      <Text className="text-zinc-400 font-bold text-sm">
+                        {row.label}
+                      </Text>
+                      <Text className="text-[#E31C25] font-black text-sm">
+                        {row.value}
+                      </Text>
+                    </View>
+                  ))}
+
+                  {/* Set Records */}
+                  {personalRecords.setRecords.length > 0 && (
+                    <View className="mt-4">
+                      <Text className="text-zinc-500 uppercase font-black text-[10px] mb-3">
+                        Set Records
+                      </Text>
+                      <View className="flex-row justify-between mb-2">
+                        <Text className="text-zinc-600 font-black text-xs uppercase">
+                          Reps
+                        </Text>
+                        <Text className="text-zinc-600 font-black text-xs uppercase">
+                          Personal Best
+                        </Text>
+                      </View>
+                      {personalRecords.setRecords.map((sr) => (
+                        <View
+                          key={sr.reps}
+                          className="flex-row justify-between py-2 border-b border-zinc-900"
+                        >
+                          <Text className="text-white font-bold text-sm">
+                            {sr.reps}
+                          </Text>
+                          <Text className="text-[#E31C25] font-black text-sm">
+                            {sr.weight}
+                            {weightUnit}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         )}
 
-        {/* HISTORY TAB */}
+        {/* ══════════════ HISTORY TAB ══════════════ */}
         {activeTab === "History" && (
           <View className="p-6">
             <Text className="text-white font-black uppercase italic text-lg mb-6">
               Recent Activity
             </Text>
 
-            {history.length > 0 ? (
-              history.map((item, index) => (
-                <View
-                  key={index}
-                  className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-800 mb-3 flex-row items-center justify-between"
-                >
-                  <View className="flex-row items-center">
-                    <View className="bg-zinc-800 p-2 rounded-lg mr-4">
-                      <Calendar size={16} color="#E31C25" />
+            {allSets.length > 0 ? (
+              // Group by date and show last 20 sets
+              [...allSets]
+                .reverse()
+                .slice(0, 20)
+                .map((item, index) => (
+                  <View
+                    key={index}
+                    className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-800 mb-3 flex-row items-center justify-between"
+                  >
+                    <View className="flex-row items-center">
+                      <View className="bg-zinc-800 p-2 rounded-lg mr-4">
+                        <Calendar size={16} color="#E31C25" />
+                      </View>
+                      <View>
+                        <Text className="text-zinc-500 text-[10px] font-bold uppercase">
+                          {new Date(item.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </Text>
+                        <Text className="text-white font-black italic uppercase">
+                          Completed Set
+                        </Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text className="text-zinc-500 text-[10px] font-bold uppercase">
-                        {new Date(item.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                    <View className="items-end">
+                      <Text className="text-[#E31C25] font-black text-lg italic">
+                        {item.weight}
+                        <Text className="text-zinc-500 text-xs">
+                          {weightUnit}
+                        </Text>
                       </Text>
-                      <Text className="text-white font-black italic uppercase">
-                        Completed Set
+                      <Text className="text-zinc-400 text-xs font-bold">
+                        {item.reps} Reps
                       </Text>
                     </View>
                   </View>
-                  <View className="items-end">
-                    <Text className="text-[#E31C25] font-black text-lg italic">
-                      {item.weight}
-                      <Text className="text-zinc-500 text-xs">
-                        {weightUnit}
-                      </Text>
-                    </Text>
-                    <Text className="text-zinc-400 text-xs font-bold">
-                      {item.reps} Reps
-                    </Text>
-                  </View>
-                </View>
-              ))
+                ))
             ) : (
               <View className="items-center justify-center pt-10">
                 <Trophy size={48} color="#3f3f46" />
@@ -401,7 +891,7 @@ export default function ExerciseDetailScreen() {
           </View>
         )}
 
-        {/* HOW TO TAB */}
+        {/* ══════════════ HOW TO TAB ══════════════ */}
         {activeTab === "How to" && (
           <View className="p-6">
             <View className="flex-row items-center mb-4">
@@ -420,6 +910,83 @@ export default function ExerciseDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Time Filter Modal ── */}
+      <Modal
+        visible={showTimeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimeModal(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)" }}
+          activeOpacity={1}
+          onPress={() => setShowTimeModal(false)}
+        />
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#18181b",
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingBottom: 40,
+            paddingTop: 8,
+          }}
+        >
+          {/* Handle */}
+          <View
+            style={{
+              width: 36,
+              height: 4,
+              backgroundColor: "#3f3f46",
+              borderRadius: 2,
+              alignSelf: "center",
+              marginBottom: 16,
+            }}
+          />
+          {timeFilters.map((tf) => (
+            <TouchableOpacity
+              key={tf}
+              onPress={() => {
+                setTimeFilter(tf);
+                setShowTimeModal(false);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: 24,
+                paddingVertical: 18,
+                borderBottomWidth: 1,
+                borderBottomColor: "#27272a",
+              }}
+            >
+              <Text
+                style={{
+                  color: timeFilter === tf ? "#E31C25" : "#fff",
+                  fontWeight: "800",
+                  fontSize: 16,
+                }}
+              >
+                {tf}
+              </Text>
+              {timeFilter === tf && (
+                <View
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: "#E31C25",
+                  }}
+                />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
