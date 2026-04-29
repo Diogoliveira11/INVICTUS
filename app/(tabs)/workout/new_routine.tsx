@@ -343,12 +343,9 @@ export default function NewRoutineScreen() {
           value={name}
           onChangeText={setName}
           autoCorrect={false}
-          spellCheck={false}
-          textContentType="none"
-          keyboardType="visible-password"
-          className="text-white text-3xl font-black italic border-b border-zinc-800 pb-3 uppercase"
+          autoCapitalize="sentences"
+          className="text-white text-3xl font-black italic border-b border-zinc-800 pb-3"
         />
-
         <View className="mt-8">
           <Text className="text-zinc-500 font-black uppercase mb-4 tracking-widest text-xs italic">
             Exercises ({selectedExercises.length})

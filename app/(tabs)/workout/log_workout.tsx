@@ -614,12 +614,11 @@ export default function LogWorkoutScreen() {
               placeholder="Workout Name"
               placeholderTextColor="#52525b"
               value={activeRoutineName}
-              onChangeText={(t) => setActiveRoutineName(t.toUpperCase())}
+              onChangeText={(t) => setActiveRoutineName(t)}
               autoCorrect={false}
-              spellCheck={false}
-              autoCapitalize="characters"
+              autoCapitalize="sentences"
               className="text-white text-3xl font-black italic border-b border-zinc-800 pb-2"
-              style={{ paddingRight: 10, textTransform: "uppercase" }}
+              style={{ paddingRight: 10 }}
             />
           </View>
 
