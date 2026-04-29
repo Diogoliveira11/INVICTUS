@@ -1,9 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { AlertCircle, Check, ChevronLeft } from "lucide-react-native";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Camera,
+  Check,
+  Image as ImageIcon,
+} from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
+  Image,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -28,6 +36,11 @@ export default function SaveWorkoutScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showAttentionModal, setShowAttentionModal] = useState(false);
   const [attentionMessage, setAttentionMessage] = useState("");
+
+  const [workoutImage, setWorkoutImage] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
+  const [permissionModalMessage, setPermissionModalMessage] = useState("");
 
   const checkPersonalRecord = async (
     exerciseId: number,
@@ -71,6 +84,41 @@ export default function SaveWorkoutScreen() {
     return { totalVolume, totalSets };
   }, [exercises]);
 
+  const pickImage = async (useCamera: boolean) => {
+    setShowImageModal(false);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    const permission = useCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permission.status !== "granted") {
+      setPermissionModalMessage(
+        useCamera
+          ? "WE NEED CAMERA ACCESS TO ADD A WORKOUT PHOTO!"
+          : "WE NEED GALLERY ACCESS TO CHOOSE A WORKOUT PHOTO!",
+      );
+      setPermissionModalVisible(true);
+      return;
+    }
+
+    const result = await (useCamera
+      ? ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.6,
+        })
+      : ImagePicker.launchImageLibraryAsync({
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.6,
+        }));
+
+    if (!result.canceled && result.assets?.length > 0) {
+      setWorkoutImage(result.assets[0].uri);
+    }
+  };
+
   const handleSave = async () => {
     if (
       !routineName ||
@@ -96,37 +144,34 @@ export default function SaveWorkoutScreen() {
       );
       if (!user) return;
 
-      const lastWorkout = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM workouts ORDER BY id DESC LIMIT 1",
-      );
-      const newWorkoutId = lastWorkout ? lastWorkout.id + 1 : 1;
-
+      // ✅ Deixa o SQLite gerar o ID automaticamente
       await db.runAsync(
-        "INSERT INTO workouts (id, user_id, date, title, duration, notes, total_volume) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO workouts (user_id, date, title, duration, notes, total_volume, photo) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
-          newWorkoutId,
           user.id,
           new Date().toISOString(),
           String(routineName).trim(),
           timer,
           description,
           stats.totalVolume,
+          workoutImage,
         ],
       );
 
-      const lastSet = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM workout_sets ORDER BY id DESC LIMIT 1",
+      // ✅ Buscar o ID real gerado pelo SQLite
+      const insertedWorkout = await db.getFirstAsync<{ id: number }>(
+        "SELECT MAX(id) as id FROM workouts WHERE user_id = ?",
+        [user.id],
       );
-      let currentSetId = lastSet ? lastSet.id + 1 : 1;
-
-      let workoutExerciseId = 1;
-      const lastWEx = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM workout_exercises ORDER BY id DESC LIMIT 1",
-      );
-      workoutExerciseId = lastWEx ? lastWEx.id + 1 : 1;
+      const newWorkoutId = insertedWorkout!.id;
 
       for (const ex of exercises) {
-        // Inserir na workout_exercises
+        // ✅ Calcular o próximo ID manualmente (a coluna não tem AUTOINCREMENT)
+        const lastWEx = await db.getFirstAsync<{ id: number }>(
+          "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
+        );
+        const workoutExerciseId = lastWEx!.id + 1;
+
         await db.runAsync(
           "INSERT INTO workout_exercises (id, workout_id, exercise_id, index_order) VALUES (?, ?, ?, ?)",
           [workoutExerciseId, newWorkoutId, ex.id, exercises.indexOf(ex)],
@@ -148,10 +193,16 @@ export default function SaveWorkoutScreen() {
             const weightValue = isCardio ? 0 : Number(set.weight) || 0;
             const repsValue = isCardio ? 0 : Number(set.reps) || 0;
 
+            // ✅ Mesmo padrão para workout_sets
+            const lastSet = await db.getFirstAsync<{ id: number }>(
+              "SELECT COALESCE(MAX(id), 0) as id FROM workout_sets",
+            );
+            const newSetId = lastSet!.id + 1;
+
             await db.runAsync(
               "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record, distance, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
               [
-                currentSetId,
+                newSetId,
                 workoutExerciseId,
                 ex.id,
                 weightValue,
@@ -163,11 +214,9 @@ export default function SaveWorkoutScreen() {
                 timeValue,
               ],
             );
-            currentSetId++;
             setIndex++;
           }
         }
-        workoutExerciseId++;
       }
 
       stopWorkout();
@@ -176,23 +225,27 @@ export default function SaveWorkoutScreen() {
       console.error("[save_workout] erro:", e);
     }
   };
-
   return (
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
 
-      <View className="flex-row items-center justify-between px-4 py-2 border-b border-zinc-900">
-        <TouchableOpacity onPress={() => router.push("/workout/log_workout")}>
-          <ChevronLeft size={28} color="white" />
+      <View className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900">
+        <TouchableOpacity
+          onPress={() => router.push("/workout/log_workout")}
+          className="p-2"
+        >
+          <ArrowLeft color="white" size={24} />
         </TouchableOpacity>
-        <Text className="text-white font-black text-lg italic uppercase">
+        <Text
+          numberOfLines={1}
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+        >
           Finish
         </Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          className="bg-[#E31C25] px-6 py-1.5 rounded-full"
-        >
-          <Text className="text-white font-bold">Save</Text>
+        <TouchableOpacity onPress={handleSave} className="p-2">
+          <Text className="text-[#E31C25] font-black uppercase italic">
+            Save
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -201,7 +254,7 @@ export default function SaveWorkoutScreen() {
           Summary
         </Text>
 
-        <View className="flex-row justify-between mb-10 bg-zinc-900/30 p-5 rounded-[30px] border border-zinc-900">
+        <View className="flex-row justify-between mb-6 bg-zinc-900/30 p-5 rounded-[30px] border border-zinc-900">
           <View>
             <Text className="text-zinc-500 text-[10px] font-black uppercase">
               Duration
@@ -229,13 +282,34 @@ export default function SaveWorkoutScreen() {
           </View>
         </View>
 
+        {/* FOTO DO TREINO */}
+        <TouchableOpacity
+          onPress={() => setShowImageModal(true)}
+          className="mb-6 w-full h-48 rounded-3xl bg-zinc-900/30 border border-dashed border-zinc-700 overflow-hidden items-center justify-center"
+        >
+          {workoutImage ? (
+            <Image
+              source={{ uri: workoutImage }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="items-center gap-2">
+              <Camera color="#52525b" size={32} />
+              <Text className="text-zinc-500 font-black uppercase italic text-xs">
+                Add Workout Photo
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
         <TextInput
           placeholder="Notes..."
           placeholderTextColor="#3f3f46"
           multiline
           value={description}
           onChangeText={setDescription}
-          className="text-white text-base bg-zinc-900/20 p-4 rounded-2xl border border-zinc-900 min-h-[100px]"
+          className="text-white text-base bg-zinc-900/20 p-4 rounded-2xl border border-zinc-900 min-h-[100px] mb-10"
           textAlignVertical="top"
         />
       </ScrollView>
@@ -285,6 +359,69 @@ export default function SaveWorkoutScreen() {
             >
               <Text className="text-white font-black uppercase italic text-lg">
                 Great!
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {/* MODAL CHOOSE SOURCE */}
+      <Modal visible={showImageModal} transparent animationType="slide">
+        <TouchableOpacity
+          activeOpacity={1}
+          className="flex-1 bg-black/60 justify-end"
+          onPress={() => setShowImageModal(false)}
+        >
+          <View className="bg-[#121212] p-10 rounded-t-[40px] border-t border-zinc-800">
+            <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
+              Choose Source
+            </Text>
+            <View className="flex-row justify-around mb-6">
+              <TouchableOpacity
+                onPress={() => pickImage(true)}
+                className="items-center"
+              >
+                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800">
+                  <Camera color="#E31C25" size={32} />
+                </View>
+                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                  Camera
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => pickImage(false)}
+                className="items-center"
+              >
+                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800">
+                  <ImageIcon color="#E31C25" size={32} />
+                </View>
+                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                  Gallery
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* MODAL PERMISSÃO NEGADA */}
+      <Modal visible={permissionModalVisible} transparent animationType="fade">
+        <View className="flex-1 bg-black/80 justify-center items-center px-10">
+          <View className="bg-[#1a1a1a] w-full p-8 rounded-[32px] border border-zinc-800 items-center">
+            <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
+              <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3 tracking-wider">
+              Attention
+            </Text>
+            <Text className="text-zinc-400 text-center text-sm font-black uppercase italic mb-8 leading-5">
+              {permissionModalMessage}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setPermissionModalVisible(false)}
+              className="w-full py-4 rounded-2xl items-center bg-[#E31C25]"
+            >
+              <Text className="text-white font-black uppercase italic text-lg">
+                OK
               </Text>
             </TouchableOpacity>
           </View>
