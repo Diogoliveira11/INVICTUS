@@ -210,12 +210,12 @@ export default function WorkoutTabScreen() {
                 </View>
 
                 <TouchableOpacity
-                  onPress={() =>
+                  onPress={() => {
                     router.push({
                       pathname: "/workout/log_workout",
-                      params: { routineId: item.id },
-                    })
-                  }
+                      params: { routineId: item.id, reset: "true" },
+                    });
+                  }}
                   className="bg-[#E31C25] w-full py-4 rounded-[20px] mt-6 items-center shadow-lg"
                 >
                   <Text className="text-white font-black text-lg uppercase italic">

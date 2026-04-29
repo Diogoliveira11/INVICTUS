@@ -369,7 +369,6 @@ export default function LogWorkoutScreen() {
       router.setParams({ reset: undefined });
       startWorkout("");
       setActiveRoutineName("");
-      return;
     }
 
     if (!routineId) {
