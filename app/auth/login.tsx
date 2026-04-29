@@ -170,9 +170,11 @@ export default function LoginScreen() {
         }}
       />
 
+      {/* Container principal para o formulário e rodapé */}
       <View
         style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24 }}
       >
+        {/* O Título */}
         <Text
           className="text-white text-5xl font-bold mb-10 text-center"
           style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
@@ -238,15 +240,24 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            className="bg-white h-14 w-full rounded-full justify-center items-center"
+            className="bg-white h-14 w-full rounded-full justify-center items-center mt-4"
             onPress={handleLogin}
-            disabled={loading}
           >
             <Text className="text-black font-bold text-lg uppercase">
-              {loading ? "Logging in..." : "Log In"}
+              Log In
             </Text>
           </TouchableOpacity>
         </BlurView>
+
+        {/* ── NOVO RODAPÉ DE CADASTRO (IGUAL À REFERÊNCIA) ── */}
+        <View className="flex-row justify-center items-center mt-8">
+          <Text className="text-white text-sm">Don´t have an account? </Text>
+          <TouchableOpacity onPress={() => router.push("./signup")}>
+            <Text className="text-white font-bold text-sm underline">
+              Sign Up
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── FORGOT PASSWORD MODAL ── */}
