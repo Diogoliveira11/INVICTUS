@@ -1,3 +1,4 @@
+import { useIsFocused } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -449,6 +450,7 @@ export default function ExerciseDetailScreen() {
   const db = useSQLiteContext();
   const { weightUnit: weightUnitRaw } = useUnits();
   const weightUnit = weightUnitRaw.toLowerCase();
+  const isFocused = useIsFocused();
 
   const [exercise, setExercise] = useState<ExerciseDetails | null>(null);
   const [allSets, setAllSets] = useState<RawSet[]>([]);
@@ -485,6 +487,21 @@ export default function ExerciseDetailScreen() {
           setActiveTab(result.is_custom === 1 ? "History" : "Summary");
         }
 
+        const debug = await db.getAllAsync(
+          `SELECT ws.id, ws.weight, ws.reps, ws.workout_exercise_id, we.workout_id, w.date
+            FROM workout_sets ws
+            JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+            JOIN workouts w ON we.workout_id = w.id
+            LIMIT 10`,
+        );
+        console.log("DEBUG SETS:", JSON.stringify(debug));
+
+        const sets = await db.getAllAsync(`SELECT * FROM workout_sets`);
+        console.log("SETS:", JSON.stringify(sets));
+
+        const wex = await db.getAllAsync(`SELECT * FROM workout_exercises`);
+        console.log("WEX:", JSON.stringify(wex));
+
         // Fetch sets with real workout date via joins
         const rows = await db.getAllAsync<RawSet>(
           `SELECT 
@@ -508,7 +525,7 @@ export default function ExerciseDetailScreen() {
       }
     }
     loadData();
-  }, [id, db]);
+  }, [id, db, isFocused]);
 
   // ── Derived data ──
   const filteredSets = useMemo(
@@ -637,7 +654,10 @@ export default function ExerciseDetailScreen() {
         {activeTab === "Summary" && (
           <View>
             {/* GIF */}
-            <View className="mx-5 mt-5 h-56 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
+            <View
+              className="mx-5 mt-5 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900"
+              style={{ height: 240 }}
+            >
               {gifSource ? (
                 <Image
                   source={gifSource}

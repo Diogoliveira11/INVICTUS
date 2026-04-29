@@ -127,6 +127,12 @@ export default function CreateExerciseScreen() {
         [nextId, name.trim(), muscleGroup, equipment, imageUri, 1],
       );
 
+      // Reset form so next time the screen opens it's blank
+      setName("");
+      setMuscleGroup("Select");
+      setEquipment("Select");
+      setImageUri(null);
+
       router.replace("/workout/explore_exercises");
     } catch (error) {
       console.error("Save error:", error);
@@ -147,29 +153,22 @@ export default function CreateExerciseScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* HEADER */}
-      <View className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900">
+      <View className="flex-row items-center justify-between px-6 py-4 border-b border-zinc-900">
         <TouchableOpacity
           onPress={() => router.replace("/(tabs)/workout/explore_exercises")}
-          className="p-2"
         >
           <ArrowLeft color="white" size={24} />
         </TouchableOpacity>
-        <Text
-          numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
-        >
+        <Text className="text-white text-lg font-black uppercase italic">
           New Exercise
         </Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={isSubmitting}
-          className="p-2"
-        >
+        <TouchableOpacity onPress={handleSave} disabled={isSubmitting}>
           <Text className="text-[#E31C25] font-black uppercase italic">
             Save
           </Text>
         </TouchableOpacity>
       </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"

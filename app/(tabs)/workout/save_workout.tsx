@@ -119,31 +119,28 @@ export default function SaveWorkoutScreen() {
       );
       let currentSetId = lastSet ? lastSet.id + 1 : 1;
 
+      let workoutExerciseId = 1;
+      const lastWEx = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM workout_exercises ORDER BY id DESC LIMIT 1",
+      );
+      workoutExerciseId = lastWEx ? lastWEx.id + 1 : 1;
+
       for (const ex of exercises) {
+        // Inserir na workout_exercises
+        await db.runAsync(
+          "INSERT INTO workout_exercises (id, workout_id, exercise_id, index_order) VALUES (?, ?, ?, ?)",
+          [workoutExerciseId, newWorkoutId, ex.id, exercises.indexOf(ex)],
+        );
+
         let setIndex = 1;
         for (const set of ex.sets) {
           if (set.completed) {
             const isCardio = ex.muscle_group?.toLowerCase() === "cardio";
-
-            // --- DEBUG: ver o que está a ser inserido ---
-            console.log(
-              `[save_workout] exercise: ${ex.name}, isCardio: ${isCardio}`,
-            );
-            console.log(
-              `[save_workout] set.weight: "${set.weight}", set.reps: "${set.reps}"`,
-            );
-
             const isPR = await checkPersonalRecord(
               ex.id,
               Number(set.weight),
               Number(set.reps),
             );
-
-            // Para cardio:
-            // - weight = 0 (não aplicável)
-            // - reps = 0 (não aplicável)
-            // - distance = km (set.weight)
-            // - time = tempo (set.reps, formato HH:MM:SS)
             const distanceValue = isCardio
               ? parseFloat(String(set.weight).replace(",", ".")) || 0
               : null;
@@ -151,15 +148,11 @@ export default function SaveWorkoutScreen() {
             const weightValue = isCardio ? 0 : Number(set.weight) || 0;
             const repsValue = isCardio ? 0 : Number(set.reps) || 0;
 
-            console.log(
-              `[save_workout] -> distance: ${distanceValue}, time: ${timeValue}, weight: ${weightValue}, reps: ${repsValue}`,
-            );
-
             await db.runAsync(
               "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record, distance, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
               [
                 currentSetId,
-                newWorkoutId,
+                workoutExerciseId,
                 ex.id,
                 weightValue,
                 repsValue,
@@ -174,6 +167,7 @@ export default function SaveWorkoutScreen() {
             setIndex++;
           }
         }
+        workoutExerciseId++;
       }
 
       stopWorkout();
