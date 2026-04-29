@@ -5,14 +5,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
   AlertCircle,
+  ArrowLeft,
   Check,
   ChevronDown,
-  ChevronLeft,
   GripVertical,
   Plus,
   Search,
   Trash2,
-  X,
+  X
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -322,15 +322,21 @@ export default function NewRoutineScreen() {
     <View style={{ flex: 1, backgroundColor: "#000", paddingTop: insets.top }}>
       <StatusBar barStyle="light-content" />
 
-      <View className="flex-row items-center justify-between px-5 py-4 border-b border-zinc-900">
-        <TouchableOpacity onPress={() => router.replace("/workout")}>
-          <ChevronLeft size={28} color="#E31C25" />
+      <View className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900">
+        <TouchableOpacity
+          onPress={() => router.replace("/workout")}
+          className="p-2"
+        >
+          <ArrowLeft color="white" size={24} />
         </TouchableOpacity>
-        <Text className="text-white text-lg font-black uppercase italic">
+        <Text
+          numberOfLines={1}
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+        >
           {mode === "edit" ? "Edit Routine" : "New Routine"}
         </Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text className="text-[#E31C25] text-lg font-black uppercase italic">
+        <TouchableOpacity onPress={handleSave} className="p-2">
+          <Text className="text-[#E31C25] font-black uppercase italic">
             Save
           </Text>
         </TouchableOpacity>

@@ -64,15 +64,19 @@ export default function SettingsScreen() {
 
       {/* HEADER */}
       <View
-        style={{ paddingTop: insets.top + 10 }}
-        className="flex-row items-center px-5 pb-4 border-b border-zinc-900"
+        style={{ paddingTop: insets.top }}
+        className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900"
       >
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
-          <ArrowLeft size={24} color="#FFF" />
+        <TouchableOpacity onPress={() => router.back()} className="p-2">
+          <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
-        <Text className="text-white font-bold text-xl flex-1 text-center mr-8">
+        <Text
+          numberOfLines={1}
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+        >
           Settings
         </Text>
+        <View className="w-10" />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
