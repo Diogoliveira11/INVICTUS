@@ -44,7 +44,6 @@ const FILTER_ICONS: { [key: string]: any } = {
   DUMBBELL: require("../../../assets/equipment/equipment_dumbbell.avif"),
   MACHINE: require("../../../assets/equipment/equipment_machine.jpg"),
   OTHER: require("../../../assets/equipment/equipment_other.png"),
-
   ABDUCTORS: require("../../../assets/all_muscles/abductors.png"),
   ABS: require("../../../assets/all_muscles/abs.png"),
   ADDUCTORS: require("../../../assets/all_muscles/adductors.png"),
@@ -77,21 +76,16 @@ const isNewRecord = (
   return false;
 };
 
-// Componente de input de tempo HH:MM:SS com 3 campos separados
 const TimeInput = React.memo(
   ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
     const parts = (value || "00:00:00").split(":");
-
-    // Estados locais
     const [h, setH] = useState(parts[0]);
     const [m, setM] = useState(parts[1]);
     const [s, setS] = useState(parts[2]);
     const [isFocused, setIsFocused] = useState<number | null>(null);
-
     const mmRef = React.useRef<any>(null);
     const ssRef = React.useRef<any>(null);
 
-    // Sincroniza com o global APENAS se o utilizador não estiver a escrever naquele campo
     useEffect(() => {
       const p = value.split(":");
       if (isFocused !== 0) setH(p[0]);
@@ -106,7 +100,6 @@ const TimeInput = React.memo(
 
     const handleText = (index: number, val: string) => {
       const clean = val.replace(/\D/g, "").slice(0, 2);
-
       if (index === 0) {
         setH(clean);
         save(clean, m, s);
@@ -178,7 +171,6 @@ const TimeInput = React.memo(
 );
 TimeInput.displayName = "TimeInput";
 
-// --- CORREÇÃO: componente memoizado para cada item do modal de seleção ---
 const ExerciseListItem = React.memo(
   ({
     item,
@@ -239,7 +231,6 @@ const ExerciseListItem = React.memo(
     );
   },
 );
-
 ExerciseListItem.displayName = "ExerciseListItem";
 
 export default function LogWorkoutScreen() {
@@ -270,28 +261,23 @@ export default function LogWorkoutScreen() {
   const [equipmentOptions, setEquipmentOptions] = useState<string[]>([]);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
-
   const [activeRoutineName, setActiveRoutineName] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [dbExercises, setDbExercises] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [tempSelected, setTempSelected] = useState<any[]>([]);
-
   const [typeModal, setTypeModal] = useState<{
     visible: boolean;
     exId: string;
     setId: string;
   } | null>(null);
-
   const { weightUnit: weightUnitRaw } = useUnits();
-  const weightUnit = weightUnitRaw.toLowerCase(); // "kg" ou "lb"
-
+  const weightUnit = weightUnitRaw.toLowerCase();
   const [restModal, setRestModal] = useState<{
     visible: boolean;
     exLogId: string;
     value: string;
   }>({ visible: false, exLogId: "", value: "60" });
-
   const [removeExerciseModal, setRemoveExerciseModal] = useState<{
     visible: boolean;
     logId: string;
@@ -307,7 +293,6 @@ export default function LogWorkoutScreen() {
     }, [setIsMinimized]),
   );
 
-  // --- CORREÇÃO: fetch de opções separado, sem loop ---
   const fetchFilterOptions = useCallback(async () => {
     try {
       const muscles = await db.getAllAsync<{ muscle_group: string }>(
@@ -323,7 +308,6 @@ export default function LogWorkoutScreen() {
     }
   }, [db]);
 
-  // --- CORREÇÃO: muscleOptions.length removido das deps, sem loop ---
   const fetchLibraryExercises = useCallback(async () => {
     try {
       let query =
@@ -477,7 +461,6 @@ export default function LogWorkoutScreen() {
     if (!exercise) return;
     const currentSet = exercise.sets.find((s) => s.id === setId);
     if (!currentSet) return;
-
     if (!currentSet.completed) {
       if (
         currentSet.weight === "" &&
@@ -631,19 +614,13 @@ export default function LogWorkoutScreen() {
             <TextInput
               placeholder="Workout Name"
               placeholderTextColor="#52525b"
-              // Forçamos o valor a ser sempre maiúsculo no estado
               value={activeRoutineName}
               onChangeText={(t) => setActiveRoutineName(t.toUpperCase())}
               autoCorrect={false}
               spellCheck={false}
-              // Removemos o keyboardType de password e usamos o autoCapitalize de caracteres
               autoCapitalize="characters"
               className="text-white text-3xl font-black italic border-b border-zinc-800 pb-2"
-              style={{
-                // Em Android, às vezes o line-height ou o padding corta a letra itálica
-                paddingRight: 10,
-                textTransform: "uppercase",
-              }}
+              style={{ paddingRight: 10, textTransform: "uppercase" }}
             />
           </View>
 
@@ -890,7 +867,7 @@ export default function LogWorkoutScreen() {
                                     e.sets[e.sets.length - 1]?.reps || "0",
                                   completed: false,
                                   previous: e.sets[e.sets.length - 1]
-                                    ? "${e.sets[e.sets.length - 1].weight}${weightUnit} x ${e.sets[e.sets.length - 1].reps}"
+                                    ? `${e.sets[e.sets.length - 1].weight}${weightUnit} x ${e.sets[e.sets.length - 1].reps}`
                                     : "-",
                                 },
                               ],
@@ -985,8 +962,7 @@ export default function LogWorkoutScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setModalType("equipment");
-                    setIsModalVisible(false);
-                    setTimeout(() => setIsFilterModalVisible(true), 400);
+                    setIsFilterModalVisible(true);
                   }}
                   className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedEquipment ? "bg-[#E31C25]" : "bg-zinc-900"}`}
                 >
@@ -1001,8 +977,7 @@ export default function LogWorkoutScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setModalType("muscle");
-                    setIsModalVisible(false);
-                    setTimeout(() => setIsFilterModalVisible(true), 400);
+                    setIsFilterModalVisible(true);
                   }}
                   className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedMuscle ? "bg-[#E31C25]" : "bg-zinc-900"}`}
                 >
@@ -1016,7 +991,6 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* --- CORREÇÃO: FlatList otimizado com React.memo no renderItem --- */}
               <FlatList
                 data={dbExercises.filter(
                   (ex) =>
@@ -1055,96 +1029,96 @@ export default function LogWorkoutScreen() {
                 )}
               />
             </View>
-          </SafeAreaView>
-        </Modal>
 
-        {/* MODAL DE FILTROS COM IMAGENS */}
-        <Modal visible={isFilterModalVisible} transparent animationType="slide">
-          <TouchableWithoutFeedback
-            onPress={() => {
-              setIsFilterModalVisible(false);
-              setTimeout(() => setIsModalVisible(true), 400);
-            }}
-          >
-            <View className="flex-1 bg-black/80 justify-end">
-              <TouchableWithoutFeedback>
-                <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
-                  <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
-                  <Text className="text-white text-xl font-black uppercase italic mb-6">
-                    {modalType === "muscle" ? "Muscles" : "Equipment"}
-                  </Text>
-                  <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 40 }}
-                  >
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (modalType === "muscle") setSelectedMuscle(null);
-                        else setSelectedEquipment(null);
-                        setIsFilterModalVisible(false);
-                        setTimeout(() => setIsModalVisible(true), 400);
-                      }}
-                      className="flex-row items-center py-4 border-b border-zinc-900"
-                    >
-                      <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
-                        <Image
-                          source={FILTER_ICONS["ALL"]}
-                          style={{ width: "100%", height: "100%" }}
-                          contentFit="cover"
-                          cachePolicy="memory-disk"
-                        />
-                      </View>
-                      <Text className="text-white text-lg flex-1 font-bold italic uppercase">
-                        All
+            {/* MODAL DE FILTROS ANINHADO DENTRO DO MODAL DE EXERCÍCIOS */}
+            <Modal
+              visible={isFilterModalVisible}
+              transparent
+              animationType="slide"
+            >
+              <TouchableWithoutFeedback
+                onPress={() => setIsFilterModalVisible(false)}
+              >
+                <View className="flex-1 bg-black/80 justify-end">
+                  <TouchableWithoutFeedback>
+                    <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
+                      <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
+                      <Text className="text-white text-xl font-black uppercase italic mb-6">
+                        {modalType === "muscle" ? "Muscles" : "Equipment"}
                       </Text>
-                      {(modalType === "muscle"
-                        ? !selectedMuscle
-                        : !selectedEquipment) && (
-                        <Check color="#E31C25" size={24} />
-                      )}
-                    </TouchableOpacity>
-
-                    {(modalType === "muscle"
-                      ? muscleOptions
-                      : equipmentOptions
-                    ).map((opt) => (
-                      <TouchableOpacity
-                        key={opt}
-                        onPress={() => {
-                          if (modalType === "muscle") setSelectedMuscle(opt);
-                          else setSelectedEquipment(opt);
-                          setIsFilterModalVisible(false);
-                          setTimeout(() => setIsModalVisible(true), 400);
-                        }}
-                        className="flex-row items-center py-4 border-b border-zinc-900"
+                      <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 40 }}
                       >
-                        <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
-                          {FILTER_ICONS[opt.toUpperCase()] ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (modalType === "muscle") setSelectedMuscle(null);
+                            else setSelectedEquipment(null);
+                            setIsFilterModalVisible(false);
+                          }}
+                          className="flex-row items-center py-4 border-b border-zinc-900"
+                        >
+                          <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
                             <Image
-                              source={FILTER_ICONS[opt.toUpperCase()]}
+                              source={FILTER_ICONS["ALL"]}
                               style={{ width: "100%", height: "100%" }}
                               contentFit="cover"
                               cachePolicy="memory-disk"
                             />
-                          ) : (
-                            <View className="w-full h-full bg-zinc-800" />
+                          </View>
+                          <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                            All
+                          </Text>
+                          {(modalType === "muscle"
+                            ? !selectedMuscle
+                            : !selectedEquipment) && (
+                            <Check color="#E31C25" size={24} />
                           )}
-                        </View>
-                        <Text className="text-white text-lg flex-1 font-bold italic uppercase">
-                          {opt}
-                        </Text>
+                        </TouchableOpacity>
+
                         {(modalType === "muscle"
-                          ? selectedMuscle
-                          : selectedEquipment) === opt && (
-                          <Check color="#E31C25" size={24} />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                          ? muscleOptions
+                          : equipmentOptions
+                        ).map((opt) => (
+                          <TouchableOpacity
+                            key={opt}
+                            onPress={() => {
+                              if (modalType === "muscle")
+                                setSelectedMuscle(opt);
+                              else setSelectedEquipment(opt);
+                              setIsFilterModalVisible(false);
+                            }}
+                            className="flex-row items-center py-4 border-b border-zinc-900"
+                          >
+                            <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
+                              {FILTER_ICONS[opt.toUpperCase()] ? (
+                                <Image
+                                  source={FILTER_ICONS[opt.toUpperCase()]}
+                                  style={{ width: "100%", height: "100%" }}
+                                  contentFit="cover"
+                                  cachePolicy="memory-disk"
+                                />
+                              ) : (
+                                <View className="w-full h-full bg-zinc-800" />
+                              )}
+                            </View>
+                            <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                              {opt}
+                            </Text>
+                            {(modalType === "muscle"
+                              ? selectedMuscle
+                              : selectedEquipment) === opt && (
+                              <Check color="#E31C25" size={24} />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </TouchableWithoutFeedback>
                 </View>
               </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
+            </Modal>
+          </SafeAreaView>
         </Modal>
 
         {/* MODAL TIPO DE SET */}
