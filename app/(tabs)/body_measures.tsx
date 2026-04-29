@@ -345,6 +345,12 @@ export default function BodyMeasuresScreen() {
         [email, parsed],
       );
 
+      // Sync latest weight back to users table so Edit Profile stays in sync
+      await db.runAsync(`UPDATE users SET weight = ? WHERE email = ?`, [
+        String(parsed),
+        email,
+      ]);
+
       setNewValue("");
       setShowAddModal(false);
       await loadData();

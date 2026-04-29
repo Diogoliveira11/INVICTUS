@@ -37,7 +37,7 @@ export default function EditProfile() {
 
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
-  const [weight, setWeight] = useState("");
+  const [weight, setWeight] = useState(""); // read-only, updated via Body Measures
   const [height, setHeight] = useState("");
   const [gender, setGender] = useState("");
   const [birthday, setBirthday] = useState("");
@@ -160,20 +160,20 @@ export default function EditProfile() {
       <StatusBar style="light" />
 
       <View
-        style={{ paddingTop: insets.top }}
-        className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900"
+        style={{ paddingTop: insets.top + 10 }}
+        className="flex-row justify-between items-center px-6 pb-5 border-b border-zinc-900"
       >
-        <TouchableOpacity onPress={() => router.back()} className="p-2">
-          <ArrowLeft size={24} color="white" />
+        <TouchableOpacity onPress={() => router.back()}>
+          <ArrowLeft size={28} color="#FFF" />
         </TouchableOpacity>
-        <Text
-          numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
-        >
+        <Text className="text-white font-black uppercase italic text-xl tracking-tighter">
           Edit Profile
         </Text>
-        <TouchableOpacity onPress={handleSave} className="p-2">
-          <Text className="text-[#E31C25] font-black uppercase italic">
+        <TouchableOpacity onPress={handleSave}>
+          <Text
+            style={{ color: redColor }}
+            className="font-black uppercase italic text-xl tracking-tighter"
+          >
             Done
           </Text>
         </TouchableOpacity>
@@ -231,13 +231,9 @@ export default function EditProfile() {
             <Text className="text-zinc-400 font-bold uppercase italic text-xs">
               Weight ({weightUnit})
             </Text>
-            <TextInput
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numeric"
-              className="text-white font-bold text-lg italic text-right flex-1 ml-4"
-              selectionColor={redColor}
-            />
+            <Text className="text-white font-bold text-lg italic text-right">
+              {weight || "—"}
+            </Text>
           </View>
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
             <Text className="text-zinc-400 font-bold uppercase italic text-xs">
