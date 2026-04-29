@@ -292,7 +292,10 @@ export default function ProfileScreen() {
             label="Statistics"
             onPress={() => router.push("/volumestats")}
           />
-          <ActionButton label="Body Measures" onPress={() => {}} />
+          <ActionButton
+            label="Body Measures"
+            onPress={() => router.push("/body_measures")}
+          />
           <ActionButton
             label="Workout History"
             onPress={() => router.push("/workouthistory")}

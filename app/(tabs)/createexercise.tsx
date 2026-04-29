@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -68,29 +69,34 @@ export default function CreateExerciseScreen() {
   const redColor = "#E31C25";
 
   const pickImage = async (useCamera: boolean) => {
-    // 1. Fechar modal de escolha de fonte
     setShowImageModal(false);
-
-    // 2. Aguardar animação de fecho
     await new Promise((resolve) => setTimeout(resolve, 400));
 
-    // 3. Pedir permissão
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permission.status !== "granted") {
-      // 4. Permissão negada — mostrar modal personalizado
-      setPermissionModalMessage(
-        useCamera
-          ? "WE NEED CAMERA ACCESS TO ADD AN EXERCISE PHOTO!"
-          : "WE NEED GALLERY ACCESS TO CHOOSE AN EXERCISE PHOTO!",
-      );
-      setPermissionModalVisible(true);
+      if (permission.canAskAgain === false) {
+        // iOS: permissão negada permanentemente, redirecionar para definições
+        setPermissionModalMessage(
+          useCamera
+            ? "CAMERA ACCESS WAS DENIED. PLEASE ENABLE IT IN YOUR DEVICE SETTINGS."
+            : "GALLERY ACCESS WAS DENIED. PLEASE ENABLE IT IN YOUR DEVICE SETTINGS.",
+        );
+        setPermissionModalVisible(true);
+        // Abre as definições após fechar o modal
+        setTimeout(() => Linking.openSettings(), 1500);
+      } else {
+        setPermissionModalMessage(
+          useCamera
+            ? "WE NEED CAMERA ACCESS TO ADD AN EXERCISE PHOTO!"
+            : "WE NEED GALLERY ACCESS TO CHOOSE AN EXERCISE PHOTO!",
+        );
+        setPermissionModalVisible(true);
+      }
       return;
     }
-
-    // 5. Permissão concedida — abrir picker
     const result = await (useCamera
       ? ImagePicker.launchCameraAsync({
           allowsEditing: true,

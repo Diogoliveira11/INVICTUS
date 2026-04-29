@@ -140,7 +140,6 @@ export default function TabsLayout() {
             ),
           }}
         />
-
         <Tabs.Screen name="createexercise" options={{ href: null }} />
         <Tabs.Screen
           name="workout/explore_exercises"
@@ -150,7 +149,8 @@ export default function TabsLayout() {
         <Tabs.Screen name="workout/new_routine" options={{ href: null }} />
         <Tabs.Screen name="workout/log_workout" options={{ href: null }} />
         <Tabs.Screen name="workout/save_workout" options={{ href: null }} />
-        <Tabs.Screen name="workout/workout_summary" options={{ href: null }} />
+        <Tabs.Screen name="workout/workout_summary" options={{ href: null }} />~
+        <Tabs.Screen name="body_measures" options={{ href: null }} />
       </Tabs>
 
       {/* MINI TRACKER */}

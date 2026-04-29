@@ -1,0 +1,589 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
+import { StatusBar } from "expo-status-bar";
+import { ArrowLeft, ChevronDown, Plus } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Line, Polyline } from "react-native-svg";
+import { useUnits } from "./context/units_context";
+
+// We need Text from react-native-svg — let's redo with proper imports
+import Svg2, {
+  Circle as C2,
+  Line as L2,
+  Polyline as P2,
+  Text as SvgText,
+} from "react-native-svg";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CHART_WIDTH = SCREEN_WIDTH - 48; // px-6 on each side
+const CHART_HEIGHT = 160;
+const PADDING_X = 40;
+const PADDING_Y = 20;
+
+type Measurement = {
+  id: number;
+  value: number;
+  recorded_at: string; // ISO string
+};
+
+type PeriodKey = "1M" | "3M" | "6M" | "1Y" | "All";
+
+const PERIODS: { label: string; key: PeriodKey }[] = [
+  { label: "Last month", key: "1M" },
+  { label: "Last 3 months", key: "3M" },
+  { label: "Last 6 months", key: "6M" },
+  { label: "Last year", key: "1Y" },
+  { label: "All time", key: "All" },
+];
+
+const RED = "#E31C25";
+
+// ── helpers ────────────────────────────────────────────────────────────────
+
+function filterByPeriod(data: Measurement[], period: PeriodKey): Measurement[] {
+  if (period === "All") return data;
+  const now = new Date();
+  const months = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12 }[period];
+  const cutoff = new Date(now);
+  cutoff.setMonth(cutoff.getMonth() - months);
+  return data.filter((d) => new Date(d.recorded_at) >= cutoff);
+}
+
+function formatAxisDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatHistoryDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// ── LineChart ───────────────────────────────────────────────────────────────
+
+function LineChart({ data, unit }: { data: Measurement[]; unit: string }) {
+  if (data.length === 0) return null;
+
+  const values = data.map((d) => d.value);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const range = maxVal - minVal || 1;
+
+  const innerW = CHART_WIDTH - PADDING_X * 2;
+  const innerH = CHART_HEIGHT - PADDING_Y * 2;
+
+  const toX = (i: number) =>
+    PADDING_X + (i / Math.max(data.length - 1, 1)) * innerW;
+  const toY = (v: number) =>
+    PADDING_Y + innerH - ((v - minVal) / range) * innerH;
+
+  const points = data.map((d, i) => `${toX(i)},${toY(d.value)}`).join(" ");
+
+  // Y-axis labels (4 lines)
+  const yLabels = [0, 1, 2, 3].map((i) => {
+    const v = minVal + (range / 3) * i;
+    const y = toY(v);
+    return { label: v.toFixed(1) + unit, y };
+  });
+
+  // X-axis: show first, middle, last
+  const xIndices =
+    data.length === 1
+      ? [0]
+      : data.length === 2
+        ? [0, 1]
+        : [0, Math.floor((data.length - 1) / 2), data.length - 1];
+
+  return (
+    <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+      {/* Grid lines */}
+      {yLabels.map((l, i) => (
+        <Line
+          key={i}
+          x1={PADDING_X}
+          y1={l.y}
+          x2={CHART_WIDTH - 10}
+          y2={l.y}
+          stroke="#27272a"
+          strokeWidth="1"
+        />
+      ))}
+
+      {/* Y labels */}
+      {yLabels.map((l, i) => (
+        <Svg
+          key={`yl-${i}`}
+          x={0}
+          y={l.y - 6}
+          width={PADDING_X - 4}
+          height={14}
+        >
+          <Circle cx={0} cy={0} r={0} />
+          {/* We render text via a trick below */}
+        </Svg>
+      ))}
+
+      {/* Line */}
+      {data.length > 1 && (
+        <Polyline
+          points={points}
+          fill="none"
+          stroke={RED}
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      )}
+
+      {/* Dots */}
+      {data.map((d, i) => (
+        <Circle
+          key={i}
+          cx={toX(i)}
+          cy={toY(d.value)}
+          r={4}
+          fill={RED}
+          stroke="#000"
+          strokeWidth={2}
+        />
+      ))}
+    </Svg>
+  );
+}
+
+function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
+  if (data.length === 0) return null;
+
+  const values = data.map((d) => d.value);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const range = maxVal - minVal || 1;
+
+  const innerW = CHART_WIDTH - PADDING_X * 2;
+  const innerH = CHART_HEIGHT - PADDING_Y * 2;
+
+  const toX = (i: number) =>
+    PADDING_X + (i / Math.max(data.length - 1, 1)) * innerW;
+  const toY = (v: number) =>
+    PADDING_Y + innerH - ((v - minVal) / range) * innerH;
+
+  const points = data.map((d, i) => `${toX(i)},${toY(d.value)}`).join(" ");
+
+  const yTicks = [0, 1, 2, 3].map((i) => {
+    const v = minVal + (range / 3) * i;
+    return { label: v.toFixed(1), y: toY(v) };
+  });
+
+  const xIndices =
+    data.length === 1
+      ? [0]
+      : data.length === 2
+        ? [0, 1]
+        : [0, Math.floor((data.length - 1) / 2), data.length - 1];
+
+  return (
+    <Svg2 width={CHART_WIDTH} height={CHART_HEIGHT + 24}>
+      {/* Grid lines */}
+      {yTicks.map((t, i) => (
+        <L2
+          key={i}
+          x1={PADDING_X}
+          y1={t.y}
+          x2={CHART_WIDTH - 6}
+          y2={t.y}
+          stroke="#27272a"
+          strokeWidth="1"
+        />
+      ))}
+
+      {/* Y labels */}
+      {yTicks.map((t, i) => (
+        <SvgText
+          key={`yl${i}`}
+          x={PADDING_X - 4}
+          y={t.y + 4}
+          fontSize="9"
+          fill="#52525b"
+          textAnchor="end"
+          fontWeight="bold"
+        >
+          {t.label}
+        </SvgText>
+      ))}
+
+      {/* Line */}
+      {data.length > 1 && (
+        <P2
+          points={points}
+          fill="none"
+          stroke={RED}
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      )}
+
+      {/* Dots */}
+      {data.map((d, i) => (
+        <C2
+          key={i}
+          cx={toX(i)}
+          cy={toY(d.value)}
+          r={4}
+          fill={RED}
+          stroke="#000"
+          strokeWidth={2}
+        />
+      ))}
+
+      {/* X labels */}
+      {xIndices.map((idx) => (
+        <SvgText
+          key={`xl${idx}`}
+          x={toX(idx)}
+          y={CHART_HEIGHT + 18}
+          fontSize="9"
+          fill="#52525b"
+          textAnchor="middle"
+          fontWeight="bold"
+        >
+          {formatAxisDate(data[idx].recorded_at)}
+        </SvgText>
+      ))}
+    </Svg2>
+  );
+}
+
+// ── Main Screen ─────────────────────────────────────────────────────────────
+
+export default function BodyMeasuresScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
+  const db = useSQLiteContext();
+  const { weightUnit } = useUnits();
+
+  const [loading, setLoading] = useState(true);
+  const [allData, setAllData] = useState<Measurement[]>([]);
+  const [period, setPeriod] = useState<PeriodKey>("3M");
+  const [showPeriodModal, setShowPeriodModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newValue, setNewValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // ── DB setup & load ──────────────────────────────────────────────────────
+
+  const ensureTable = useCallback(async () => {
+    await db.runAsync(`
+      CREATE TABLE IF NOT EXISTS body_measurements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL,
+        value REAL NOT NULL,
+        recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+  }, [db]);
+
+  const loadData = useCallback(async () => {
+    try {
+      await ensureTable();
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) return;
+
+      const rows = await db.getAllAsync<Measurement>(
+        `SELECT id, value, recorded_at
+         FROM body_measurements
+         WHERE user_email = ?
+         ORDER BY recorded_at ASC`,
+        [email],
+      );
+      setAllData(rows);
+    } catch (e) {
+      console.error("Error loading measurements:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [db, ensureTable]);
+
+  useEffect(() => {
+    if (isFocused) loadData();
+  }, [isFocused, loadData]);
+
+  // ── Add measurement ──────────────────────────────────────────────────────
+
+  const handleAdd = async () => {
+    const parsed = parseFloat(newValue.replace(",", "."));
+    if (isNaN(parsed) || parsed <= 0) return;
+
+    setSaving(true);
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) return;
+
+      await db.runAsync(
+        `INSERT INTO body_measurements (user_email, value, recorded_at)
+         VALUES (?, ?, datetime('now'))`,
+        [email, parsed],
+      );
+
+      setNewValue("");
+      setShowAddModal(false);
+      await loadData();
+    } catch (e) {
+      console.error("Error saving measurement:", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Derived ──────────────────────────────────────────────────────────────
+
+  const filtered = filterByPeriod(allData, period);
+  const latest = allData.length > 0 ? allData[allData.length - 1] : null;
+  const selectedPeriodLabel =
+    PERIODS.find((p) => p.key === period)?.label ?? "Last 3 months";
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-black items-center justify-center">
+        <ActivityIndicator color={RED} size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
+      <StatusBar style="light" />
+
+      {/* HEADER */}
+      <View
+        style={{ paddingTop: insets.top }}
+        className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900"
+      >
+        <TouchableOpacity
+          onPress={() => router.replace("/profile")}
+          className="p-2"
+        >
+          <ArrowLeft size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic">
+          Measurements
+        </Text>
+        <TouchableOpacity onPress={() => setShowAddModal(true)} className="p-2">
+          <Plus size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 60 }}
+      >
+        {/* TOP ROW — latest value + period picker */}
+        <View className="flex-row items-center justify-between px-6 mt-6 mb-4">
+          <View className="flex-row items-baseline gap-2">
+            <Text className="text-white text-2xl font-black italic uppercase">
+              {latest ? `${latest.value}${weightUnit}` : "—"}
+            </Text>
+            {latest && (
+              <Text
+                style={{ color: RED }}
+                className="text-sm font-black italic uppercase"
+              >
+                {formatAxisDate(latest.recorded_at)}
+              </Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={() => setShowPeriodModal(true)}
+            className="flex-row items-center gap-1"
+          >
+            <Text
+              style={{ color: RED }}
+              className="font-black text-sm italic uppercase"
+            >
+              {selectedPeriodLabel}
+            </Text>
+            <ChevronDown size={14} color={RED} strokeWidth={3} />
+          </TouchableOpacity>
+        </View>
+
+        {/* CHART */}
+        <View className="px-6">
+          {filtered.length >= 1 ? (
+            <LineChartFull data={filtered} unit={weightUnit} />
+          ) : (
+            <View
+              style={{ height: CHART_HEIGHT }}
+              className="items-center justify-center"
+            >
+              <Text className="text-zinc-700 font-black uppercase italic text-sm">
+                No data for this period
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* METRIC PILL */}
+        <View className="px-6 mt-6">
+          <View
+            style={{ backgroundColor: RED }}
+            className="self-start px-6 py-2 rounded-full"
+          >
+            <Text className="text-white font-black uppercase italic text-sm">
+              Weight
+            </Text>
+          </View>
+        </View>
+
+        {/* HISTORY */}
+        <View className="px-6 mt-8">
+          <Text className="text-zinc-500 text-[11px] font-black uppercase tracking-widest italic mb-4">
+            Weight History
+          </Text>
+
+          {allData.length === 0 ? (
+            <Text className="text-zinc-700 font-bold italic uppercase text-sm">
+              No entries yet. Tap + to add one.
+            </Text>
+          ) : (
+            [...allData].reverse().map((m) => (
+              <View
+                key={m.id}
+                className="flex-row justify-between items-center py-4 border-b border-zinc-900"
+              >
+                <Text className="text-white font-bold text-base italic uppercase">
+                  {formatHistoryDate(m.recorded_at)}
+                </Text>
+                <Text className="text-white font-black text-base italic">
+                  {m.value}
+                  {weightUnit}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+
+      {/* MODAL — Add Measurement */}
+      <Modal visible={showAddModal} transparent animationType="slide">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            className="flex-1 bg-black/60 justify-end"
+            onPress={() => {
+              setShowAddModal(false);
+              setNewValue("");
+            }}
+          >
+            <TouchableOpacity activeOpacity={1}>
+              <View className="bg-[#121212] px-8 pt-8 pb-12 rounded-t-[40px] border-t border-zinc-800">
+                <Text className="text-white text-center font-black uppercase italic mb-2 tracking-widest text-base">
+                  Add Weight
+                </Text>
+                <Text className="text-zinc-600 text-center font-bold uppercase italic text-[10px] mb-8">
+                  Today´s measurement
+                </Text>
+
+                <View className="flex-row items-center border-b border-zinc-700 mb-8 pb-2">
+                  <TextInput
+                    value={newValue}
+                    onChangeText={setNewValue}
+                    placeholder="e.g. 70.5"
+                    placeholderTextColor="#3f3f46"
+                    keyboardType="decimal-pad"
+                    className="flex-1 text-white text-2xl font-black italic"
+                    selectionColor={RED}
+                    autoFocus
+                  />
+                  <Text className="text-zinc-500 font-black uppercase italic text-lg ml-2">
+                    {weightUnit}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleAdd}
+                  disabled={saving || !newValue.trim()}
+                  className="w-full py-4 rounded-2xl items-center"
+                  style={{
+                    backgroundColor:
+                      saving || !newValue.trim() ? "#3f3f46" : RED,
+                  }}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white font-black uppercase italic text-lg tracking-wider">
+                      Save
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* MODAL — Period Picker */}
+      <Modal visible={showPeriodModal} transparent animationType="slide">
+        <TouchableOpacity
+          activeOpacity={1}
+          className="flex-1 bg-black/60 justify-end"
+          onPress={() => setShowPeriodModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1}>
+            <View className="bg-[#121212] px-6 pt-8 pb-12 rounded-t-[40px] border-t border-zinc-800">
+              <Text className="text-white text-center font-black uppercase italic mb-6 tracking-widest text-sm">
+                Select Period
+              </Text>
+              {PERIODS.map((p) => (
+                <TouchableOpacity
+                  key={p.key}
+                  onPress={() => {
+                    setPeriod(p.key);
+                    setShowPeriodModal(false);
+                  }}
+                  className="flex-row items-center justify-between py-4 border-b border-zinc-800"
+                >
+                  <Text className="text-white font-bold uppercase italic text-base">
+                    {p.label}
+                  </Text>
+                  {period === p.key && (
+                    <View
+                      style={{ backgroundColor: RED }}
+                      className="w-2 h-2 rounded-full"
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
