@@ -12,7 +12,7 @@ import {
   Plus,
   Search,
   Trash2,
-  X
+  X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {

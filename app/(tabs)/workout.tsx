@@ -127,7 +127,7 @@ export default function WorkoutTabScreen() {
       <StatusBar barStyle="light-content" />
 
       <ScrollView className="px-5" showsVerticalScrollIndicator={false}>
-        <Text className="text-white text-4xl font-black italic mt-4 uppercase">
+        <Text className="text-white text-4xl font-black italic mt-4">
           Workout
         </Text>
 
@@ -191,7 +191,7 @@ export default function WorkoutTabScreen() {
               >
                 <View className="flex-row justify-between items-start">
                   <View className="flex-1">
-                    <Text className="text-white text-xl font-black italic uppercase">
+                    <Text className="text-white text-xl font-black italic">
                       {item.name}
                     </Text>
                     <Text
