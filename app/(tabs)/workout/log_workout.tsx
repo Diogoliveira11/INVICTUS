@@ -109,19 +109,15 @@ const TimeInput = React.memo(
 
       if (index === 0) {
         setH(clean);
-        if (clean.length === 2) {
-          mmRef.current?.focus();
-          save(clean, m, s);
-        }
+        save(clean, m, s);
+        if (clean.length === 2) mmRef.current?.focus();
       } else if (index === 1) {
         setM(clean);
-        if (clean.length === 2) {
-          ssRef.current?.focus();
-          save(h, clean, s);
-        }
+        save(h, clean, s);
+        if (clean.length === 2) ssRef.current?.focus();
       } else {
         setS(clean);
-        if (clean.length === 2) save(h, m, clean);
+        save(h, m, clean);
       }
     };
 
@@ -129,7 +125,7 @@ const TimeInput = React.memo(
       <View className="flex-row items-center h-10 bg-zinc-950 rounded-xl mx-0.5 border border-zinc-800 px-1">
         <TextInput
           keyboardType="number-pad"
-          value={isFocused === 0 ? h : h === "00" ? "" : h}
+          value={h}
           placeholder="00"
           placeholderTextColor="#52525b"
           maxLength={2}
@@ -146,7 +142,7 @@ const TimeInput = React.memo(
         <TextInput
           ref={mmRef}
           keyboardType="number-pad"
-          value={isFocused === 1 ? m : m === "00" ? "" : m}
+          value={m}
           placeholder="00"
           placeholderTextColor="#52525b"
           maxLength={2}
@@ -163,7 +159,7 @@ const TimeInput = React.memo(
         <TextInput
           ref={ssRef}
           keyboardType="number-pad"
-          value={isFocused === 2 ? s : s === "00" ? "" : s}
+          value={s}
           placeholder="00"
           placeholderTextColor="#52525b"
           maxLength={2}
@@ -635,15 +631,19 @@ export default function LogWorkoutScreen() {
             <TextInput
               placeholder="Workout Name"
               placeholderTextColor="#52525b"
+              // Forçamos o valor a ser sempre maiúsculo no estado
               value={activeRoutineName}
-              onChangeText={setActiveRoutineName}
+              onChangeText={(t) => setActiveRoutineName(t.toUpperCase())}
               autoCorrect={false}
               spellCheck={false}
-              textContentType="none"
-              keyboardType={
-                Platform.OS === "android" ? "visible-password" : "default"
-              }
-              className="text-white text-3xl font-black italic border-b border-zinc-800 pb-2 uppercase"
+              // Removemos o keyboardType de password e usamos o autoCapitalize de caracteres
+              autoCapitalize="characters"
+              className="text-white text-3xl font-black italic border-b border-zinc-800 pb-2"
+              style={{
+                // Em Android, às vezes o line-height ou o padding corta a letra itálica
+                paddingRight: 10,
+                textTransform: "uppercase",
+              }}
             />
           </View>
 
