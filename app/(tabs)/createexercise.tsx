@@ -1,15 +1,16 @@
-import * as ImagePicker from "expo-image-picker"; // Importar o ImagePicker
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
+  AlertTriangle,
   ArrowLeft,
   Camera as CameraIcon,
   Check,
   ChevronRight,
+  Image as ImageIcon,
 } from "lucide-react-native";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -49,83 +50,88 @@ export default function CreateExerciseScreen() {
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState("Select");
   const [equipment, setEquipment] = useState("Select");
-  const [imageUri, setImageUri] = useState<string | null>(null); // Estado para a imagem
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
+  const [showImageModal, setShowImageModal] = useState(false);
 
-  // Função para escolher a imagem
-  const handlePickImage = async () => {
-    Alert.alert("Exercise Image", "Choose a source:", [
-      {
-        text: "Camera",
-        onPress: async () => {
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert(
-              "Permission denied",
-              "We need camera access to take photos.",
-            );
-            return;
-          }
-          const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-          });
-          if (!result.canceled) setImageUri(result.assets[0].uri);
-        },
-      },
-      {
-        text: "Gallery",
-        onPress: async () => {
-          const result = await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-          });
-          if (!result.canceled) setImageUri(result.assets[0].uri);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+  // Custom permission modal (estilo ATTENTION)
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
+  const [permissionModalMessage, setPermissionModalMessage] = useState("");
+
+  // Custom alert modal (estilo ATTENTION — para validação do formulário)
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [alertModalMessage, setAlertModalMessage] = useState("");
+
+  const redColor = "#E31C25";
+
+  const pickImage = async (useCamera: boolean) => {
+    // 1. Fechar modal de escolha de fonte
+    setShowImageModal(false);
+
+    // 2. Aguardar animação de fecho
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    // 3. Pedir permissão
+    const permission = useCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permission.status !== "granted") {
+      // 4. Permissão negada — mostrar modal personalizado
+      setPermissionModalMessage(
+        useCamera
+          ? "WE NEED CAMERA ACCESS TO ADD AN EXERCISE PHOTO!"
+          : "WE NEED GALLERY ACCESS TO CHOOSE AN EXERCISE PHOTO!",
+      );
+      setPermissionModalVisible(true);
+      return;
+    }
+
+    // 5. Permissão concedida — abrir picker
+    const result = await (useCamera
+      ? ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.5,
+        })
+      : ImagePicker.launchImageLibraryAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.5,
+        }));
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImageUri(result.assets[0].uri);
+    }
   };
 
   const handleSave = async () => {
     if (!name.trim() || muscleGroup === "Select" || equipment === "Select") {
-      Alert.alert("Erro", "Por favor, preenche todos os campos.");
+      setAlertModalMessage("PLEASE FILL IN ALL FIELDS BEFORE SAVING!");
+      setAlertModalVisible(true);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // 1. Gerar ID Manual (visto que a tua tabela não tem Autoincrement)
       const lastExercise = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM exercises ORDER BY id DESC LIMIT 1",
       );
       const nextId = (lastExercise?.id || 0) + 1;
 
-      // 2. Inserir (Garante que os nomes vão em Trim para a pesquisa funcionar)
       await db.runAsync(
         "INSERT INTO exercises (id, name, muscle_group, equipment, image, is_custom) VALUES (?, ?, ?, ?, ?, ?)",
         [nextId, name.trim(), muscleGroup, equipment, imageUri, 1],
       );
 
-      console.log("Exercício criado com ID:", nextId);
-
-      Alert.alert("Sucesso", "Exercício criado!", [
-        {
-          text: "OK",
-          onPress: () => {
-            // Voltamos para o explore forçando o refresh
-            router.replace("/workout/explore_exercises");
-          },
-        },
-      ]);
+      router.replace("/workout/explore_exercises");
     } catch (error) {
-      console.error("Erro ao salvar:", error);
-      Alert.alert("Erro", "Não foi possível salvar o exercício.");
+      console.error("Save error:", error);
+      setAlertModalMessage("COULD NOT SAVE THE EXERCISE. PLEASE TRY AGAIN!");
+      setAlertModalVisible(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -140,31 +146,39 @@ export default function CreateExerciseScreen() {
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
 
-      <View className="flex-row items-center justify-between px-6 py-4 border-b border-zinc-900">
+      {/* HEADER */}
+      <View className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900">
         <TouchableOpacity
           onPress={() => router.replace("/(tabs)/workout/explore_exercises")}
+          className="p-2"
         >
           <ArrowLeft color="white" size={24} />
         </TouchableOpacity>
-        <Text className="text-white text-lg font-black uppercase italic">
+        <Text
+          numberOfLines={1}
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+        >
           New Exercise
         </Text>
-        <TouchableOpacity onPress={handleSave} disabled={isSubmitting}>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={isSubmitting}
+          className="p-2"
+        >
           <Text className="text-[#E31C25] font-black uppercase italic">
             Save
           </Text>
         </TouchableOpacity>
       </View>
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
         <ScrollView className="flex-1 px-6">
-          {/* FOTO CIRCLE - AGORA FUNCIONAL */}
+          {/* FOTO CIRCLE */}
           <View className="items-center my-8">
             <TouchableOpacity
-              onPress={handlePickImage}
+              onPress={() => setShowImageModal(true)}
               className="w-28 h-28 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center border-dashed overflow-hidden"
             >
               {imageUri ? (
@@ -181,16 +195,6 @@ export default function CreateExerciseScreen() {
                 </View>
               )}
             </TouchableOpacity>
-            {imageUri && (
-              <TouchableOpacity
-                onPress={() => setImageUri(null)}
-                className="mt-2"
-              >
-                <Text className="text-[#E31C25] text-[10px] font-bold uppercase">
-                  Remove Photo
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* NOME DO EXERCÍCIO */}
@@ -245,6 +249,99 @@ export default function CreateExerciseScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* MODAL CHOOSE SOURCE */}
+      <Modal visible={showImageModal} transparent animationType="slide">
+        <TouchableOpacity
+          activeOpacity={1}
+          className="flex-1 bg-black/60 justify-end"
+          onPress={() => setShowImageModal(false)}
+        >
+          <View className="bg-[#121212] p-10 rounded-t-[40px] border-t border-zinc-800">
+            <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
+              Choose Source
+            </Text>
+            <View className="flex-row justify-around mb-6">
+              <TouchableOpacity
+                onPress={() => pickImage(true)}
+                className="items-center"
+              >
+                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
+                  <CameraIcon color={redColor} size={32} />
+                </View>
+                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                  Camera
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => pickImage(false)}
+                className="items-center"
+              >
+                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
+                  <ImageIcon color={redColor} size={32} />
+                </View>
+                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                  Gallery
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* MODAL PERMISSÃO NEGADA — estilo ATTENTION */}
+      <Modal visible={permissionModalVisible} transparent animationType="fade">
+        <View className="flex-1 bg-black/80 justify-center items-center px-10">
+          <View className="bg-[#1a1a1a] w-full p-8 rounded-[32px] border border-zinc-800 items-center">
+            <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
+              <AlertTriangle color="#f59e0b" size={32} strokeWidth={3} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3 tracking-wider">
+              Attention
+            </Text>
+            <Text className="text-zinc-400 text-center text-sm font-black uppercase italic mb-8 leading-5">
+              {permissionModalMessage}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setPermissionModalVisible(false)}
+              className="w-full py-4 rounded-2xl items-center"
+              style={{ backgroundColor: redColor }}
+            >
+              <Text className="text-white font-black uppercase italic text-lg tracking-wider">
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL ALERTA VALIDAÇÃO — estilo ATTENTION */}
+      <Modal visible={alertModalVisible} transparent animationType="fade">
+        <View className="flex-1 bg-black/80 justify-center items-center px-10">
+          <View className="bg-[#1a1a1a] w-full p-8 rounded-[32px] border border-zinc-800 items-center">
+            <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
+              <AlertTriangle color="#f59e0b" size={32} strokeWidth={3} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase italic mb-3 tracking-wider">
+              Attention
+            </Text>
+            <Text className="text-zinc-400 text-center text-sm font-black uppercase italic mb-8 leading-5">
+              {alertModalMessage}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setAlertModalVisible(false)}
+              className="w-full py-4 rounded-2xl items-center"
+              style={{ backgroundColor: redColor }}
+            >
+              <Text className="text-white font-black uppercase italic text-lg tracking-wider">
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL SELECÇÃO MÚSCULO / EQUIPAMENTO */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View className="flex-1 bg-black/90 justify-end">
           <View className="bg-zinc-900 rounded-t-[40px] h-[70%]">
@@ -252,7 +349,6 @@ export default function CreateExerciseScreen() {
             <Text className="text-white text-center font-black uppercase italic mb-4">
               Select {modalType === "muscle" ? "Muscle" : "Equipment"}
             </Text>
-
             <FlatList
               data={modalType === "muscle" ? MUSCLE_GROUPS : EQUIPMENTS}
               keyExtractor={(item) => item}
@@ -273,7 +369,6 @@ export default function CreateExerciseScreen() {
                 </TouchableOpacity>
               )}
             />
-
             <TouchableOpacity
               onPress={() => setModalVisible(false)}
               className="m-6 bg-zinc-800 py-4 rounded-2xl items-center"

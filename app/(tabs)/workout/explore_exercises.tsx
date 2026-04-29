@@ -3,9 +3,9 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
+  ArrowLeft,
   Check,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Plus,
   Search,
@@ -190,25 +190,31 @@ export default function ExploreExercisesPage() {
   return (
     <SafeAreaView className="flex-1 bg-[#000]">
       <StatusBar barStyle="light-content" />
-      <View className="flex-1 px-5 pt-4">
-        <View className="flex-row items-center justify-between py-4 border-b border-zinc-900 mb-4">
-          <TouchableOpacity onPress={() => router.replace("/workout")}>
-            <ChevronLeft size={28} color="#E31C25" />
-          </TouchableOpacity>
-          <Text className="text-white text-xl font-black uppercase italic">
-            Explore
+      <View className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900">
+        <TouchableOpacity
+          onPress={() => router.replace("/workout")}
+          className="p-2"
+        >
+          <ArrowLeft color="white" size={24} />
+        </TouchableOpacity>
+        <Text
+          numberOfLines={1}
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+        >
+          Explore
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.push("/createexercise")}
+          className="p-2 bg-zinc-900 rounded-xl border border-zinc-800 flex-row items-center"
+        >
+          <Plus size={16} color="#E31C25" />
+          <Text className="text-white font-black uppercase italic text-xs ml-1">
+            Create
           </Text>
-          <TouchableOpacity
-            onPress={() => router.push("/createexercise")}
-            className="bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800 flex-row items-center"
-          >
-            <Plus size={16} color="#E31C25" />
-            <Text className="text-white font-black uppercase italic text-xs ml-1">
-              Create
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
+      </View>
 
+      <View className="flex-1 px-5 pt-4">
         <View className="flex-row items-center bg-zinc-900/50 rounded-2xl px-4 h-14 mb-4 border border-zinc-800">
           <Search color="#52525b" size={20} className="mr-3" />
           <TextInput
