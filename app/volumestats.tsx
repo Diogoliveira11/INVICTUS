@@ -51,7 +51,7 @@ export default function VolumeStats() {
         </View>
 
         <View className="bg-zinc-900/30 p-6 rounded-[30px] border border-zinc-800/50">
-          <Text className="text-zinc-400 text-center italic text-sm leading-5">
+          <Text className="text-zinc-400 text-center text-sm leading-5">
             Your only limit is your mind. Keep pushing those weights.
           </Text>
         </View>

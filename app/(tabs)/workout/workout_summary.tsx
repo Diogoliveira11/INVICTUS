@@ -137,7 +137,7 @@ export default function WorkoutSummaryScreen() {
 
         {/* ── SECÇÃO DE FOTOS ── */}
         <View className="mb-8">
-          <Text className="text-white text-lg font-black uppercase italic tracking-tighter mb-1">
+          <Text className="text-white text-lg font-black uppercase tracking-tighter mb-1">
             Fotos do Treino
           </Text>
           <Text className="text-zinc-500 text-xs mb-4">
@@ -151,7 +151,7 @@ export default function WorkoutSummaryScreen() {
               className="flex-1 flex-row items-center justify-center bg-zinc-900 border border-zinc-800 rounded-2xl py-4 gap-x-2"
             >
               <Camera size={18} color="#E31C25" />
-              <Text className="text-white font-black text-xs uppercase italic">
+              <Text className="text-white font-black text-xs uppercase">
                 Câmara
               </Text>
             </TouchableOpacity>
@@ -160,7 +160,7 @@ export default function WorkoutSummaryScreen() {
               className="flex-1 flex-row items-center justify-center bg-zinc-900 border border-zinc-800 rounded-2xl py-4 gap-x-2"
             >
               <ImagePlus size={18} color="#E31C25" />
-              <Text className="text-white font-black text-xs uppercase italic">
+              <Text className="text-white font-black text-xs uppercase">
                 Galeria
               </Text>
             </TouchableOpacity>
@@ -200,7 +200,7 @@ export default function WorkoutSummaryScreen() {
 
         {/* Mensagem motivacional */}
         <View className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800 items-center">
-          <Text className="text-zinc-400 text-center italic">
+          <Text className="text-zinc-400 text-center">
             Consistency is what turns the ordinary into the extraordinary.
           </Text>
         </View>

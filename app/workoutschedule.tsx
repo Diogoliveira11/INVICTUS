@@ -77,7 +77,7 @@ export default function WorkOutSchedule() {
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-6 py-8 justify-between">
         <View className="items-center mt-5">
-          <Text className="text-3xl font-bold text-white text-center italic">
+          <Text className="text-3xl font-bold text-white text-center">
             {"What's your workout plan?"}
           </Text>
           <Text className="text-sm text-gray-400 text-center mt-2 px-5">

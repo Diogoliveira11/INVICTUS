@@ -173,7 +173,6 @@ export default function BirthdaySelection() {
               fontWeight: "700",
               color: "#fff",
               textAlign: "center",
-              fontStyle: "italic",
             }}
           >
             Insert your birth date!

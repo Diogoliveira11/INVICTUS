@@ -98,7 +98,7 @@ export default function ProfileScreen() {
         }`}
       >
         <Text
-          className={`font-black text-[10px] uppercase italic ${isActive ? "text-white" : "text-zinc-500"}`}
+          className={`font-black text-[10px] uppercase ${isActive ? "text-white" : "text-zinc-500"}`}
         >
           {label}
         </Text>
@@ -135,7 +135,7 @@ export default function ProfileScreen() {
           bar.day ? (
             <Text
               key={index}
-              className="text-zinc-600 text-[10px] font-bold italic"
+              className="text-zinc-600 text-[10px] font-bold"
               style={{ width: 35, textAlign: "center" }}
             >
               {bar.day}
@@ -160,7 +160,7 @@ export default function ProfileScreen() {
       activeOpacity={0.8}
       className="flex-row items-center justify-between bg-zinc-900/50 w-full py-5 px-8 rounded-3xl mb-3 border border-zinc-800"
     >
-      <Text className="text-white font-black text-lg uppercase italic tracking-tighter">
+      <Text className="text-white font-black text-lg uppercase tracking-tighter">
         {label}
       </Text>
       <ChevronRight size={20} color="#E31C25" strokeWidth={3} />
@@ -176,7 +176,7 @@ export default function ProfileScreen() {
       >
         {/* HEADER - COM SETTINGS DE VOLTA */}
         <View className="flex-row justify-between items-center px-6 py-4">
-          <Text className="text-zinc-600 font-black uppercase italic tracking-widest text-[10px]">
+          <Text className="text-zinc-600 font-black uppercase tracking-widest text-[10px]">
             Athlete Profile
           </Text>
           <View className="flex-row items-center gap-x-3">
@@ -184,7 +184,7 @@ export default function ProfileScreen() {
               onPress={handleLogout}
               className="bg-zinc-900/80 px-4 py-2 rounded-xl border border-zinc-800"
             >
-              <Text className="text-[#E31C25] font-black text-[10px] uppercase italic">
+              <Text className="text-[#E31C25] font-black text-[10px] uppercase">
                 Logout
               </Text>
             </TouchableOpacity>
@@ -229,10 +229,10 @@ export default function ProfileScreen() {
 
           <View className="flex-1 ml-6">
             <View className="mb-3">
-              <Text className="text-white text-4xl font-black italic uppercase leading-[34px] tracking-tighter">
+              <Text className="text-white text-4xl font-black leading-[34px] tracking-tighter">
                 {userData?.username?.split(" ")[0] || "User"}
               </Text>
-              <Text className="text-[#E31C25] text-2xl font-black italic uppercase tracking-tighter opacity-90 mt-[-2px]">
+              <Text className="text-[#E31C25] text-2xl font-black tracking-tighter opacity-90 mt-[-2px]">
                 {userData?.username?.split(" ").slice(1).join(" ") || ""}
               </Text>
             </View>
@@ -242,7 +242,7 @@ export default function ProfileScreen() {
                 <Text className="text-zinc-600 text-[9px] uppercase font-black tracking-widest">
                   Joined
                 </Text>
-                <Text className="text-zinc-100 font-bold text-xs uppercase italic">
+                <Text className="text-zinc-100 font-bold text-xs uppercase">
                   {formatDate(userData?.created_count || "")}
                 </Text>
               </View>
@@ -250,7 +250,7 @@ export default function ProfileScreen() {
                 <Text className="text-zinc-600 text-[9px] uppercase font-black tracking-widest">
                   Workouts
                 </Text>
-                <Text className="text-zinc-100 font-bold text-xs uppercase italic">
+                <Text className="text-zinc-100 font-bold text-xs uppercase">
                   {workoutCount}
                 </Text>
               </View>
@@ -262,15 +262,15 @@ export default function ProfileScreen() {
         <View className="bg-zinc-900/30 mx-4 p-5 rounded-[35px] mt-10 border border-zinc-800/60 shadow-2xl">
           <View className="flex-row justify-between items-center mb-2">
             <View>
-              <Text className="text-white font-black text-2xl italic tracking-tighter uppercase">
+              <Text className="text-white font-black text-2xl tracking-tighter uppercase">
                 {workoutCount > 0 ? "Activity" : "No Data"}
               </Text>
-              <Text className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest italic">
+              <Text className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">
                 Performance tracker
               </Text>
             </View>
             <TouchableOpacity className="flex-row items-center gap-1 bg-zinc-800/50 px-4 py-1.5 rounded-full border border-zinc-700/50">
-              <Text className="text-zinc-300 text-[10px] font-bold uppercase italic">
+              <Text className="text-zinc-300 text-[10px] font-bold uppercase">
                 3 Months
               </Text>
               <ChevronDown size={12} color="#E31C25" strokeWidth={4} />

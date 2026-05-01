@@ -180,11 +180,11 @@ export default function TabsLayout() {
                 <Text className="text-white font-bold text-sm">
                   {restTimer !== null
                     ? `Descanso: ${restTimer}s`
-                    : `Treino ${timer}`}
+                    : `Workout - ${timer}`}
                 </Text>
               </View>
               <Text className="text-zinc-500 text-xs" numberOfLines={1}>
-                {lastExercise || "Em andamento"}
+                {lastExercise || "In progress"}
               </Text>
             </View>
             <TouchableOpacity

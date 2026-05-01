@@ -174,7 +174,7 @@ export default function ExploreExercisesPage() {
         </View>
 
         <View className="flex-1">
-          <Text className="text-white text-[16px] font-bold uppercase italic">
+          <Text className="text-white text-[16px] font-bold uppercase ">
             {item.name}
           </Text>
           <Text className="text-zinc-500 text-xs mt-1 uppercase font-medium">
@@ -199,7 +199,7 @@ export default function ExploreExercisesPage() {
         </TouchableOpacity>
         <Text
           numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase "
         >
           Explore
         </Text>
@@ -208,7 +208,7 @@ export default function ExploreExercisesPage() {
           className="p-2 bg-zinc-900 rounded-xl border border-zinc-800 flex-row items-center"
         >
           <Plus size={16} color="#E31C25" />
-          <Text className="text-white font-black uppercase italic text-xs ml-1">
+          <Text className="text-white font-black uppercase  text-xs ml-1">
             Create
           </Text>
         </TouchableOpacity>
@@ -222,7 +222,7 @@ export default function ExploreExercisesPage() {
             onChangeText={setSearch}
             placeholder="Search exercises..."
             placeholderTextColor="#52525b"
-            className="flex-1 text-white text-base font-bold italic"
+            className="flex-1 text-white text-base font-bold "
             selectionColor="#E31C25"
           />
         </View>
@@ -237,7 +237,7 @@ export default function ExploreExercisesPage() {
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
+              className="text-white text-[10px] font-black uppercase  mr-2 flex-shrink"
             >
               {selectedEquipment || "Equipment"}
             </Text>
@@ -253,7 +253,7 @@ export default function ExploreExercisesPage() {
           >
             <Text
               numberOfLines={1}
-              className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
+              className="text-white text-[10px] font-black uppercase  mr-2 flex-shrink"
             >
               {selectedMuscle || "Muscles"}
             </Text>
@@ -270,7 +270,7 @@ export default function ExploreExercisesPage() {
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
-              <Text className="text-zinc-600 text-center mt-20 uppercase font-bold italic">
+              <Text className="text-zinc-600 text-center mt-20 uppercase font-bold ">
                 No exercises found
               </Text>
             }
@@ -284,7 +284,7 @@ export default function ExploreExercisesPage() {
             <TouchableWithoutFeedback>
               <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
                 <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
-                <Text className="text-white text-xl font-black uppercase italic mb-6">
+                <Text className="text-white text-xl font-black uppercase  mb-6">
                   {modalType === "muscle" ? "Muscles" : "Equipment"}
                 </Text>
 
@@ -305,7 +305,7 @@ export default function ExploreExercisesPage() {
                         contentFit="cover"
                       />
                     </View>
-                    <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                    <Text className="text-white text-lg flex-1 font-bold  uppercase">
                       All
                     </Text>
                     {(modalType === "muscle"
@@ -338,7 +338,7 @@ export default function ExploreExercisesPage() {
                         )}
                       </View>
 
-                      <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                      <Text className="text-white text-lg flex-1 font-bold  uppercase">
                         {opt}
                       </Text>
                       {(modalType === "muscle"

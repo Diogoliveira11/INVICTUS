@@ -129,7 +129,7 @@ const TimeInput = React.memo(
           }}
           onChangeText={(v) => handleText(0, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
-          className="text-white font-black italic text-xs"
+          className="text-white font-black  text-xs"
         />
         <Text className="text-zinc-600 font-black text-xs">:</Text>
         <TextInput
@@ -146,7 +146,7 @@ const TimeInput = React.memo(
           }}
           onChangeText={(v) => handleText(1, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
-          className="text-white font-black italic text-xs"
+          className="text-white font-black  text-xs"
         />
         <Text className="text-zinc-600 font-black text-xs">:</Text>
         <TextInput
@@ -163,7 +163,7 @@ const TimeInput = React.memo(
           }}
           onChangeText={(v) => handleText(2, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
-          className="text-white font-black italic text-xs"
+          className="text-white font-black  text-xs"
         />
       </View>
     );
@@ -208,7 +208,7 @@ const ExerciseListItem = React.memo(
           </View>
           <View className="flex-1">
             <Text
-              className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+              className={`text-[16px] font-bold uppercase ${isSelected ? "text-[#E31C25]" : "text-white"}`}
             >
               {item.name}
             </Text>
@@ -559,7 +559,7 @@ export default function LogWorkoutScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <ChevronDown size={30} color="white" />
           </TouchableOpacity>
-          <Text className="text-white font-black uppercase italic tracking-tighter text-lg">
+          <Text className="text-white font-black uppercase  tracking-tighter text-lg">
             Workout
           </Text>
           <TouchableOpacity
@@ -571,7 +571,7 @@ export default function LogWorkoutScreen() {
             }
             className="bg-[#E31C25] px-5 py-2 rounded-full"
           >
-            <Text className="text-white font-black uppercase italic text-xs">
+            <Text className="text-white font-black uppercase  text-xs">
               Finish
             </Text>
           </TouchableOpacity>
@@ -591,11 +591,11 @@ export default function LogWorkoutScreen() {
               key={item.label}
               className="bg-zinc-900/80 w-[32%] rounded-xl py-4 items-center justify-center border border-zinc-800"
             >
-              <Text className="text-zinc-500 text-[10px] uppercase font-black mb-1 italic tracking-widest">
+              <Text className="text-zinc-500 text-[10px] uppercase font-black mb-1  tracking-widest">
                 {item.label}
               </Text>
               <Text
-                className="font-black text-lg italic tracking-tighter"
+                className="font-black text-lg  tracking-tighter"
                 style={{ color: item.color }}
               >
                 {item.value}
@@ -617,7 +617,7 @@ export default function LogWorkoutScreen() {
               onChangeText={(t) => setActiveRoutineName(t)}
               autoCorrect={false}
               autoCapitalize="sentences"
-              className="text-white text-3xl font-black italic border-b border-zinc-800 pb-2"
+              className="text-white text-3xl font-black  border-b border-zinc-800 pb-2"
               style={{ paddingRight: 10 }}
             />
           </View>
@@ -668,7 +668,7 @@ export default function LogWorkoutScreen() {
                     })()}
                   </View>
                   <View className="flex-1">
-                    <Text className="text-[#E31C25] text-xl font-black italic uppercase tracking-tighter">
+                    <Text className="text-[#E31C25] text-xl font-black  uppercase tracking-tighter">
                       {ex.name}
                     </Text>
                     {ex.personalRecords && ex.personalRecords.length > 0 && (
@@ -707,7 +707,7 @@ export default function LogWorkoutScreen() {
                     ),
                   )
                 }
-                className="text-zinc-400 text-sm mb-3 italic font-bold border-b border-zinc-800/50 pb-1"
+                className="text-zinc-400 text-sm mb-3  font-bold border-b border-zinc-800/50 pb-1"
               />
 
               <TouchableOpacity
@@ -715,24 +715,24 @@ export default function LogWorkoutScreen() {
                 className="flex-row items-center mb-5 bg-[#E31C25]/10 self-start px-4 py-1.5 rounded-xl border border-[#E31C25]/20"
               >
                 <Clock size={14} color="#E31C25" />
-                <Text className="text-[#E31C25] text-[10px] font-black uppercase italic ml-2">
+                <Text className="text-[#E31C25] text-[10px] font-black uppercase  ml-2">
                   Rest Timer: {ex.rest_time > 0 ? `${ex.rest_time}s` : "OFF"}
                 </Text>
               </TouchableOpacity>
 
               <View className="flex-row items-center px-1 mb-3">
-                <Text className="text-zinc-700 text-[10px] font-black uppercase w-10 text-center italic">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase w-10 text-center ">
                   Set
                 </Text>
-                <Text className="text-zinc-700 text-[10px] font-black uppercase flex-1 text-center italic">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase flex-1 text-center ">
                   Previous
                 </Text>
-                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center ">
                   {ex.muscle_group?.toLowerCase() === "cardio"
                     ? "KM"
                     : weightUnit.toUpperCase()}
                 </Text>
-                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center italic">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center ">
                   {ex.muscle_group?.toLowerCase() === "cardio"
                     ? "TIME"
                     : "Reps"}
@@ -756,12 +756,12 @@ export default function LogWorkoutScreen() {
                       }
                     >
                       <Text
-                        className={`font-black italic text-base ${set.type === "W" ? "text-amber-500" : set.type === "D" ? "text-purple-500" : set.type === "F" ? "text-[#E31C25]" : "text-white"}`}
+                        className={`font-black  text-base ${set.type === "W" ? "text-amber-500" : set.type === "D" ? "text-purple-500" : set.type === "F" ? "text-[#E31C25]" : "text-white"}`}
                       >
                         {set.type === "1" ? idx + 1 : set.type}
                       </Text>
                     </TouchableOpacity>
-                    <Text className="flex-1 text-zinc-500 text-center text-xs font-black italic">
+                    <Text className="flex-1 text-zinc-500 text-center text-xs font-black ">
                       {set.previous}
                     </Text>
                     <TextInput
@@ -781,7 +781,7 @@ export default function LogWorkoutScreen() {
                       scrollEnabled={false}
                       underlineColorAndroid="transparent"
                       style={{ paddingVertical: 0 }}
-                      className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
+                      className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black "
                     />
                     {ex.muscle_group?.toLowerCase() === "cardio" ? (
                       <TimeInput
@@ -802,7 +802,7 @@ export default function LogWorkoutScreen() {
                         scrollEnabled={false}
                         underlineColorAndroid="transparent"
                         style={{ paddingVertical: 0 }}
-                        className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black italic"
+                        className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black "
                       />
                     )}
                     <TouchableOpacity
@@ -830,11 +830,11 @@ export default function LogWorkoutScreen() {
                       <View className="bg-amber-500/15 flex-row items-center justify-between px-5 py-2.5 rounded-xl border border-amber-500/30">
                         <View className="flex-row items-center">
                           <Clock size={16} color="#EAB308" strokeWidth={3} />
-                          <Text className="text-[#EAB308] text-xs font-black italic ml-2.5 uppercase tracking-wider">
+                          <Text className="text-[#EAB308] text-xs font-black  ml-2.5 uppercase tracking-wider">
                             Resting Period
                           </Text>
                         </View>
-                        <Text className="text-white text-base font-black italic tracking-tighter">
+                        <Text className="text-white text-base font-black  tracking-tighter">
                           {restTimer}
                           <Text className="text-zinc-400 text-xs">s</Text>
                         </Text>
@@ -876,7 +876,7 @@ export default function LogWorkoutScreen() {
                   }
                   className="flex-1 py-4 bg-zinc-900/40 rounded-2xl items-center border border-dashed border-zinc-800"
                 >
-                  <Text className="text-zinc-500 font-black text-[10px] uppercase italic tracking-widest">
+                  <Text className="text-zinc-500 font-black text-[10px] uppercase  tracking-widest">
                     + Add Set
                   </Text>
                 </TouchableOpacity>
@@ -911,7 +911,7 @@ export default function LogWorkoutScreen() {
             className="mt-8 mb-24 bg-[#E31C25] py-3 px-8 self-center rounded-full flex-row items-center border border-zinc-800 shadow-lg"
           >
             <Plus size={18} color="white" strokeWidth={4} />
-            <Text className="text-white font-black text-sm ml-2 uppercase italic">
+            <Text className="text-white font-black text-sm ml-2 uppercase ">
               Add Exercise
             </Text>
           </TouchableOpacity>
@@ -934,11 +934,11 @@ export default function LogWorkoutScreen() {
                 >
                   <X color="white" size={30} />
                 </TouchableOpacity>
-                <Text className="text-white text-2xl font-black italic uppercase tracking-tighter">
+                <Text className="text-white text-2xl font-black  uppercase tracking-tighter">
                   Select Exercises
                 </Text>
                 <TouchableOpacity onPress={confirmSelection}>
-                  <Text className="text-[#E31C25] text-xl font-black uppercase italic">
+                  <Text className="text-[#E31C25] text-xl font-black uppercase ">
                     Add{" "}
                     {tempSelected.length > 0 ? `(${tempSelected.length})` : ""}
                   </Text>
@@ -952,7 +952,7 @@ export default function LogWorkoutScreen() {
                   onChangeText={setSearch}
                   placeholder="Search exercises..."
                   placeholderTextColor="#52525b"
-                  className="flex-1 text-white font-bold italic text-base"
+                  className="flex-1 text-white font-bold  text-base"
                 />
               </View>
 
@@ -966,7 +966,7 @@ export default function LogWorkoutScreen() {
                 >
                   <Text
                     numberOfLines={1}
-                    className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
+                    className="text-white text-[10px] font-black uppercase  mr-2 flex-shrink"
                   >
                     {selectedEquipment || "Equipment"}
                   </Text>
@@ -981,7 +981,7 @@ export default function LogWorkoutScreen() {
                 >
                   <Text
                     numberOfLines={1}
-                    className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
+                    className="text-white text-[10px] font-black uppercase  mr-2 flex-shrink"
                   >
                     {selectedMuscle || "Muscles"}
                   </Text>
@@ -1041,7 +1041,7 @@ export default function LogWorkoutScreen() {
                   <TouchableWithoutFeedback>
                     <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
                       <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
-                      <Text className="text-white text-xl font-black uppercase italic mb-6">
+                      <Text className="text-white text-xl font-black uppercase  mb-6">
                         {modalType === "muscle" ? "Muscles" : "Equipment"}
                       </Text>
                       <ScrollView
@@ -1064,7 +1064,7 @@ export default function LogWorkoutScreen() {
                               cachePolicy="memory-disk"
                             />
                           </View>
-                          <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                          <Text className="text-white text-lg flex-1 font-bold  uppercase">
                             All
                           </Text>
                           {(modalType === "muscle"
@@ -1100,7 +1100,7 @@ export default function LogWorkoutScreen() {
                                 <View className="w-full h-full bg-zinc-800" />
                               )}
                             </View>
-                            <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                            <Text className="text-white text-lg flex-1 font-bold  uppercase">
                               {opt}
                             </Text>
                             {(modalType === "muscle"
@@ -1127,7 +1127,7 @@ export default function LogWorkoutScreen() {
             onPress={() => setTypeModal(null)}
           >
             <View className="bg-[#0a0a0a] p-10 rounded-t-[40px] border-t border-zinc-800">
-              <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
+              <Text className="text-white text-center font-black uppercase  mb-8 tracking-widest text-sm">
                 Set Type
               </Text>
               <View className="flex-row justify-between mb-6">
@@ -1151,11 +1151,9 @@ export default function LogWorkoutScreen() {
                     }}
                     className="bg-zinc-900 w-[22%] aspect-square rounded-[25px] items-center justify-center border border-zinc-800 shadow-md"
                   >
-                    <Text className={`${i.c} font-black text-2xl italic`}>
-                      {i.i}
-                    </Text>
+                    <Text className={`${i.c} font-black text-2xl `}>{i.i}</Text>
                     <Text
-                      className={`${i.c} text-[8px] font-black uppercase mt-1 italic`}
+                      className={`${i.c} text-[8px] font-black uppercase mt-1 `}
                     >
                       {i.l}
                     </Text>
@@ -1189,7 +1187,7 @@ export default function LogWorkoutScreen() {
                 }}
                 className="w-full py-4 bg-red-500/10 rounded-2xl items-center border border-red-500/20 mb-4"
               >
-                <Text className="text-red-500 font-black uppercase italic text-sm tracking-widest">
+                <Text className="text-red-500 font-black uppercase  text-sm tracking-widest">
                   Remove Set
                 </Text>
               </TouchableOpacity>
@@ -1204,7 +1202,7 @@ export default function LogWorkoutScreen() {
             className="flex-1 bg-black/80 justify-center px-10"
           >
             <View className="bg-[#121212] p-8 rounded-[30px] border border-zinc-800">
-              <Text className="text-white text-center font-black uppercase italic mb-6">
+              <Text className="text-white text-center font-black uppercase  mb-6">
                 Rest Timer (Seconds)
               </Text>
               <TextInput
@@ -1243,9 +1241,7 @@ export default function LogWorkoutScreen() {
                   }}
                   className="flex-1 py-4 ml-2 items-center bg-[#E31C25] rounded-xl"
                 >
-                  <Text className="text-white font-black uppercase italic">
-                    Save
-                  </Text>
+                  <Text className="text-white font-black uppercase ">Save</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1263,7 +1259,7 @@ export default function LogWorkoutScreen() {
               <View className="bg-[#E31C25]/10 p-4 rounded-full mb-6">
                 <Trash2 color="#ef4444" size={32} />
               </View>
-              <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+              <Text className="text-white text-center text-xl font-black uppercase  mb-3">
                 Remove Exercise?
               </Text>
               <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -1296,7 +1292,7 @@ export default function LogWorkoutScreen() {
                   }}
                   className="flex-1 bg-[#E31C25] py-4 rounded-xl items-center"
                 >
-                  <Text className="text-white font-black uppercase italic">
+                  <Text className="text-white font-black uppercase ">
                     Yes, Remove
                   </Text>
                 </TouchableOpacity>

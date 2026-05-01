@@ -380,7 +380,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
                 color: "white",
                 fontSize: 24,
                 fontWeight: "900",
-                fontStyle: "italic",
                 textTransform: "uppercase",
                 marginBottom: 12,
                 textAlign: "center",
@@ -439,7 +438,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
                   style={{
                     color: "white",
                     fontWeight: "900",
-                    fontStyle: "italic",
                     textTransform: "uppercase",
                   }}
                 >

@@ -105,7 +105,7 @@ const ExerciseListItem = React.memo(
           </View>
           <View className="flex-1">
             <Text
-              className={`text-[16px] font-bold uppercase italic ${isSelected ? "text-[#E31C25]" : "text-white"}`}
+              className={`text-[16px] font-bold uppercase ${isSelected ? "text-[#E31C25]" : "text-white"}`}
             >
               {item.name}
             </Text>
@@ -331,14 +331,12 @@ export default function NewRoutineScreen() {
         </TouchableOpacity>
         <Text
           numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase"
         >
           {mode === "edit" ? "Edit Routine" : "New Routine"}
         </Text>
         <TouchableOpacity onPress={handleSave} className="p-2">
-          <Text className="text-[#E31C25] font-black uppercase italic">
-            Save
-          </Text>
+          <Text className="text-[#E31C25] font-black uppercase">Save</Text>
         </TouchableOpacity>
       </View>
 
@@ -350,10 +348,10 @@ export default function NewRoutineScreen() {
           onChangeText={setName}
           autoCorrect={false}
           autoCapitalize="sentences"
-          className="text-white text-3xl font-black italic border-b border-zinc-800 pb-3"
+          className="text-white text-3xl font-black border-b border-zinc-800 pb-3"
         />
         <View className="mt-8">
-          <Text className="text-zinc-500 font-black uppercase mb-4 tracking-widest text-xs italic">
+          <Text className="text-zinc-500 font-black uppercase mb-4 tracking-widest text-xs">
             Exercises ({selectedExercises.length})
           </Text>
 
@@ -384,10 +382,10 @@ export default function NewRoutineScreen() {
                   />
                 </View>
                 <View className="flex-1 ml-3">
-                  <Text className="text-white font-bold uppercase italic">
+                  <Text className="text-white font-bold uppercase">
                     {ex.name}
                   </Text>
-                  <Text className="text-zinc-500 text-xs uppercase italic">
+                  <Text className="text-zinc-500 text-xs uppercase">
                     {ex.muscle_group}
                   </Text>
                 </View>
@@ -403,7 +401,7 @@ export default function NewRoutineScreen() {
             className="flex-row items-center justify-center bg-zinc-900/30 border-2 border-dashed border-zinc-800 py-6 rounded-2xl mt-2"
           >
             <Plus size={22} color="#E31C25" />
-            <Text className="text-zinc-400 font-black ml-2 text-lg uppercase italic">
+            <Text className="text-zinc-400 font-black ml-2 text-lg uppercase">
               Add Exercises
             </Text>
           </TouchableOpacity>
@@ -418,11 +416,11 @@ export default function NewRoutineScreen() {
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                 <X color="white" size={26} />
               </TouchableOpacity>
-              <Text className="text-white text-xl font-black uppercase italic">
+              <Text className="text-white text-xl font-black uppercase">
                 Select Exercises
               </Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <Text className="text-[#E31C25] text-lg font-black uppercase italic">
+                <Text className="text-[#E31C25] text-lg font-black uppercase">
                   Done
                 </Text>
               </TouchableOpacity>
@@ -435,7 +433,7 @@ export default function NewRoutineScreen() {
                 onChangeText={setSearch}
                 placeholder="Search exercise..."
                 placeholderTextColor="#52525b"
-                className="flex-1 text-white font-bold italic"
+                className="flex-1 text-white font-bold"
               />
             </View>
 
@@ -449,7 +447,7 @@ export default function NewRoutineScreen() {
               >
                 <Text
                   numberOfLines={1}
-                  className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
+                  className="text-white text-[10px] font-black uppercase mr-2 flex-shrink"
                 >
                   {selectedEquipment || "Equipment"}
                 </Text>
@@ -465,7 +463,7 @@ export default function NewRoutineScreen() {
               >
                 <Text
                   numberOfLines={1}
-                  className="text-white text-[10px] font-black uppercase italic mr-2 flex-shrink"
+                  className="text-white text-[10px] font-black uppercase mr-2 flex-shrink"
                 >
                   {selectedMuscle || "Muscles"}
                 </Text>
@@ -515,7 +513,7 @@ export default function NewRoutineScreen() {
                   <TouchableWithoutFeedback>
                     <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
                       <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
-                      <Text className="text-white text-xl font-black uppercase italic mb-6">
+                      <Text className="text-white text-xl font-black uppercase mb-6">
                         {modalType === "muscle" ? "Muscles" : "Equipment"}
                       </Text>
                       <ScrollView
@@ -538,7 +536,7 @@ export default function NewRoutineScreen() {
                               cachePolicy="memory-disk"
                             />
                           </View>
-                          <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                          <Text className="text-white text-lg flex-1 font-bold uppercase">
                             All
                           </Text>
                           {(modalType === "muscle"
@@ -574,7 +572,7 @@ export default function NewRoutineScreen() {
                                 <View className="w-full h-full bg-zinc-800" />
                               )}
                             </View>
-                            <Text className="text-white text-lg flex-1 font-bold italic uppercase">
+                            <Text className="text-white text-lg flex-1 font-bold uppercase">
                               {opt}
                             </Text>
                             {(modalType === "muscle"
@@ -605,7 +603,7 @@ export default function NewRoutineScreen() {
             <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
               <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
               Attention
             </Text>
             <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -617,7 +615,7 @@ export default function NewRoutineScreen() {
               }
               className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
             >
-              <Text className="text-white font-black uppercase italic text-lg">
+              <Text className="text-white font-black uppercase text-lg">
                 OK
               </Text>
             </TouchableOpacity>
@@ -632,7 +630,7 @@ export default function NewRoutineScreen() {
             <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
               <Check color="#22c55e" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
               Success
             </Text>
             <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -647,7 +645,7 @@ export default function NewRoutineScreen() {
               }}
               className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
             >
-              <Text className="text-white font-black uppercase italic text-lg">
+              <Text className="text-white font-black uppercase text-lg">
                 Great!
               </Text>
             </TouchableOpacity>

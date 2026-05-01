@@ -74,7 +74,7 @@ export default function OnboardingScreen() {
           <Text className="text-white text-3xl font-bold text-center mb-2">
             {slide.title}
           </Text>
-          <Text className="text-gray-400 text-base mb-10 italic">
+          <Text className="text-gray-400 text-base mb-10">
             Your Journey Begins Here
           </Text>
           {/* Indicadores */}

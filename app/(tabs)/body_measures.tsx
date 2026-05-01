@@ -393,7 +393,7 @@ export default function BodyMeasuresScreen() {
         >
           <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
-        <Text className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic">
+        <Text className="text-white text-lg font-black flex-1 text-center px-4 uppercase">
           Measurements
         </Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)} className="p-2">
@@ -408,13 +408,13 @@ export default function BodyMeasuresScreen() {
         {/* TOP ROW — latest value + period picker */}
         <View className="flex-row items-center justify-between px-6 mt-6 mb-4">
           <View className="flex-row items-baseline gap-2">
-            <Text className="text-white text-2xl font-black italic uppercase">
+            <Text className="text-white text-2xl font-black uppercase">
               {latest ? `${latest.value}${weightUnit}` : "—"}
             </Text>
             {latest && (
               <Text
                 style={{ color: RED }}
-                className="text-sm font-black italic uppercase"
+                className="text-sm font-black uppercase"
               >
                 {formatAxisDate(latest.recorded_at)}
               </Text>
@@ -427,7 +427,7 @@ export default function BodyMeasuresScreen() {
           >
             <Text
               style={{ color: RED }}
-              className="font-black text-sm italic uppercase"
+              className="font-black text-sm uppercase"
             >
               {selectedPeriodLabel}
             </Text>
@@ -444,7 +444,7 @@ export default function BodyMeasuresScreen() {
               style={{ height: CHART_HEIGHT }}
               className="items-center justify-center"
             >
-              <Text className="text-zinc-700 font-black uppercase italic text-sm">
+              <Text className="text-zinc-700 font-black uppercase text-sm">
                 No data for this period
               </Text>
             </View>
@@ -457,7 +457,7 @@ export default function BodyMeasuresScreen() {
             style={{ backgroundColor: RED }}
             className="self-start px-6 py-2 rounded-full"
           >
-            <Text className="text-white font-black uppercase italic text-sm">
+            <Text className="text-white font-black uppercase text-sm">
               Weight
             </Text>
           </View>
@@ -465,12 +465,12 @@ export default function BodyMeasuresScreen() {
 
         {/* HISTORY */}
         <View className="px-6 mt-8">
-          <Text className="text-zinc-500 text-[11px] font-black uppercase tracking-widest italic mb-4">
+          <Text className="text-zinc-500 text-[11px] font-black uppercase tracking-widest mb-4">
             Weight History
           </Text>
 
           {allData.length === 0 ? (
-            <Text className="text-zinc-700 font-bold italic uppercase text-sm">
+            <Text className="text-zinc-700 font-bold uppercase text-sm">
               No entries yet. Tap + to add one.
             </Text>
           ) : (
@@ -479,10 +479,10 @@ export default function BodyMeasuresScreen() {
                 key={m.id}
                 className="flex-row justify-between items-center py-4 border-b border-zinc-900"
               >
-                <Text className="text-white font-bold text-base italic uppercase">
+                <Text className="text-white font-bold text-base uppercase">
                   {formatHistoryDate(m.recorded_at)}
                 </Text>
-                <Text className="text-white font-black text-base italic">
+                <Text className="text-white font-black text-base">
                   {m.value}
                   {weightUnit}
                 </Text>
@@ -508,10 +508,10 @@ export default function BodyMeasuresScreen() {
           >
             <TouchableOpacity activeOpacity={1}>
               <View className="bg-[#121212] px-8 pt-8 pb-12 rounded-t-[40px] border-t border-zinc-800">
-                <Text className="text-white text-center font-black uppercase italic mb-2 tracking-widest text-base">
+                <Text className="text-white text-center font-black uppercase mb-2 tracking-widest text-base">
                   Add Weight
                 </Text>
-                <Text className="text-zinc-600 text-center font-bold uppercase italic text-[10px] mb-8">
+                <Text className="text-zinc-600 text-center font-bold uppercase text-[10px] mb-8">
                   Today´s measurement
                 </Text>
 
@@ -522,11 +522,11 @@ export default function BodyMeasuresScreen() {
                     placeholder="e.g. 70.5"
                     placeholderTextColor="#3f3f46"
                     keyboardType="decimal-pad"
-                    className="flex-1 text-white text-2xl font-black italic"
+                    className="flex-1 text-white text-2xl font-black"
                     selectionColor={RED}
                     autoFocus
                   />
-                  <Text className="text-zinc-500 font-black uppercase italic text-lg ml-2">
+                  <Text className="text-zinc-500 font-black uppercase text-lg ml-2">
                     {weightUnit}
                   </Text>
                 </View>
@@ -543,7 +543,7 @@ export default function BodyMeasuresScreen() {
                   {saving ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text className="text-white font-black uppercase italic text-lg tracking-wider">
+                    <Text className="text-white font-black uppercase text-lg tracking-wider">
                       Save
                     </Text>
                   )}
@@ -563,7 +563,7 @@ export default function BodyMeasuresScreen() {
         >
           <TouchableOpacity activeOpacity={1}>
             <View className="bg-[#121212] px-6 pt-8 pb-12 rounded-t-[40px] border-t border-zinc-800">
-              <Text className="text-white text-center font-black uppercase italic mb-6 tracking-widest text-sm">
+              <Text className="text-white text-center font-black uppercase mb-6 tracking-widest text-sm">
                 Select Period
               </Text>
               {PERIODS.map((p) => (
@@ -575,7 +575,7 @@ export default function BodyMeasuresScreen() {
                   }}
                   className="flex-row items-center justify-between py-4 border-b border-zinc-800"
                 >
-                  <Text className="text-white font-bold uppercase italic text-base">
+                  <Text className="text-white font-bold uppercase text-base">
                     {p.label}
                   </Text>
                   {period === p.key && (

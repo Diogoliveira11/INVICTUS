@@ -166,13 +166,13 @@ export default function EditProfile() {
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={28} color="#FFF" />
         </TouchableOpacity>
-        <Text className="text-white font-black uppercase italic text-xl tracking-tighter">
+        <Text className="text-white font-black uppercase text-xl tracking-tighter">
           Edit Profile
         </Text>
         <TouchableOpacity onPress={handleSave}>
           <Text
             style={{ color: redColor }}
-            className="font-black uppercase italic text-xl tracking-tighter"
+            className="font-black uppercase text-xl tracking-tighter"
           >
             Done
           </Text>
@@ -208,7 +208,7 @@ export default function EditProfile() {
           >
             <Text
               style={{ color: redColor }}
-              className="font-black uppercase italic text-[10px]"
+              className="font-black uppercase text-[10px]"
             >
               Change Picture
             </Text>
@@ -216,34 +216,34 @@ export default function EditProfile() {
         </View>
 
         <View className="px-6 mt-10">
-          <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest mb-4 italic">
+          <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest mb-4 ">
             Athlete Data
           </Text>
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
-            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+            <Text className="text-zinc-400 font-bold uppercase text-xs">
               Username
             </Text>
-            <Text className="text-white font-bold text-lg italic text-right">
+            <Text className="text-white font-bold text-lg text-right">
               {name}
             </Text>
           </View>
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
-            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+            <Text className="text-zinc-400 font-bold uppercase text-xs">
               Weight ({weightUnit})
             </Text>
-            <Text className="text-white font-bold text-lg italic text-right">
+            <Text className="text-white font-bold text-lg text-right">
               {weight || "—"}
             </Text>
           </View>
           <View className="flex-row py-5 border-b border-zinc-900 items-center justify-between">
-            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+            <Text className="text-zinc-400 font-bold uppercase text-xs">
               Height ({heightUnit})
             </Text>
             <TextInput
               value={height}
               onChangeText={setHeight}
               keyboardType="numeric"
-              className="text-white font-bold text-lg italic text-right flex-1 ml-4"
+              className="text-white font-bold text-lg text-right flex-1 ml-4"
               selectionColor={redColor}
             />
           </View>
@@ -251,29 +251,29 @@ export default function EditProfile() {
 
         <View className="px-6 mt-10">
           <View className="flex-row items-center mb-5 gap-2">
-            <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest italic">
+            <Text className="text-zinc-600 text-[11px] font-black uppercase tracking-widest ">
               Personal Info
             </Text>
             <HelpCircle size={14} color="#52525b" />
           </View>
           <View className="flex-row justify-between py-5 border-b border-zinc-900">
-            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+            <Text className="text-zinc-400 font-bold uppercase text-xs">
               Gender
             </Text>
             <Text
               style={{ color: redColor }}
-              className="font-black uppercase italic text-sm"
+              className="font-black uppercase text-sm"
             >
               {gender}
             </Text>
           </View>
           <View className="flex-row justify-between py-5 border-b border-zinc-900">
-            <Text className="text-zinc-400 font-bold uppercase italic text-xs">
+            <Text className="text-zinc-400 font-bold uppercase text-xs">
               Birthday
             </Text>
             <Text
               style={{ color: redColor }}
-              className="font-black uppercase italic text-sm"
+              className="font-black uppercase text-sm"
             >
               {birthday}
             </Text>
@@ -289,7 +289,7 @@ export default function EditProfile() {
           onPress={() => setShowImageModal(false)}
         >
           <View className="bg-[#121212] p-10 rounded-t-[40px] border-t border-zinc-800">
-            <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
+            <Text className="text-white text-center font-black uppercase mb-8 tracking-widest text-sm">
               Choose Source
             </Text>
             <View className="flex-row justify-around mb-6">
@@ -300,7 +300,7 @@ export default function EditProfile() {
                 <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
                   <Camera color={redColor} size={32} />
                 </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                <Text className="text-zinc-400 font-black uppercase text-[10px]">
                   Camera
                 </Text>
               </TouchableOpacity>
@@ -311,7 +311,7 @@ export default function EditProfile() {
                 <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
                   <ImageIcon color={redColor} size={32} />
                 </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                <Text className="text-zinc-400 font-black uppercase text-[10px]">
                   Gallery
                 </Text>
               </TouchableOpacity>
@@ -327,10 +327,10 @@ export default function EditProfile() {
             <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
               <AlertTriangle color="#f59e0b" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3 tracking-wider">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3 tracking-wider">
               Attention
             </Text>
-            <Text className="text-zinc-400 text-center text-sm font-black uppercase italic mb-8 leading-5">
+            <Text className="text-zinc-400 text-center text-sm font-black uppercase mb-8 leading-5">
               {permissionModalMessage}
             </Text>
             <TouchableOpacity
@@ -338,7 +338,7 @@ export default function EditProfile() {
               className="w-full py-4 rounded-2xl items-center"
               style={{ backgroundColor: redColor }}
             >
-              <Text className="text-white font-black uppercase italic text-lg tracking-wider">
+              <Text className="text-white font-black uppercase text-lg tracking-wider">
                 OK
               </Text>
             </TouchableOpacity>
@@ -353,7 +353,7 @@ export default function EditProfile() {
             <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
               <Check color="#22c55e" size={32} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
               Success!
             </Text>
             <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -366,7 +366,7 @@ export default function EditProfile() {
               }}
               className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
             >
-              <Text className="text-white font-black uppercase italic text-lg">
+              <Text className="text-white font-black uppercase text-lg">
                 Great!
               </Text>
             </TouchableOpacity>

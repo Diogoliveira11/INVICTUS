@@ -238,19 +238,17 @@ export default function SaveWorkoutScreen() {
         </TouchableOpacity>
         <Text
           numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase"
         >
           Finish
         </Text>
         <TouchableOpacity onPress={handleSave} className="p-2">
-          <Text className="text-[#E31C25] font-black uppercase italic">
-            Save
-          </Text>
+          <Text className="text-[#E31C25] font-black uppercase">Save</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView className="px-6 pt-6">
-        <Text className="text-white text-3xl font-black italic mb-8 uppercase">
+        <Text className="text-white text-3xl font-black mb-8 uppercase">
           Summary
         </Text>
 
@@ -259,15 +257,13 @@ export default function SaveWorkoutScreen() {
             <Text className="text-zinc-500 text-[10px] font-black uppercase">
               Duration
             </Text>
-            <Text className="text-[#E31C25] text-xl font-black italic">
-              {timer}
-            </Text>
+            <Text className="text-[#E31C25] text-xl font-black">{timer}</Text>
           </View>
           <View className="items-center">
             <Text className="text-zinc-500 text-[10px] font-black uppercase">
               Volume
             </Text>
-            <Text className="text-white text-xl font-black italic">
+            <Text className="text-white text-xl font-black">
               {stats.totalVolume}
               {weightUnit}
             </Text>
@@ -276,7 +272,7 @@ export default function SaveWorkoutScreen() {
             <Text className="text-zinc-500 text-[10px] font-black uppercase">
               Series
             </Text>
-            <Text className="text-white text-xl font-black italic">
+            <Text className="text-white text-xl font-black">
               {stats.totalSets}
             </Text>
           </View>
@@ -296,7 +292,7 @@ export default function SaveWorkoutScreen() {
           ) : (
             <View className="items-center gap-2">
               <Camera color="#52525b" size={32} />
-              <Text className="text-zinc-500 font-black uppercase italic text-xs">
+              <Text className="text-zinc-500 font-black uppercase text-xs">
                 Add Workout Photo
               </Text>
             </View>
@@ -320,7 +316,7 @@ export default function SaveWorkoutScreen() {
             <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
               <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
               Attention
             </Text>
             <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -330,7 +326,7 @@ export default function SaveWorkoutScreen() {
               onPress={() => setShowAttentionModal(false)}
               className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
             >
-              <Text className="text-white font-black uppercase italic text-lg">
+              <Text className="text-white font-black uppercase text-lg">
                 OK
               </Text>
             </TouchableOpacity>
@@ -344,7 +340,7 @@ export default function SaveWorkoutScreen() {
             <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
               <Check color="#22c55e" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
               Success!
             </Text>
             <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -357,7 +353,7 @@ export default function SaveWorkoutScreen() {
               }}
               className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
             >
-              <Text className="text-white font-black uppercase italic text-lg">
+              <Text className="text-white font-black uppercase text-lg">
                 Great!
               </Text>
             </TouchableOpacity>
@@ -372,7 +368,7 @@ export default function SaveWorkoutScreen() {
           onPress={() => setShowImageModal(false)}
         >
           <View className="bg-[#121212] p-10 rounded-t-[40px] border-t border-zinc-800">
-            <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
+            <Text className="text-white text-center font-black uppercase mb-8 tracking-widest text-sm">
               Choose Source
             </Text>
             <View className="flex-row justify-around mb-6">
@@ -383,7 +379,7 @@ export default function SaveWorkoutScreen() {
                 <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800">
                   <Camera color="#E31C25" size={32} />
                 </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                <Text className="text-zinc-400 font-black uppercase text-[10px]">
                   Camera
                 </Text>
               </TouchableOpacity>
@@ -394,7 +390,7 @@ export default function SaveWorkoutScreen() {
                 <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800">
                   <ImageIcon color="#E31C25" size={32} />
                 </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
+                <Text className="text-zinc-400 font-black uppercase text-[10px]">
                   Gallery
                 </Text>
               </TouchableOpacity>
@@ -410,17 +406,17 @@ export default function SaveWorkoutScreen() {
             <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
               <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3 tracking-wider">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3 tracking-wider">
               Attention
             </Text>
-            <Text className="text-zinc-400 text-center text-sm font-black uppercase italic mb-8 leading-5">
+            <Text className="text-zinc-400 text-center text-sm font-black uppercase mb-8 leading-5">
               {permissionModalMessage}
             </Text>
             <TouchableOpacity
               onPress={() => setPermissionModalVisible(false)}
               className="w-full py-4 rounded-2xl items-center bg-[#E31C25]"
             >
-              <Text className="text-white font-black uppercase italic text-lg">
+              <Text className="text-white font-black uppercase text-lg">
                 OK
               </Text>
             </TouchableOpacity>

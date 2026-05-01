@@ -252,14 +252,14 @@ export default function ProgressResult() {
           />
           <View className="absolute inset-0 bg-black/30" />
           <View className="absolute bottom-6 w-full items-center">
-            <Text className="text-white text-3xl font-black uppercase italic">
+            <Text className="text-white text-3xl font-black uppercase">
               Progress Result
             </Text>
-            <Text className="text-[#E31C25] text-2xl font-black italic mt-1 uppercase">
+            <Text className="text-[#E31C25] text-2xl font-black mt-1 uppercase">
               Full Stats
             </Text>
             <View className="mt-4 bg-zinc-900/90 px-10 py-3 rounded-2xl border border-zinc-800">
-              <Text className="text-zinc-200 text-lg font-black italic uppercase">
+              <Text className="text-zinc-200 text-lg font-black">
                 {userName}
               </Text>
             </View>
@@ -276,20 +276,20 @@ export default function ProgressResult() {
               Workouts
             </Text>
             <View className="w-20 h-20 rounded-full border-[4px] border-[#E31C25] items-center justify-center">
-              <Text className="text-white text-2xl font-black italic">
+              <Text className="text-white text-2xl font-black">
                 {workoutsCount}
                 <Text className="text-zinc-600">/{weeklyGoal}</Text>
               </Text>
             </View>
             <View className="flex-row mt-5 gap-3">
               <View className="items-center">
-                <Text className="text-zinc-300 font-black text-xl italic">
+                <Text className="text-zinc-300 font-black text-xl">
                   {totalHours}
                 </Text>
                 <Text className="text-zinc-600 text-[8px] uppercase">h</Text>
               </View>
               <View className="items-center">
-                <Text className="text-zinc-300 font-black text-xl italic">
+                <Text className="text-zinc-300 font-black text-xl">
                   {totalMinutes}
                 </Text>
                 <Text className="text-zinc-600 text-[8px] uppercase">min</Text>
@@ -309,7 +309,7 @@ export default function ProgressResult() {
               <Dumbbell size={40} color="#E31C25" />
             </View>
             <View className="mt-5 items-center">
-              <Text className="text-zinc-200 text-xl font-black italic">
+              <Text className="text-zinc-200 text-xl font-black">
                 {totalVolume >= 1000
                   ? `${(totalVolume / 1000).toFixed(1)}k`
                   : totalVolume}
@@ -334,7 +334,7 @@ export default function ProgressResult() {
               >
                 <ChevronLeft size={24} color="white" />
               </TouchableOpacity>
-              <Text className="text-white text-2xl font-black italic uppercase ml-5 tracking-tighter">
+              <Text className="text-white text-2xl font-black uppercase ml-5 tracking-tighter">
                 History
               </Text>
             </View>
@@ -355,12 +355,12 @@ export default function ProgressResult() {
                         weekday: "long",
                       })}
                     </Text>
-                    <Text className="text-white text-lg font-black italic uppercase">
-                      {workout.title || "Treino"}
+                    <Text className="text-white text-lg font-black uppercase">
+                      {workout.title || "Workout"}
                     </Text>
                     <View className="flex-row items-center mt-2">
                       <Clock size={12} color="#52525b" />
-                      <Text className="text-zinc-500 text-[10px] font-black ml-1 uppercase italic">
+                      <Text className="text-zinc-500 text-[10px] font-black ml-1 uppercase">
                         {workout.duration} •{" "}
                         {workout.total_volume > 0
                           ? `${workout.total_volume}${weightUnitLower}`
@@ -397,12 +397,12 @@ export default function ProgressResult() {
                   <ChevronLeft size={24} color="white" />
                 </TouchableOpacity>
                 <View className="items-end">
-                  <Text className="text-white text-2xl font-black italic uppercase tracking-tighter">
-                    {selectedWorkout?.title || "Treino"}
+                  <Text className="text-white text-2xl font-black uppercase tracking-tighter">
+                    {selectedWorkout?.title || "Workout"}
                   </Text>
                   <View className="flex-row items-center mt-1">
                     <Clock size={12} color="#E31C25" />
-                    <Text className="text-[#E31C25] text-xs font-black uppercase italic ml-1">
+                    <Text className="text-[#E31C25] text-xs font-black uppercase ml-1">
                       {selectedWorkout?.duration || "00:00:00"}
                     </Text>
                   </View>
@@ -414,7 +414,7 @@ export default function ProgressResult() {
                   <Text className="text-zinc-500 text-[8px] font-black uppercase">
                     Volume Total
                   </Text>
-                  <Text className="text-white font-black italic">
+                  <Text className="text-white font-black">
                     {workoutExercises.some(
                       (e) => e.muscle_group?.toLowerCase() === "cardio",
                     )
@@ -427,7 +427,7 @@ export default function ProgressResult() {
                   <Text className="text-zinc-500 text-[8px] font-black uppercase">
                     Data
                   </Text>
-                  <Text className="text-white font-black italic">
+                  <Text className="text-white font-black">
                     {selectedWorkout
                       ? new Date(selectedWorkout.date).toLocaleDateString(
                           "pt-PT",
@@ -461,7 +461,7 @@ export default function ProgressResult() {
                   key={idx}
                   className="mb-6 bg-zinc-900/20 rounded-[40px] p-6 border border-zinc-900"
                 >
-                  <Text className="text-white text-lg font-black italic uppercase mb-4 tracking-tighter color-[#E31C25]">
+                  <Text className="text-white text-lg font-black uppercase mb-4 tracking-tighter color-[#E31C25]">
                     {group.name}
                   </Text>
                   <View className="flex-row mb-3 px-2">
@@ -512,7 +512,7 @@ export default function ProgressResult() {
                         key={sIdx}
                         className="flex-row items-center py-3 border-b border-zinc-800/30 px-2"
                       >
-                        <Text className="text-zinc-500 font-black italic w-8">
+                        <Text className="text-zinc-500 font-black w-8">
                           {sIdx + 1}
                         </Text>
                         <View className="flex-1 items-center">
@@ -528,7 +528,7 @@ export default function ProgressResult() {
                         </View>
                         <View className="w-20 flex-row items-center justify-center">
                           <Text
-                            className="text-white font-black italic text-center"
+                            className="text-white font-black text-center"
                             numberOfLines={1}
                           >
                             {set.muscle_group?.toLowerCase() === "cardio"
@@ -544,7 +544,7 @@ export default function ProgressResult() {
                           )}
                         </View>
                         <Text
-                          className="text-zinc-200 font-black italic w-24 text-right"
+                          className="text-zinc-200 font-black w-24 text-right"
                           numberOfLines={1}
                         >
                           {set.muscle_group?.toLowerCase() === "cardio"
@@ -559,9 +559,9 @@ export default function ProgressResult() {
               {selectedWorkout?.notes && (
                 <View className="mt-4 p-6 bg-zinc-900/10 border border-dashed border-zinc-800 rounded-[35px]">
                   <Text className="text-zinc-500 text-[10px] font-black uppercase mb-2">
-                    Notas do Treino
+                    Workout Notes
                   </Text>
-                  <Text className="text-zinc-300 italic text-sm">{`"${selectedWorkout.notes}"`}</Text>
+                  <Text className="text-zinc-300 text-sm">{`"${selectedWorkout.notes}"`}</Text>
                 </View>
               )}
             </ScrollView>
@@ -582,7 +582,7 @@ export default function ProgressResult() {
               >
                 <ChevronLeft size={24} color="white" />
               </TouchableOpacity>
-              <Text className="text-white text-2xl font-black italic uppercase ml-5 tracking-tighter">
+              <Text className="text-white text-2xl font-black uppercase ml-5 tracking-tighter">
                 Weekly Exercise Volume
               </Text>
             </View>
@@ -595,18 +595,18 @@ export default function ProgressResult() {
                     className="mb-4 bg-zinc-900/30 p-5 rounded-[30px] border border-zinc-900 flex-row items-center justify-between"
                   >
                     <View className="flex-1 mr-4">
-                      <Text className="text-zinc-500 text-[8px] font-black uppercase mb-1 italic">
+                      <Text className="text-zinc-500 text-[8px] font-black uppercase mb-1">
                         Rank #{index + 1}
                       </Text>
                       <Text
-                        className="text-white font-bold uppercase italic text-sm"
+                        className="text-white font-bold uppercase text-sm"
                         numberOfLines={1}
                       >
                         {item.name}
                       </Text>
                     </View>
                     <View className="items-end">
-                      <Text className="text-[#E31C25] font-black italic text-lg">
+                      <Text className="text-[#E31C25] font-black text-lg">
                         {Number(item.volume).toLocaleString()}{" "}
                         <Text className="text-[10px] text-zinc-600">
                           {weightUnit}
@@ -626,7 +626,7 @@ export default function ProgressResult() {
               ) : (
                 <View className="items-center mt-20">
                   <Dumbbell size={40} color="#18181b" />
-                  <Text className="text-zinc-700 italic font-bold uppercase mt-4">
+                  <Text className="text-zinc-700 font-bold uppercase mt-4">
                     No data this week
                   </Text>
                 </View>

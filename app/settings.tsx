@@ -72,7 +72,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <Text
           numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase"
         >
           Settings
         </Text>

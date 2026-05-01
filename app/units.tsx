@@ -12,7 +12,7 @@ export default function UnitsSelection() {
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-[30px] justify-between py-[50px]">
         <View className="items-center mt-10">
-          <Text className="text-white text-[28px] font-bold text-center italic">
+          <Text className="text-white text-[28px] font-bold text-center">
             Choose your units
           </Text>
           <Text className="text-gray-400 text-base text-center mt-[15px] leading-[22px]">

@@ -52,7 +52,7 @@ export default function GenderSelection() {
       <View className="flex-1 px-[30px] justify-between py-[50px]">
         {/* Header */}
         <View className="items-center mt-10">
-          <Text className="text-white text-[28px] font-bold text-center italic">
+          <Text className="text-white text-[28px] font-bold text-center">
             Tell us about yourself!
           </Text>
           <Text className="text-gray-400 text-base text-center mt-[15px] leading-[22px]">

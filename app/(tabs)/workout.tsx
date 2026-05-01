@@ -127,9 +127,7 @@ export default function WorkoutTabScreen() {
       <StatusBar barStyle="light-content" />
 
       <ScrollView className="px-5" showsVerticalScrollIndicator={false}>
-        <Text className="text-white text-4xl font-black italic mt-4">
-          Workout
-        </Text>
+        <Text className="text-white text-4xl font-black mt-4">Workout</Text>
 
         <TouchableOpacity
           onPress={() => {
@@ -141,14 +139,14 @@ export default function WorkoutTabScreen() {
           className="flex-row items-center bg-zinc-900/30 py-5 px-5 rounded-[25px] mt-8 border border-zinc-800"
         >
           <Plus size={24} color="#E31C25" strokeWidth={4} />
-          <Text className="text-[#E31C25] font-black ml-4 text-lg uppercase italic">
+          <Text className="text-[#E31C25] font-black ml-4 text-lg uppercase">
             Start Empty Workout
           </Text>
         </TouchableOpacity>
 
         {/* CABEÇALHO SEM O ÍCONE DE FOLDER */}
         <View className="flex-row justify-between items-center mt-12">
-          <Text className="text-white text-2xl font-black italic uppercase">
+          <Text className="text-white text-2xl font-black uppercase">
             Routines
           </Text>
         </View>
@@ -159,7 +157,7 @@ export default function WorkoutTabScreen() {
             className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-4 rounded-2xl"
           >
             <List size={20} color="white" />
-            <Text className="text-white font-black ml-2 uppercase italic">
+            <Text className="text-white font-black ml-2 uppercase">
               New Routine
             </Text>
           </TouchableOpacity>
@@ -169,7 +167,7 @@ export default function WorkoutTabScreen() {
             className="flex-1 flex-row items-center justify-center bg-[#E31C25] py-4 rounded-2xl"
           >
             <Search size={20} color="white" />
-            <Text className="text-white font-black ml-2 uppercase italic">
+            <Text className="text-white font-black ml-2 uppercase">
               EXERCISES
             </Text>
           </TouchableOpacity>
@@ -179,7 +177,7 @@ export default function WorkoutTabScreen() {
           {/* MENSAGEM DE LISTA VAZIA ADICIONADA AQUI */}
           {routines.length === 0 ? (
             <View className="py-20 items-center border border-zinc-900 border-dashed rounded-[35px]">
-              <Text className="text-zinc-600 font-bold uppercase italic text-center px-10">
+              <Text className="text-zinc-600 font-bold uppercase text-center px-10">
                 No routines found.{"\n"}Create your first workout plan!
               </Text>
             </View>
@@ -191,7 +189,7 @@ export default function WorkoutTabScreen() {
               >
                 <View className="flex-row justify-between items-start">
                   <View className="flex-1">
-                    <Text className="text-white text-xl font-black italic">
+                    <Text className="text-white text-xl font-black">
                       {item.name}
                     </Text>
                     <Text
@@ -218,7 +216,7 @@ export default function WorkoutTabScreen() {
                   }}
                   className="bg-[#E31C25] w-full py-4 rounded-[20px] mt-6 items-center shadow-lg"
                 >
-                  <Text className="text-white font-black text-lg uppercase italic">
+                  <Text className="text-white font-black text-lg uppercase">
                     Start Routine
                   </Text>
                 </TouchableOpacity>
@@ -253,7 +251,7 @@ export default function WorkoutTabScreen() {
               className="flex-row items-center bg-zinc-900/50 p-6 rounded-3xl mb-4 border border-zinc-800"
             >
               <Edit3 size={22} color="white" />
-              <Text className="text-white text-lg font-black ml-4 uppercase italic">
+              <Text className="text-white text-lg font-black ml-4 uppercase">
                 Edit Routine
               </Text>
             </TouchableOpacity>
@@ -263,7 +261,7 @@ export default function WorkoutTabScreen() {
               className="flex-row items-center bg-[#E31C25]/10 p-6 rounded-3xl mb-10 border border-[#E31C25]/20"
             >
               <Trash2 size={22} color="#E31C25" />
-              <Text className="text-[#E31C25] text-lg font-black ml-4 uppercase italic">
+              <Text className="text-[#E31C25] text-lg font-black ml-4 uppercase">
                 Delete Routine
               </Text>
             </TouchableOpacity>
@@ -286,7 +284,7 @@ export default function WorkoutTabScreen() {
             <View className="bg-[#E31C25]/10 p-4 rounded-full mb-6 border border-[#E31C25]/20">
               <Trash2 color="#E31C25" size={32} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
               Delete Routine?
             </Text>
             <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -305,9 +303,7 @@ export default function WorkoutTabScreen() {
                 onPress={executeDelete}
                 className="flex-1 bg-[#E31C25] py-4 rounded-2xl items-center"
               >
-                <Text className="text-white font-black uppercase italic">
-                  Delete
-                </Text>
+                <Text className="text-white font-black uppercase">Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -321,7 +317,7 @@ export default function WorkoutTabScreen() {
             <View className="bg-green-500/10 p-4 rounded-full mb-6 border border-green-500/20">
               <Check color="#22c55e" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
               Deleted!
             </Text>
             <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -331,7 +327,7 @@ export default function WorkoutTabScreen() {
               onPress={() => setShowDeleteSuccessModal(false)}
               className="w-full bg-[#E31C25] py-4 rounded-2xl items-center"
             >
-              <Text className="text-white font-black uppercase italic text-lg">
+              <Text className="text-white font-black uppercase text-lg">
                 OK
               </Text>
             </TouchableOpacity>

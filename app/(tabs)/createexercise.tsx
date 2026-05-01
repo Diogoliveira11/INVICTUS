@@ -1,5 +1,4 @@
 import * as ImagePicker from "expo-image-picker";
-import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -9,6 +8,8 @@ import {
   Check,
   ChevronRight,
   Image as ImageIcon,
+  Trash2,
+  X,
 } from "lucide-react-native";
 import { useState } from "react";
 import {
@@ -58,60 +59,52 @@ export default function CreateExerciseScreen() {
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
   const [showImageModal, setShowImageModal] = useState(false);
 
-  // Custom permission modal (estilo ATTENTION)
   const [permissionModalVisible, setPermissionModalVisible] = useState(false);
   const [permissionModalMessage, setPermissionModalMessage] = useState("");
 
-  // Custom alert modal (estilo ATTENTION — para validação do formulário)
   const [alertModalVisible, setAlertModalVisible] = useState(false);
   const [alertModalMessage, setAlertModalMessage] = useState("");
 
   const redColor = "#E31C25";
 
-  const pickImage = async (useCamera: boolean) => {
-    setShowImageModal(false);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
+  const launchPicker = async (useCamera: boolean) => {
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permission.status !== "granted") {
-      if (permission.canAskAgain === false) {
-        // iOS: permissão negada permanentemente, redirecionar para definições
-        setPermissionModalMessage(
-          useCamera
-            ? "CAMERA ACCESS WAS DENIED. PLEASE ENABLE IT IN YOUR DEVICE SETTINGS."
-            : "GALLERY ACCESS WAS DENIED. PLEASE ENABLE IT IN YOUR DEVICE SETTINGS.",
-        );
-        setPermissionModalVisible(true);
-        // Abre as definições após fechar o modal
-        setTimeout(() => Linking.openSettings(), 1500);
-      } else {
-        setPermissionModalMessage(
-          useCamera
-            ? "WE NEED CAMERA ACCESS TO ADD AN EXERCISE PHOTO!"
-            : "WE NEED GALLERY ACCESS TO CHOOSE AN EXERCISE PHOTO!",
-        );
-        setPermissionModalVisible(true);
-      }
+      setPermissionModalMessage(
+        useCamera
+          ? "WE NEED CAMERA ACCESS TO ADD AN EXERCISE PHOTO!"
+          : "WE NEED GALLERY ACCESS TO CHOOSE AN EXERCISE PHOTO!",
+      );
+      setPermissionModalVisible(true);
       return;
     }
-    const result = await (useCamera
-      ? ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.5,
-        })
-      : ImagePicker.launchImageLibraryAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.5,
-        }));
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.5,
+          mediaTypes: ["images"],
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.5,
+          mediaTypes: ["images"],
+        });
+
+    if (!result.canceled && result.assets?.[0]) {
       setImageUri(result.assets[0].uri);
     }
+  };
+
+  const handleImageOption = (useCamera: boolean) => {
+    setShowImageModal(false);
+    const delay = Platform.OS === "ios" ? 500 : 300;
+    setTimeout(() => launchPicker(useCamera), delay);
   };
 
   const handleSave = async () => {
@@ -133,7 +126,6 @@ export default function CreateExerciseScreen() {
         [nextId, name.trim(), muscleGroup, equipment, imageUri, 1],
       );
 
-      // Reset form so next time the screen opens it's blank
       setName("");
       setMuscleGroup("Select");
       setEquipment("Select");
@@ -158,20 +150,17 @@ export default function CreateExerciseScreen() {
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
 
-      {/* HEADER */}
       <View className="flex-row items-center justify-between px-6 py-4 border-b border-zinc-900">
         <TouchableOpacity
           onPress={() => router.replace("/(tabs)/workout/explore_exercises")}
         >
           <ArrowLeft color="white" size={24} />
         </TouchableOpacity>
-        <Text className="text-white text-lg font-black uppercase italic">
+        <Text className="text-white text-lg font-black uppercase">
           New Exercise
         </Text>
         <TouchableOpacity onPress={handleSave} disabled={isSubmitting}>
-          <Text className="text-[#E31C25] font-black uppercase italic">
-            Save
-          </Text>
+          <Text className="text-[#E31C25] font-black uppercase">Save</Text>
         </TouchableOpacity>
       </View>
 
@@ -180,7 +169,6 @@ export default function CreateExerciseScreen() {
         className="flex-1"
       >
         <ScrollView className="flex-1 px-6">
-          {/* FOTO CIRCLE */}
           <View className="items-center my-8">
             <TouchableOpacity
               onPress={() => setShowImageModal(true)}
@@ -200,9 +188,20 @@ export default function CreateExerciseScreen() {
                 </View>
               )}
             </TouchableOpacity>
+
+            {imageUri && (
+              <TouchableOpacity
+                onPress={() => setImageUri(null)}
+                className="mt-3 flex-row items-center bg-red-500/10 px-4 py-2 rounded-xl border border-red-500/20"
+              >
+                <Trash2 size={14} color="#ef4444" />
+                <Text className="text-red-400 text-[10px] font-black uppercase ml-2">
+                  Remove Photo
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* NOME DO EXERCÍCIO */}
           <View className="mb-8">
             <Text className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">
               Exercise Name
@@ -216,7 +215,6 @@ export default function CreateExerciseScreen() {
             />
           </View>
 
-          {/* EQUIPAMENTO */}
           <TouchableOpacity
             onPress={() => openPicker("equipment")}
             className="flex-row items-center justify-between py-5 border-b border-zinc-900"
@@ -234,7 +232,6 @@ export default function CreateExerciseScreen() {
             <ChevronRight color="#27272a" size={20} />
           </TouchableOpacity>
 
-          {/* GRUPO MUSCULAR */}
           <TouchableOpacity
             onPress={() => openPicker("muscle")}
             className="flex-row items-center justify-between py-5 border-b border-zinc-900"
@@ -254,57 +251,230 @@ export default function CreateExerciseScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* MODAL CHOOSE SOURCE */}
-      <Modal visible={showImageModal} transparent animationType="slide">
-        <TouchableOpacity
-          activeOpacity={1}
-          className="flex-1 bg-black/60 justify-end"
-          onPress={() => setShowImageModal(false)}
+      {/* MODAL CHOOSE SOURCE — igual em iOS e Android */}
+      <Modal
+        visible={showImageModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            justifyContent: "flex-end",
+          }}
         >
-          <View className="bg-[#121212] p-10 rounded-t-[40px] border-t border-zinc-800">
-            <Text className="text-white text-center font-black uppercase italic mb-8 tracking-widest text-sm">
-              Choose Source
-            </Text>
-            <View className="flex-row justify-around mb-6">
-              <TouchableOpacity
-                onPress={() => pickImage(true)}
-                className="items-center"
-              >
-                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
-                  <CameraIcon color={redColor} size={32} />
-                </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
-                  Camera
-                </Text>
-              </TouchableOpacity>
+          <View
+            style={{
+              backgroundColor: "#0f0f0f",
+              borderTopLeftRadius: 40,
+              borderTopRightRadius: 40,
+              borderTopWidth: 1,
+              borderColor: "#27272a",
+              paddingHorizontal: 24,
+              paddingTop: 24,
+              paddingBottom: 48,
+            }}
+          >
+            {/* Handle */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                backgroundColor: "#3f3f46",
+                borderRadius: 2,
+                alignSelf: "center",
+                marginBottom: 24,
+              }}
+            />
 
-              <TouchableOpacity
-                onPress={() => pickImage(false)}
-                className="items-center"
-              >
-                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
-                  <ImageIcon color={redColor} size={32} />
-                </View>
-                <Text className="text-zinc-400 font-black uppercase italic text-[10px]">
-                  Gallery
+            {/* Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 28,
+              }}
+            >
+              <View>
+                <Text
+                  style={{
+                    color: "white",
+                    fontSize: 22,
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Add Photo
                 </Text>
+                <Text
+                  style={{
+                    color: "#52525b",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    marginTop: 2,
+                  }}
+                >
+                  Choose how to add your image
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowImageModal(false)}
+                style={{
+                  backgroundColor: "#27272a",
+                  padding: 10,
+                  borderRadius: 50,
+                  borderWidth: 1,
+                  borderColor: "#3f3f46",
+                }}
+              >
+                <X size={16} color="#71717a" />
               </TouchableOpacity>
             </View>
+
+            {/* Camera option */}
+            <TouchableOpacity
+              onPress={() => handleImageOption(true)}
+              activeOpacity={0.7}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#1a1a1a",
+                padding: 20,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#27272a",
+                marginBottom: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  backgroundColor: "#E31C2518",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 16,
+                }}
+              >
+                <CameraIcon color={redColor} size={26} strokeWidth={2.5} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Take Photo
+                </Text>
+                <Text
+                  style={{
+                    color: "#52525b",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    marginTop: 3,
+                  }}
+                >
+                  Use your camera
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: "#27272a",
+                  padding: 8,
+                  borderRadius: 12,
+                }}
+              >
+                <ChevronRight color="#52525b" size={18} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Gallery option */}
+            <TouchableOpacity
+              onPress={() => handleImageOption(false)}
+              activeOpacity={0.7}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#1a1a1a",
+                padding: 20,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#27272a",
+              }}
+            >
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  backgroundColor: "#E31C2518",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 16,
+                }}
+              >
+                <ImageIcon color={redColor} size={26} strokeWidth={2.5} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Choose from Gallery
+                </Text>
+                <Text
+                  style={{
+                    color: "#52525b",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    marginTop: 3,
+                  }}
+                >
+                  Pick from your photos
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: "#27272a",
+                  padding: 8,
+                  borderRadius: 12,
+                }}
+              >
+                <ChevronRight color="#52525b" size={18} />
+              </View>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
-      {/* MODAL PERMISSÃO NEGADA — estilo ATTENTION */}
+      {/* MODAL PERMISSÃO NEGADA */}
       <Modal visible={permissionModalVisible} transparent animationType="fade">
         <View className="flex-1 bg-black/80 justify-center items-center px-10">
           <View className="bg-[#1a1a1a] w-full p-8 rounded-[32px] border border-zinc-800 items-center">
             <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
               <AlertTriangle color="#f59e0b" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3 tracking-wider">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3 tracking-wider">
               Attention
             </Text>
-            <Text className="text-zinc-400 text-center text-sm font-black uppercase italic mb-8 leading-5">
+            <Text className="text-zinc-400 text-center text-sm font-black uppercase mb-8 leading-5">
               {permissionModalMessage}
             </Text>
             <TouchableOpacity
@@ -312,7 +482,7 @@ export default function CreateExerciseScreen() {
               className="w-full py-4 rounded-2xl items-center"
               style={{ backgroundColor: redColor }}
             >
-              <Text className="text-white font-black uppercase italic text-lg tracking-wider">
+              <Text className="text-white font-black uppercase text-lg tracking-wider">
                 OK
               </Text>
             </TouchableOpacity>
@@ -320,17 +490,17 @@ export default function CreateExerciseScreen() {
         </View>
       </Modal>
 
-      {/* MODAL ALERTA VALIDAÇÃO — estilo ATTENTION */}
+      {/* MODAL ALERTA VALIDAÇÃO */}
       <Modal visible={alertModalVisible} transparent animationType="fade">
         <View className="flex-1 bg-black/80 justify-center items-center px-10">
           <View className="bg-[#1a1a1a] w-full p-8 rounded-[32px] border border-zinc-800 items-center">
             <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
               <AlertTriangle color="#f59e0b" size={32} strokeWidth={3} />
             </View>
-            <Text className="text-white text-center text-xl font-black uppercase italic mb-3 tracking-wider">
+            <Text className="text-white text-center text-xl font-black uppercase mb-3 tracking-wider">
               Attention
             </Text>
-            <Text className="text-zinc-400 text-center text-sm font-black uppercase italic mb-8 leading-5">
+            <Text className="text-zinc-400 text-center text-sm font-black uppercase mb-8 leading-5">
               {alertModalMessage}
             </Text>
             <TouchableOpacity
@@ -338,7 +508,7 @@ export default function CreateExerciseScreen() {
               className="w-full py-4 rounded-2xl items-center"
               style={{ backgroundColor: redColor }}
             >
-              <Text className="text-white font-black uppercase italic text-lg tracking-wider">
+              <Text className="text-white font-black uppercase text-lg tracking-wider">
                 OK
               </Text>
             </TouchableOpacity>
@@ -351,7 +521,7 @@ export default function CreateExerciseScreen() {
         <View className="flex-1 bg-black/90 justify-end">
           <View className="bg-zinc-900 rounded-t-[40px] h-[70%]">
             <View className="w-12 h-1 bg-zinc-800 rounded-full self-center my-4" />
-            <Text className="text-white text-center font-black uppercase italic mb-4">
+            <Text className="text-white text-center font-black uppercase mb-4">
               Select {modalType === "muscle" ? "Muscle" : "Equipment"}
             </Text>
             <FlatList

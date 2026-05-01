@@ -8,9 +8,16 @@
     "scheme": "INVICTUS",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "We need camera access to add exercise photos.",
+        "NSPhotoLibraryUsageDescription": "We need gallery access to choose exercise photos.",
+        "NSPhotoLibraryAddUsageDescription": "We need gallery access to save exercise photos."
+      }
     },
+
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -26,8 +33,14 @@
       },
       "navigationBar": {
         "backgroundColor": "#00000000"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
+
     "web": {
       "output": "static",
       "favicon": "./assets/images/icon.jpeg"
@@ -44,6 +57,13 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "We need gallery access to choose exercise photos.",
+          "cameraPermission": "We need camera access to add exercise photos."
         }
       ],
       "expo-sqlite",

@@ -302,6 +302,45 @@ function calcPersonalRecords(
 }
 
 // ─── SPARKLINE CHART ────────────────────────────────────────────────────────
+function formatYLabel(
+  v: number,
+  metric: MetricKey,
+  weightUnit: string,
+): string {
+  if (metric === "Total Reps") return `${Math.round(v)}`;
+  // Show integer if no fractional part, otherwise 1 decimal
+  const rounded = Math.round(v * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
+}
+
+function niceYLabels(minV: number, maxV: number): number[] {
+  if (minV === maxV) {
+    // Only one unique value — show it centered with ±1 padding
+    return [maxV + 1, maxV, minV - 1];
+  }
+  const range = maxV - minV;
+  // Pick a step that gives clean round numbers
+  const rawStep = range / 3;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const niceSteps = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
+  const step = niceSteps.find((s) => s >= rawStep) ?? rawStep;
+
+  const niceMin = Math.floor(minV / step) * step;
+  const niceMax = Math.ceil(maxV / step) * step;
+
+  const labels: number[] = [];
+  for (let v = niceMin; v <= niceMax + step * 0.01; v += step) {
+    labels.push(Math.round(v * 100) / 100);
+  }
+  // Return 3 evenly spaced: top, mid, bottom
+  if (labels.length >= 3) {
+    const last = labels.length - 1;
+    const mid = Math.round(last / 2);
+    return [labels[last], labels[mid], labels[0]];
+  }
+  return labels.reverse().slice(0, 3);
+}
+
 function SparkChart({
   points,
   metric,
@@ -312,11 +351,11 @@ function SparkChart({
   weightUnit: string;
 }) {
   const W = Dimensions.get("window").width - 48;
-  const H = 160;
-  const PAD_LEFT = 52;
-  const PAD_RIGHT = 12;
-  const PAD_TOP = 16;
-  const PAD_BOTTOM = 36;
+  const H = 180;
+  const PAD_LEFT = 46;
+  const PAD_RIGHT = 16;
+  const PAD_TOP = 12;
+  const PAD_BOTTOM = 40;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
   const chartH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -333,20 +372,25 @@ function SparkChart({
   }
 
   const values = points.map((p) => p.value);
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const rangeV = maxV - minV || 1;
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+
+  // Add vertical padding so line never touches top/bottom edge
+  const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.15;
+  const minV = rawMin - padding;
+  const maxV = rawMax + padding;
+  const rangeV = maxV - minV;
 
   const toX = (i: number) =>
     PAD_LEFT + (i / Math.max(points.length - 1, 1)) * chartW;
   const toY = (v: number) => PAD_TOP + chartH - ((v - minV) / rangeV) * chartH;
 
-  // Polyline points string
+  // Polyline
   const polyPoints = points
     .map((p, i) => `${toX(i)},${toY(p.value)}`)
     .join(" ");
 
-  // Filled area path
+  // Area fill path
   const firstX = toX(0);
   const lastX = toX(points.length - 1);
   const baseY = PAD_TOP + chartH;
@@ -355,60 +399,74 @@ function SparkChart({
     points.map((p, i) => `L${toX(i)},${toY(p.value)}`).join(" ") +
     ` L${lastX},${baseY} Z`;
 
-  // Y axis labels (3 levels)
-  const yLabels = [maxV, (maxV + minV) / 2, minV].map((v) => ({
-    v: Math.round(v * 10) / 10,
+  // Y axis: nice round labels based on actual data range
+  const yLabelValues = niceYLabels(rawMin, rawMax);
+  const yLabels = yLabelValues.map((v) => ({
+    text: formatYLabel(v, metric, weightUnit),
     y: toY(v),
   }));
 
-  // X axis labels (first, middle, last)
-  const xIndices =
-    points.length === 1
-      ? [0]
-      : points.length === 2
-        ? [0, 1]
-        : [0, Math.floor((points.length - 1) / 2), points.length - 1];
-
+  // X axis: show up to 4 dates, always first + last
   const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
+    // Handle both "YYYY-MM-DD" and ISO strings
+    const parts = dateStr.slice(0, 10).split("-");
+    const d = new Date(
+      Number(parts[0]),
+      Number(parts[1]) - 1,
+      Number(parts[2]),
+    );
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  const unit = metric === "Total Reps" ? " reps" : ` ${weightUnit}`;
+  let xIndices: number[];
+  if (points.length === 1) {
+    xIndices = [0];
+  } else if (points.length === 2) {
+    xIndices = [0, 1];
+  } else if (points.length <= 5) {
+    xIndices = [0, Math.floor((points.length - 1) / 2), points.length - 1];
+  } else {
+    // 4 labels: first, 1/3, 2/3, last
+    xIndices = [
+      0,
+      Math.round((points.length - 1) / 3),
+      Math.round(((points.length - 1) * 2) / 3),
+      points.length - 1,
+    ];
+  }
+
+  // Unit suffix for Y axis
+  const unitSuffix = metric === "Total Reps" ? " rep" : ` ${weightUnit}`;
 
   return (
     <Svg width={W} height={H}>
-      {/* Y grid lines */}
+      {/* Y grid lines + labels */}
       {yLabels.map((yl, i) => (
-        <Line
-          key={i}
-          x1={PAD_LEFT}
-          y1={yl.y}
-          x2={W - PAD_RIGHT}
-          y2={yl.y}
-          stroke="#27272a"
-          strokeWidth={1}
-          strokeDasharray="4,4"
-        />
-      ))}
-
-      {/* Y labels */}
-      {yLabels.map((yl, i) => (
-        <SvgText
-          key={i}
-          x={PAD_LEFT - 6}
-          y={yl.y + 4}
-          fontSize={9}
-          fill="#71717a"
-          textAnchor="end"
-          fontWeight="bold"
-        >
-          {yl.v}
-        </SvgText>
+        <React.Fragment key={i}>
+          <Line
+            x1={PAD_LEFT}
+            y1={yl.y}
+            x2={W - PAD_RIGHT}
+            y2={yl.y}
+            stroke="#27272a"
+            strokeWidth={1}
+            strokeDasharray="4,3"
+          />
+          <SvgText
+            x={PAD_LEFT - 5}
+            y={yl.y + 4}
+            fontSize={10}
+            fill="#71717a"
+            textAnchor="end"
+            fontWeight="bold"
+          >
+            {yl.text}
+          </SvgText>
+        </React.Fragment>
       ))}
 
       {/* Area fill */}
-      <Path d={areaPath} fill="#E31C25" fillOpacity={0.08} />
+      <Path d={areaPath} fill="#E31C25" fillOpacity={0.1} />
 
       {/* Line */}
       <Polyline
@@ -420,20 +478,22 @@ function SparkChart({
         strokeLinecap="round"
       />
 
-      {/* Dots */}
+      {/* Dots on each data point */}
       {points.map((p, i) => (
         <Circle key={i} cx={toX(i)} cy={toY(p.value)} r={3.5} fill="#E31C25" />
       ))}
 
-      {/* X labels */}
+      {/* X axis date labels */}
       {xIndices.map((idx) => (
         <SvgText
           key={idx}
           x={toX(idx)}
-          y={PAD_TOP + chartH + 18}
-          fontSize={9}
+          y={PAD_TOP + chartH + 20}
+          fontSize={10}
           fill="#71717a"
-          textAnchor="middle"
+          textAnchor={
+            idx === 0 ? "start" : idx === points.length - 1 ? "end" : "middle"
+          }
           fontWeight="bold"
         >
           {formatDate(points[idx].date)}
@@ -486,21 +546,6 @@ export default function ExerciseDetailScreen() {
           setExercise(result);
           setActiveTab(result.is_custom === 1 ? "History" : "Summary");
         }
-
-        const debug = await db.getAllAsync(
-          `SELECT ws.id, ws.weight, ws.reps, ws.workout_exercise_id, we.workout_id, w.date
-            FROM workout_sets ws
-            JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-            JOIN workouts w ON we.workout_id = w.id
-            LIMIT 10`,
-        );
-        console.log("DEBUG SETS:", JSON.stringify(debug));
-
-        const sets = await db.getAllAsync(`SELECT * FROM workout_sets`);
-        console.log("SETS:", JSON.stringify(sets));
-
-        const wex = await db.getAllAsync(`SELECT * FROM workout_exercises`);
-        console.log("WEX:", JSON.stringify(wex));
 
         // Fetch sets with real workout date via joins
         const rows = await db.getAllAsync<RawSet>(
@@ -654,10 +699,7 @@ export default function ExerciseDetailScreen() {
         {activeTab === "Summary" && (
           <View>
             {/* GIF */}
-            <View
-              className="mx-5 mt-5 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900"
-              style={{ height: 240 }}
-            >
+            <View className="mx-5 mt-5 h-56 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
               {gifSource ? (
                 <Image
                   source={gifSource}

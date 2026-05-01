@@ -91,7 +91,7 @@ export default function WeightSelection() {
       <View className="flex-1 justify-between py-10">
         {/* Título */}
         <View className="px-6 items-center mt-5">
-          <Text className="text-3xl font-bold text-white text-center italic">
+          <Text className="text-3xl font-bold text-white text-center">
             What´s your weight?
           </Text>
           <Text className="text-base text-gray-400 text-center mt-2">
