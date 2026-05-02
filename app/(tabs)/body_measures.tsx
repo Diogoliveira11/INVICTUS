@@ -173,36 +173,43 @@ function LineChart({ data, unit }: { data: Measurement[]; unit: string }) {
 function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
   if (data.length === 0) return null;
 
+  // 1. Valores para o eixo Y (Peso/Medida)
   const values = data.map((d) => d.value);
   const minVal = Math.min(...values);
   const maxVal = Math.max(...values);
-  const range = maxVal - minVal || 1;
+  const rangeY = maxVal - minVal || 1;
+
+  // 2. Timestamps para o eixo X (Tempo) - Isto garante a distância proporcional
+  const timestamps = data.map((d) => new Date(d.recorded_at).getTime());
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+  const rangeX = maxTime - minTime || 1;
 
   const innerW = CHART_WIDTH - PADDING_X * 2;
   const innerH = CHART_HEIGHT - PADDING_Y * 2;
 
-  const toX = (i: number) =>
-    PADDING_X + (i / Math.max(data.length - 1, 1)) * innerW;
-  const toY = (v: number) =>
-    PADDING_Y + innerH - ((v - minVal) / range) * innerH;
+  // 3. Função toX: Calcula a posição baseada no tempo decorrido
+  const toX = (timestamp: number) => {
+    if (data.length === 1) return PADDING_X + innerW / 2;
+    // (Tempo Atual - Tempo Inicial) / Tempo Total * Largura do Gráfico
+    return PADDING_X + ((timestamp - minTime) / rangeX) * innerW;
+  };
 
-  const points = data.map((d, i) => `${toX(i)},${toY(d.value)}`).join(" ");
+  const toY = (v: number) =>
+    PADDING_Y + innerH - ((v - minVal) / rangeY) * innerH;
+
+  const points = data
+    .map((d) => `${toX(new Date(d.recorded_at).getTime())},${toY(d.value)}`)
+    .join(" ");
 
   const yTicks = [0, 1, 2, 3].map((i) => {
-    const v = minVal + (range / 3) * i;
+    const v = minVal + (rangeY / 3) * i;
     return { label: v.toFixed(1), y: toY(v) };
   });
 
-  const xIndices =
-    data.length === 1
-      ? [0]
-      : data.length === 2
-        ? [0, 1]
-        : [0, Math.floor((data.length - 1) / 2), data.length - 1];
-
   return (
     <Svg2 width={CHART_WIDTH} height={CHART_HEIGHT + 24}>
-      {/* Grid lines */}
+      {/* Linhas de Grade Horizontais */}
       {yTicks.map((t, i) => (
         <L2
           key={i}
@@ -215,7 +222,7 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         />
       ))}
 
-      {/* Y labels */}
+      {/* Labels do Eixo Y (Valores) */}
       {yTicks.map((t, i) => (
         <SvgText
           key={`yl${i}`}
@@ -230,7 +237,7 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         </SvgText>
       ))}
 
-      {/* Line */}
+      {/* A Linha do Gráfico */}
       {data.length > 1 && (
         <P2
           points={points}
@@ -242,11 +249,11 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         />
       )}
 
-      {/* Dots */}
+      {/* Pontos (Círculos) - Posicionados proporcionalmente ao tempo */}
       {data.map((d, i) => (
         <C2
           key={i}
-          cx={toX(i)}
+          cx={toX(new Date(d.recorded_at).getTime())}
           cy={toY(d.value)}
           r={4}
           fill={RED}
@@ -255,20 +262,33 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         />
       ))}
 
-      {/* X labels */}
-      {xIndices.map((idx) => (
-        <SvgText
-          key={`xl${idx}`}
-          x={toX(idx)}
-          y={CHART_HEIGHT + 18}
-          fontSize="9"
-          fill="#52525b"
-          textAnchor="middle"
-          fontWeight="bold"
-        >
-          {formatAxisDate(data[idx].recorded_at)}
-        </SvgText>
-      ))}
+      {/* Datas no Eixo X (Início e Fim) */}
+      {data.length > 0 && (
+        <>
+          <SvgText
+            x={toX(timestamps[0])}
+            y={CHART_HEIGHT + 18}
+            fontSize="9"
+            fill="#52525b"
+            textAnchor="start"
+            fontWeight="bold"
+          >
+            {formatAxisDate(data[0].recorded_at)}
+          </SvgText>
+          {data.length > 1 && (
+            <SvgText
+              x={toX(timestamps[data.length - 1])}
+              y={CHART_HEIGHT + 18}
+              fontSize="9"
+              fill="#52525b"
+              textAnchor="end"
+              fontWeight="bold"
+            >
+              {formatAxisDate(data[data.length - 1].recorded_at)}
+            </SvgText>
+          )}
+        </>
+      )}
     </Svg2>
   );
 }
