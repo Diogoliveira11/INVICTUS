@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
+
 import {
   AlertCircle,
   AlertTriangle,
@@ -13,7 +14,13 @@ import {
   Image as ImageIcon,
   X,
 } from "lucide-react-native";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
   Image,
@@ -283,6 +290,18 @@ export default function SaveWorkoutScreen() {
     }
   };
 
+  // Reset local state every time this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setDescription("");
+      setWorkoutImage(null);
+      setShowSuccessModal(false);
+      setShowAttentionModal(false);
+      setShowUpdateSheet(false);
+      setAddedExerciseCount(0);
+    }, []),
+  );
+
   const handleImageOption = (useCamera: boolean) => {
     setShowImageModal(false);
     const delay = Platform.OS === "ios" ? 800 : 100;
@@ -405,6 +424,8 @@ export default function SaveWorkoutScreen() {
       }
 
       stopWorkout();
+      setDescription("");
+      setWorkoutImage(null);
       setShowSuccessModal(true);
     } catch (e) {
       console.error("[save_workout] erro:", e);

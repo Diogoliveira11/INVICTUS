@@ -300,7 +300,9 @@ export default function BodyMeasuresScreen() {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const db = useSQLiteContext();
-  const { weightUnit } = useUnits();
+  const { weightUnit, heightUnit } = useUnits();
+  const [activeTab, setActiveTab] = useState<"weight" | "height">("weight");
+  const currentUnit = activeTab === "weight" ? weightUnit : heightUnit;
 
   const [loading, setLoading] = useState(true);
   const [allData, setAllData] = useState<Measurement[]>([]);
@@ -309,7 +311,6 @@ export default function BodyMeasuresScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
-
   // ── DB setup & load ──────────────────────────────────────────────────────
 
   const ensureTable = useCallback(async () => {
@@ -330,13 +331,13 @@ export default function BodyMeasuresScreen() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
-      // Adicionado: WHERE type = 'weight' para bater com o insert do weight.tsx
+      // Mudança aqui: Usamos o activeTab na query
       const rows = await db.getAllAsync<Measurement>(
         `SELECT id, value, recorded_at
         FROM body_measurements
-        WHERE user_email = ? AND type = 'weight'
+        WHERE user_email = ? AND type = ?
         ORDER BY recorded_at ASC`,
-        [email],
+        [email, activeTab], // activeTab será 'weight' ou 'height'
       );
       setAllData(rows);
     } catch (e) {
@@ -344,7 +345,7 @@ export default function BodyMeasuresScreen() {
     } finally {
       setLoading(false);
     }
-  }, [db, ensureTable]);
+  }, [db, ensureTable, activeTab]);
 
   useEffect(() => {
     if (isFocused) loadData();
@@ -361,22 +362,29 @@ export default function BodyMeasuresScreen() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
-      // ATUALIZADO: Adicionada a coluna 'type' e o valor 'weight'
+      // 1. Insere na tabela de histórico usando o activeTab ('weight' ou 'height')
       await db.runAsync(
         `INSERT INTO body_measurements (user_email, value, type, recorded_at)
-        VALUES (?, ?, 'weight', datetime('now'))`,
-        [email, parsed],
+          VALUES (?, ?, ?, datetime('now'))`,
+        [email, parsed, activeTab],
       );
 
-      // Sync latest weight back to users table
-      await db.runAsync(`UPDATE users SET weight = ? WHERE email = ?`, [
-        String(parsed),
-        email,
-      ]);
+      // 2. Atualiza o valor mais recente na tabela de utilizadores (perfil)
+      if (activeTab === "weight") {
+        await db.runAsync(`UPDATE users SET weight = ? WHERE email = ?`, [
+          String(parsed),
+          email,
+        ]);
+      } else {
+        await db.runAsync(`UPDATE users SET height = ? WHERE email = ?`, [
+          String(parsed),
+          email,
+        ]);
+      }
 
       setNewValue("");
       setShowAddModal(false);
-      await loadData();
+      await loadData(); // Recarrega os dados do gráfico ativo
     } catch (e) {
       console.error("Error saving measurement:", e);
     } finally {
@@ -432,7 +440,9 @@ export default function BodyMeasuresScreen() {
         <View className="flex-row items-center justify-between px-6 mt-6 mb-4">
           <View className="flex-row items-baseline gap-2">
             <Text className="text-white text-2xl font-black uppercase">
-              {latest ? `${latest.value}${weightUnit}` : "—"}
+              {latest
+                ? `${latest.value}${activeTab === "weight" ? weightUnit : heightUnit}`
+                : "—"}
             </Text>
             {latest && (
               <Text
@@ -461,7 +471,10 @@ export default function BodyMeasuresScreen() {
         {/* CHART */}
         <View className="px-6">
           {filtered.length >= 1 ? (
-            <LineChartFull data={filtered} unit={weightUnit} />
+            <LineChartFull
+              data={filtered}
+              unit={activeTab === "weight" ? weightUnit : heightUnit}
+            />
           ) : (
             <View
               style={{ height: CHART_HEIGHT }}
@@ -474,27 +487,50 @@ export default function BodyMeasuresScreen() {
           )}
         </View>
 
-        {/* METRIC PILL */}
-        <View className="px-6 mt-6">
-          <View
-            style={{ backgroundColor: RED }}
-            className="self-start px-6 py-2 rounded-full"
+        {/* METRIC SELECTOR TABS */}
+        <View className="px-6 mt-6 flex-row gap-3">
+          {/* Botão Weight */}
+          <TouchableOpacity
+            onPress={() => setActiveTab("weight")}
+            style={{
+              backgroundColor: activeTab === "weight" ? RED : "#1c1c1e",
+            }}
+            className="px-6 py-2 rounded-full border border-zinc-800"
           >
-            <Text className="text-white font-black uppercase text-sm">
+            <Text
+              style={{ color: activeTab === "weight" ? "white" : "#52525b" }}
+              className="font-black uppercase text-sm"
+            >
               Weight
             </Text>
-          </View>
+          </TouchableOpacity>
+
+          {/* Botão Height */}
+          <TouchableOpacity
+            onPress={() => setActiveTab("height")}
+            style={{
+              backgroundColor: activeTab === "height" ? RED : "#1c1c1e",
+            }}
+            className="px-6 py-2 rounded-full border border-zinc-800"
+          >
+            <Text
+              style={{ color: activeTab === "height" ? "white" : "#52525b" }}
+              className="font-black uppercase text-sm"
+            >
+              Height
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* HISTORY */}
         <View className="px-6 mt-8">
           <Text className="text-zinc-500 text-[11px] font-black uppercase tracking-widest mb-4">
-            Weight History
+            {activeTab} History
           </Text>
 
           {allData.length === 0 ? (
             <Text className="text-zinc-700 font-bold uppercase text-sm">
-              No entries yet. Tap + to add one.
+              No entries yet.
             </Text>
           ) : (
             [...allData].reverse().map((m) => (
@@ -507,7 +543,8 @@ export default function BodyMeasuresScreen() {
                 </Text>
                 <Text className="text-white font-black text-base">
                   {m.value}
-                  {weightUnit}
+                  {/* MUDANÇA AQUI: Usa currentUnit em vez de weightUnit ou KG */}
+                  {currentUnit}
                 </Text>
               </View>
             ))
@@ -531,9 +568,11 @@ export default function BodyMeasuresScreen() {
           >
             <TouchableOpacity activeOpacity={1}>
               <View className="bg-[#121212] px-8 pt-8 pb-12 rounded-t-[40px] border-t border-zinc-800">
+                {/* TÍTULO DINÂMICO */}
                 <Text className="text-white text-center font-black uppercase mb-2 tracking-widest text-base">
-                  Add Weight
+                  Add {activeTab === "weight" ? "Weight" : "Height"}
                 </Text>
+
                 <Text className="text-zinc-600 text-center font-bold uppercase text-[10px] mb-8">
                   Today´s measurement
                 </Text>
@@ -542,15 +581,19 @@ export default function BodyMeasuresScreen() {
                   <TextInput
                     value={newValue}
                     onChangeText={setNewValue}
-                    placeholder="e.g. 70.5"
+                    // PLACEHOLDER DINÂMICO
+                    placeholder={
+                      activeTab === "weight" ? "e.g. 70.5" : "e.g. 175"
+                    }
                     placeholderTextColor="#3f3f46"
                     keyboardType="decimal-pad"
                     className="flex-1 text-white text-2xl font-black"
                     selectionColor={RED}
                     autoFocus
                   />
+                  {/* UNIDADE DINÂMICA */}
                   <Text className="text-zinc-500 font-black uppercase text-lg ml-2">
-                    {weightUnit}
+                    {currentUnit}
                   </Text>
                 </View>
 

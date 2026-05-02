@@ -59,14 +59,38 @@ export default function HeightSelection() {
       }
 
       let heightToSave: string;
+      let numericValue: number;
+
       if (unit === "CM") {
         heightToSave = cmValue;
+        numericValue = parseFloat(cmValue);
       } else {
         heightToSave = `${ftValue}.${inValue}`;
+        // Alteração aqui: Convertemos para decimal simples (ex: 5 + 7/10 = 5.7)
+        // Isso garante que 5'7 se torne 5.7 e não 5.07
+        numericValue = parseFloat(ftValue) + parseFloat(inValue) / 10;
       }
 
+      // 1. Atualiza o peso na tabela principal de utilizadores
       await updateUserHeight(db, userEmail, heightToSave);
       await AsyncStorage.setItem("userHeightUnit", unit);
+
+      // 2. Garante que a tabela de medições existe (mesmo schema do weight)
+      await db.runAsync(`
+        CREATE TABLE IF NOT EXISTS body_measurements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_email TEXT NOT NULL,
+          value REAL NOT NULL,
+          type TEXT NOT NULL,
+          recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      // 3. Regista a altura inicial no histórico com o tipo 'height'
+      await db.runAsync(
+        "INSERT INTO body_measurements (user_email, value, type, recorded_at) VALUES (?, ?, 'height', datetime('now'))",
+        [userEmail, numericValue],
+      );
 
       router.replace("/workoutschedule");
     } catch (e) {
@@ -223,14 +247,14 @@ export default function HeightSelection() {
           </View>
         </View>
 
-        {/* Unidade selecionada (informativo) */}
+        {/* Unidade selecionada */}
         <View className="items-center mb-6">
           <View className="bg-[#2D2F33] rounded-full px-8 py-3">
             <Text className="text-white font-bold text-base">{unit}</Text>
           </View>
         </View>
 
-        {/* Botões */}
+        {/* Botões de Navegação */}
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"

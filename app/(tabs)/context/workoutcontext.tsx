@@ -39,6 +39,7 @@ export type ActiveExercise = {
   image_url?: string;
   notes?: string;
   rest_time: number;
+  sessionBestVolume?: number;
   personalRecords: { weight: number; reps: number }[];
   sets: WorkoutSet[];
 };

@@ -38,17 +38,7 @@ import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
 import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";
 import { FILTER_ICONS } from "../../../constants/exercise_filters";
 
-const isNewRecord = (
-  currentW: string,
-  currentR: string,
-  prWeight: number,
-  prReps: number,
-) => {
-  const w = parseFloat(currentW) || 0;
-  const r = parseInt(currentR) || 0;
-  if (w === 0 || r === 0) return false;
-  return w * r > prWeight * prReps;
-};
+// NOTA: Adiciona `sessionBestVolume?: number` ao tipo ActiveExercise no workoutcontext.tsx
 
 const TimeInput = React.memo(
   ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
@@ -103,7 +93,7 @@ const TimeInput = React.memo(
           }}
           onChangeText={(v) => handleText(0, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
-          className="text-white font-black  text-xs"
+          className="text-white font-black text-xs"
         />
         <Text className="text-zinc-600 font-black text-xs">:</Text>
         <TextInput
@@ -120,7 +110,7 @@ const TimeInput = React.memo(
           }}
           onChangeText={(v) => handleText(1, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
-          className="text-white font-black  text-xs"
+          className="text-white font-black text-xs"
         />
         <Text className="text-zinc-600 font-black text-xs">:</Text>
         <TextInput
@@ -137,7 +127,7 @@ const TimeInput = React.memo(
           }}
           onChangeText={(v) => handleText(2, v)}
           style={{ paddingVertical: 0, width: 22, textAlign: "center" }}
-          className="text-white font-black  text-xs"
+          className="text-white font-black text-xs"
         />
       </View>
     );
@@ -236,6 +226,7 @@ export default function LogWorkoutScreen() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"muscle" | "equipment">("muscle");
   const [activeRoutineName, setActiveRoutineName] = useState("");
+  const [activeRoutineId, setActiveRoutineId] = useState<string>("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [dbExercises, setDbExercises] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -361,6 +352,7 @@ export default function LogWorkoutScreen() {
         [Number(routineId)],
       );
       if (routineRes) setActiveRoutineName(routineRes.name);
+      setActiveRoutineId(String(routineId));
 
       const routineExs = await db.getAllAsync<any>(
         `SELECT e.* FROM exercises e JOIN routine_exercises re ON e.id = re.exercise_id WHERE re.routine_id = ? ORDER BY re.index_order ASC`,
@@ -389,6 +381,7 @@ export default function LogWorkoutScreen() {
               personalRecords: prRes
                 ? [{ weight: prRes.weight, reps: prRes.reps }]
                 : [],
+              sessionBestVolume: 0,
               sets: [
                 {
                   id: Math.random().toString(),
@@ -429,13 +422,16 @@ export default function LogWorkoutScreen() {
     initWorkout();
   }, [initWorkout]);
 
+  // ─── Toggle set — tudo numa única mutação de estado ───────────────────────
   const handleToggleSet = (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);
     if (!exercise) return;
     const currentSet = exercise.sets.find((s) => s.id === setId);
     if (!currentSet) return;
 
-    // Resolve os valores finais (usa sugeridos se estiver vazio)
+    const isCompleting = !currentSet.completed;
+
+    // Resolve os valores finais (usa sugeridos se o campo estiver vazio)
     const finalWeight =
       currentSet.weight !== ""
         ? currentSet.weight
@@ -449,44 +445,76 @@ export default function LogWorkoutScreen() {
           ? currentSet.suggestedReps
           : "0";
 
-    // Auto-preenche valores sugeridos
-    if (!currentSet.completed) {
-      if (
-        currentSet.weight === "" &&
-        currentSet.suggestedWeight &&
-        currentSet.suggestedWeight !== "0"
-      )
-        updateSet(exLogId, setId, "weight", currentSet.suggestedWeight);
-      if (
-        currentSet.reps === "" &&
-        currentSet.suggestedReps &&
-        currentSet.suggestedReps !== "0"
-      )
-        updateSet(exLogId, setId, "reps", currentSet.suggestedReps);
-    }
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.logId !== exLogId) return ex;
 
-    toggleSetCompleted(exLogId, setId);
+        const w = parseFloat(finalWeight);
+        const r = parseInt(finalReps);
+        const currentVolume = w > 0 && r > 0 ? w * r : 0;
 
-    // Atualiza o PR em tempo real quando o set é completado
-    if (!currentSet.completed) {
-      const w = parseFloat(finalWeight);
-      const r = parseInt(finalReps);
+        // ── Atualiza PR histórico e sessionBestVolume ──
+        let newPersonalRecords = ex.personalRecords;
+        let newSessionBestVolume = ex.sessionBestVolume ?? 0;
 
-      if (w > 0 && r > 0) {
-        setExercises((prev) =>
-          prev.map((ex) => {
-            if (ex.logId !== exLogId) return ex;
-            const currentPR = ex.personalRecords[0];
-            const isNewPR =
-              !currentPR || w * r > currentPR.weight * currentPR.reps;
-            if (isNewPR) {
-              return { ...ex, personalRecords: [{ weight: w, reps: r }] };
-            }
-            return ex;
-          }),
-        );
-      }
-    }
+        if (isCompleting && currentVolume > 0) {
+          // Atualiza PR histórico se bater o recorde anterior
+          const historicalPR = ex.personalRecords[0];
+          const historicalVolume = historicalPR
+            ? historicalPR.weight * historicalPR.reps
+            : 0;
+          if (currentVolume > historicalVolume) {
+            newPersonalRecords = [{ weight: w, reps: r }];
+          }
+
+          // Atualiza o melhor volume da sessão
+          if (currentVolume > newSessionBestVolume) {
+            newSessionBestVolume = currentVolume;
+          }
+        }
+
+        // ── Constrói o "previous" para sets ainda não completados ──
+        const newPrevious =
+          finalWeight !== "0" || finalReps !== "0"
+            ? `${finalWeight}${weightUnit} x ${finalReps}`
+            : "-";
+
+        const newSets = ex.sets.map((s) => {
+          if (s.id === setId) {
+            // Set que está a ser toggled: auto-preenche se completar
+            return {
+              ...s,
+              completed: !s.completed,
+              weight:
+                isCompleting && s.weight === "" && finalWeight !== "0"
+                  ? finalWeight
+                  : s.weight,
+              reps:
+                isCompleting && s.reps === "" && finalReps !== "0"
+                  ? finalReps
+                  : s.reps,
+            };
+          }
+          // Atualiza previous/suggested nos sets ainda não completados
+          if (!s.completed && isCompleting) {
+            return {
+              ...s,
+              previous: newPrevious,
+              suggestedWeight: finalWeight,
+              suggestedReps: finalReps,
+            };
+          }
+          return s;
+        });
+
+        return {
+          ...ex,
+          sets: newSets,
+          personalRecords: newPersonalRecords,
+          sessionBestVolume: newSessionBestVolume,
+        };
+      }),
+    );
   };
 
   const handleSetRestTime = (exLogId: string) => {
@@ -524,6 +552,7 @@ export default function LogWorkoutScreen() {
           personalRecords: prRes
             ? [{ weight: prRes.weight, reps: prRes.reps }]
             : [],
+          sessionBestVolume: 0,
           sets: [
             {
               id: Math.random().toString(),
@@ -571,19 +600,22 @@ export default function LogWorkoutScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <ChevronDown size={30} color="white" />
           </TouchableOpacity>
-          <Text className="text-white font-black uppercase  tracking-tighter text-lg">
+          <Text className="text-white font-black uppercase tracking-tighter text-lg">
             Workout
           </Text>
           <TouchableOpacity
             onPress={() =>
               router.push({
                 pathname: "/workout/save_workout",
-                params: { routineName: activeRoutineName },
+                params: {
+                  routineName: activeRoutineName,
+                  routineId: activeRoutineId,
+                },
               })
             }
             className="bg-[#E31C25] px-5 py-2 rounded-full"
           >
-            <Text className="text-white font-black uppercase  text-xs">
+            <Text className="text-white font-black uppercase text-xs">
               Finish
             </Text>
           </TouchableOpacity>
@@ -603,11 +635,11 @@ export default function LogWorkoutScreen() {
               key={item.label}
               className="bg-zinc-900/80 w-[32%] rounded-xl py-4 items-center justify-center border border-zinc-800"
             >
-              <Text className="text-zinc-500 text-[10px] uppercase font-black mb-1  tracking-widest">
+              <Text className="text-zinc-500 text-[10px] uppercase font-black mb-1 tracking-widest">
                 {item.label}
               </Text>
               <Text
-                className="font-black text-lg  tracking-tighter"
+                className="font-black text-lg tracking-tighter"
                 style={{ color: item.color }}
               >
                 {item.value}
@@ -629,7 +661,7 @@ export default function LogWorkoutScreen() {
               onChangeText={(t) => setActiveRoutineName(t)}
               autoCorrect={false}
               autoCapitalize="sentences"
-              className="text-white text-3xl font-black  border-b border-zinc-800 pb-2"
+              className="text-white text-3xl font-black border-b border-zinc-800 pb-2"
               style={{ paddingRight: 10 }}
             />
           </View>
@@ -680,7 +712,7 @@ export default function LogWorkoutScreen() {
                     })()}
                   </View>
                   <View className="flex-1">
-                    <Text className="text-[#E31C25] text-xl font-black  uppercase tracking-tighter">
+                    <Text className="text-[#E31C25] text-xl font-black uppercase tracking-tighter">
                       {ex.name}
                     </Text>
                     {ex.personalRecords && ex.personalRecords.length > 0 && (
@@ -719,7 +751,7 @@ export default function LogWorkoutScreen() {
                     ),
                   )
                 }
-                className="text-zinc-400 text-sm mb-3  font-bold border-b border-zinc-800/50 pb-1"
+                className="text-zinc-400 text-sm mb-3 font-bold border-b border-zinc-800/50 pb-1"
               />
 
               <TouchableOpacity
@@ -727,24 +759,24 @@ export default function LogWorkoutScreen() {
                 className="flex-row items-center mb-5 bg-[#E31C25]/10 self-start px-4 py-1.5 rounded-xl border border-[#E31C25]/20"
               >
                 <Clock size={14} color="#E31C25" />
-                <Text className="text-[#E31C25] text-[10px] font-black uppercase  ml-2">
+                <Text className="text-[#E31C25] text-[10px] font-black uppercase ml-2">
                   Rest Timer: {ex.rest_time > 0 ? `${ex.rest_time}s` : "OFF"}
                 </Text>
               </TouchableOpacity>
 
               <View className="flex-row items-center px-1 mb-3">
-                <Text className="text-zinc-700 text-[10px] font-black uppercase w-10 text-center ">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase w-10 text-center">
                   Set
                 </Text>
-                <Text className="text-zinc-700 text-[10px] font-black uppercase flex-1 text-center ">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase flex-1 text-center">
                   Previous
                 </Text>
-                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center ">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center">
                   {ex.muscle_group?.toLowerCase() === "cardio"
                     ? "KM"
                     : weightUnit.toUpperCase()}
                 </Text>
-                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center ">
+                <Text className="text-zinc-700 text-[10px] font-black uppercase w-16 text-center">
                   {ex.muscle_group?.toLowerCase() === "cardio"
                     ? "TIME"
                     : "Reps"}
@@ -752,166 +784,205 @@ export default function LogWorkoutScreen() {
                 <View className="w-12" />
               </View>
 
-              {ex.sets.map((set, idx) => (
-                <View key={set.id} className="mb-3">
-                  <View
-                    className={`flex-row items-center h-14 px-2 rounded-2xl border ${set.completed ? "bg-[#E31C25]/15 border-[#E31C25]/30" : "bg-zinc-900/60 border border-zinc-800"}`}
-                  >
-                    <TouchableOpacity
-                      className="w-10 h-10 items-center justify-center bg-zinc-800 rounded-xl"
-                      onPress={() =>
-                        setTypeModal({
-                          visible: true,
-                          exId: ex.logId,
-                          setId: set.id,
-                        })
-                      }
+              {ex.sets.map((set, idx) => {
+                // ── Calcula se este set é PR de sessão ──
+                const setWeight = set.weight || set.suggestedWeight || "0";
+                const setReps = set.reps || set.suggestedReps || "0";
+                const setVolume =
+                  (parseFloat(setWeight) || 0) * (parseInt(setReps) || 0);
+                const sessionBest = ex.sessionBestVolume ?? 0;
+                const isPR =
+                  set.completed &&
+                  setVolume > 0 &&
+                  sessionBest > 0 &&
+                  setVolume === sessionBest;
+
+                return (
+                  <View key={set.id} className="mb-3">
+                    <View
+                      className={`flex-row items-center h-14 px-2 rounded-2xl border ${
+                        set.completed
+                          ? "bg-[#E31C25]/15 border-[#E31C25]/30"
+                          : "bg-zinc-900/60 border border-zinc-800"
+                      }`}
                     >
-                      <Text
-                        className={`font-black  text-base ${set.type === "W" ? "text-amber-500" : set.type === "D" ? "text-purple-500" : set.type === "F" ? "text-[#E31C25]" : "text-white"}`}
+                      <TouchableOpacity
+                        className="w-10 h-10 items-center justify-center bg-zinc-800 rounded-xl"
+                        onPress={() =>
+                          setTypeModal({
+                            visible: true,
+                            exId: ex.logId,
+                            setId: set.id,
+                          })
+                        }
                       >
-                        {set.type === "1" ? idx + 1 : set.type}
+                        <Text
+                          className={`font-black text-base ${
+                            set.type === "W"
+                              ? "text-amber-500"
+                              : set.type === "D"
+                                ? "text-purple-500"
+                                : set.type === "F"
+                                  ? "text-[#E31C25]"
+                                  : "text-white"
+                          }`}
+                        >
+                          {set.type === "1" ? idx + 1 : set.type}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <Text className="flex-1 text-zinc-500 text-center text-xs font-black">
+                        {set.previous}
                       </Text>
-                    </TouchableOpacity>
-                    <Text className="flex-1 text-zinc-500 text-center text-xs font-black ">
-                      {set.previous}
-                    </Text>
-                    <TextInput
-                      keyboardType="numeric"
-                      value={set.weight}
-                      placeholder={
-                        ex.muscle_group?.toLowerCase() === "cardio"
-                          ? "0.0"
-                          : set.suggestedWeight
-                      }
-                      placeholderTextColor="#52525b"
-                      onChangeText={(v) =>
-                        updateSet(ex.logId, set.id, "weight", v)
-                      }
-                      textAlignVertical="center"
-                      multiline={false}
-                      scrollEnabled={false}
-                      underlineColorAndroid="transparent"
-                      style={{ paddingVertical: 0 }}
-                      className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black "
-                    />
-                    {ex.muscle_group?.toLowerCase() === "cardio" ? (
-                      <TimeInput
-                        value={set.reps || "00:00:00"}
-                        onChange={(v) => updateSet(ex.logId, set.id, "reps", v)}
-                      />
-                    ) : (
+
                       <TextInput
                         keyboardType="numeric"
-                        value={set.reps}
-                        placeholder={set.suggestedReps}
+                        value={set.weight}
+                        placeholder={
+                          ex.muscle_group?.toLowerCase() === "cardio"
+                            ? "0.0"
+                            : set.suggestedWeight
+                        }
                         placeholderTextColor="#52525b"
                         onChangeText={(v) =>
-                          updateSet(ex.logId, set.id, "reps", v)
+                          updateSet(ex.logId, set.id, "weight", v)
                         }
                         textAlignVertical="center"
                         multiline={false}
                         scrollEnabled={false}
                         underlineColorAndroid="transparent"
                         style={{ paddingVertical: 0 }}
-                        className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black "
+                        className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black"
                       />
-                    )}
-                    <TouchableOpacity
-                      onPress={() => handleToggleSet(ex.logId, set.id)}
-                      className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${
-                        set.completed
-                          ? ex.personalRecords.length > 0 &&
-                            isNewRecord(
-                              set.weight || set.suggestedWeight || "0",
-                              set.reps || set.suggestedReps || "0",
-                              ex.personalRecords[0].weight,
-                              ex.personalRecords[0].reps,
-                            )
-                            ? "bg-amber-500"
-                            : "bg-[#E31C25]"
-                          : "bg-zinc-800"
-                      }`}
-                    >
-                      {set.completed &&
-                      ex.personalRecords.length > 0 &&
-                      isNewRecord(
-                        set.weight || set.suggestedWeight || "0",
-                        set.reps || set.suggestedReps || "0",
-                        ex.personalRecords[0].weight,
-                        ex.personalRecords[0].reps,
-                      ) ? (
-                        <>
-                          <View className="absolute -top-3 -left-2 bg-amber-500 rounded-full p-1 border-2 border-black">
-                            <Trophy size={10} color="black" />
-                          </View>
-                          <Trophy size={16} color="black" strokeWidth={3} />
-                        </>
-                      ) : (
-                        <Check size={20} color="white" strokeWidth={5} />
-                      )}
-                    </TouchableOpacity>
-                  </View>
 
-                  {activeRestSetId === set.id && restTimer !== null && (
-                    <View className="mt-1.5 mx-1">
-                      <View className="bg-amber-500/15 flex-row items-center justify-between px-5 py-2.5 rounded-xl border border-amber-500/30">
-                        <View className="flex-row items-center">
-                          <Clock size={16} color="#EAB308" strokeWidth={3} />
-                          <Text className="text-[#EAB308] text-xs font-black  ml-2.5 uppercase tracking-wider">
-                            Resting Period
+                      {ex.muscle_group?.toLowerCase() === "cardio" ? (
+                        <TimeInput
+                          value={set.reps || "00:00:00"}
+                          onChange={(v) =>
+                            updateSet(ex.logId, set.id, "reps", v)
+                          }
+                        />
+                      ) : (
+                        <TextInput
+                          keyboardType="numeric"
+                          value={set.reps}
+                          placeholder={set.suggestedReps}
+                          placeholderTextColor="#52525b"
+                          onChangeText={(v) =>
+                            updateSet(ex.logId, set.id, "reps", v)
+                          }
+                          textAlignVertical="center"
+                          multiline={false}
+                          scrollEnabled={false}
+                          underlineColorAndroid="transparent"
+                          style={{ paddingVertical: 0 }}
+                          className="w-14 h-10 bg-zinc-950 text-white text-center rounded-xl mx-0.5 border border-zinc-800 font-black"
+                        />
+                      )}
+
+                      {/* ── Botão de completar set ── */}
+                      <TouchableOpacity
+                        onPress={() => handleToggleSet(ex.logId, set.id)}
+                        className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${
+                          set.completed
+                            ? isPR
+                              ? "bg-amber-500"
+                              : "bg-[#E31C25]"
+                            : "bg-zinc-800"
+                        }`}
+                      >
+                        {set.completed && isPR ? (
+                          <>
+                            <View className="absolute -top-3 -left-2 bg-amber-500 rounded-full p-1 border-2 border-black">
+                              <Trophy size={10} color="black" />
+                            </View>
+                            <Trophy size={16} color="black" strokeWidth={3} />
+                          </>
+                        ) : (
+                          <Check size={20} color="white" strokeWidth={5} />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+
+                    {activeRestSetId === set.id && restTimer !== null && (
+                      <View className="mt-1.5 mx-1">
+                        <View className="bg-amber-500/15 flex-row items-center justify-between px-5 py-2.5 rounded-xl border border-amber-500/30">
+                          <View className="flex-row items-center">
+                            <Clock size={16} color="#EAB308" strokeWidth={3} />
+                            <Text className="text-[#EAB308] text-xs font-black ml-2.5 uppercase tracking-wider">
+                              Resting Period
+                            </Text>
+                          </View>
+                          <Text className="text-white text-base font-black tracking-tighter">
+                            {restTimer}
+                            <Text className="text-zinc-400 text-xs">s</Text>
                           </Text>
                         </View>
-                        <Text className="text-white text-base font-black  tracking-tighter">
-                          {restTimer}
-                          <Text className="text-zinc-400 text-xs">s</Text>
-                        </Text>
                       </View>
-                    </View>
-                  )}
-                </View>
-              ))}
+                    )}
+                  </View>
+                );
+              })}
 
+              {/* ── Botões: Add Set / Mover exercício ── */}
               <View className="flex-row items-center mt-3 gap-x-2">
                 <TouchableOpacity
                   onPress={() =>
                     setExercises((prev: ActiveExercise[]) =>
-                      prev.map((e) =>
-                        e.logId === ex.logId
-                          ? {
-                              ...e,
-                              sets: [
-                                ...e.sets,
-                                {
-                                  id: Math.random().toString(),
-                                  type: "1" as SetType,
-                                  weight: "",
-                                  reps: "",
-                                  suggestedWeight:
-                                    e.sets[e.sets.length - 1]?.weight || "0",
-                                  suggestedReps:
-                                    e.sets[e.sets.length - 1]?.reps || "0",
-                                  completed: false,
-                                  previous: e.sets[e.sets.length - 1]
-                                    ? `${e.sets[e.sets.length - 1].weight}${weightUnit} x ${e.sets[e.sets.length - 1].reps}`
-                                    : "-",
-                                },
-                              ],
-                            }
-                          : e,
-                      ),
+                      prev.map((e) => {
+                        if (e.logId !== ex.logId) return e;
+                        const lastSet = e.sets[e.sets.length - 1];
+
+                        const inheritedWeight =
+                          lastSet?.weight !== "" && lastSet?.weight
+                            ? lastSet.weight
+                            : lastSet?.suggestedWeight &&
+                                lastSet.suggestedWeight !== "0"
+                              ? lastSet.suggestedWeight
+                              : "0";
+
+                        const inheritedReps =
+                          lastSet?.reps !== "" && lastSet?.reps
+                            ? lastSet.reps
+                            : lastSet?.suggestedReps &&
+                                lastSet.suggestedReps !== "0"
+                              ? lastSet.suggestedReps
+                              : "0";
+
+                        return {
+                          ...e,
+                          sets: [
+                            ...e.sets,
+                            {
+                              id: Math.random().toString(),
+                              type: "1" as SetType,
+                              weight: "",
+                              reps: "",
+                              suggestedWeight: inheritedWeight,
+                              suggestedReps: inheritedReps,
+                              completed: false,
+                              previous:
+                                inheritedWeight !== "0" || inheritedReps !== "0"
+                                  ? `${inheritedWeight}${weightUnit} x ${inheritedReps}`
+                                  : "-",
+                            },
+                          ],
+                        };
+                      }),
                     )
                   }
                   className="flex-1 py-4 bg-zinc-900/40 rounded-2xl items-center border border-dashed border-zinc-800"
                 >
-                  <Text className="text-zinc-500 font-black text-[10px] uppercase  tracking-widest">
+                  <Text className="text-zinc-500 font-black text-[10px] uppercase tracking-widest">
                     + Add Set
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => moveExercise(index, "up")}
                   disabled={index === 0}
-                  className={`p-4 rounded-2xl border border-zinc-800 ${index === 0 ? "bg-zinc-900/20 opacity-30" : "bg-zinc-900/40"}`}
+                  className={`p-4 rounded-2xl border border-zinc-800 ${
+                    index === 0 ? "bg-zinc-900/20 opacity-30" : "bg-zinc-900/40"
+                  }`}
                 >
                   <ArrowUp
                     size={16}
@@ -921,7 +992,11 @@ export default function LogWorkoutScreen() {
                 <TouchableOpacity
                   onPress={() => moveExercise(index, "down")}
                   disabled={index === exercises.length - 1}
-                  className={`p-4 rounded-2xl border border-zinc-800 ${index === exercises.length - 1 ? "bg-zinc-900/20 opacity-30" : "bg-zinc-900/40"}`}
+                  className={`p-4 rounded-2xl border border-zinc-800 ${
+                    index === exercises.length - 1
+                      ? "bg-zinc-900/20 opacity-30"
+                      : "bg-zinc-900/40"
+                  }`}
                 >
                   <ArrowDown
                     size={16}
@@ -939,13 +1014,13 @@ export default function LogWorkoutScreen() {
             className="mt-8 mb-24 bg-[#E31C25] py-3 px-8 self-center rounded-full flex-row items-center border border-zinc-800 shadow-lg"
           >
             <Plus size={18} color="white" strokeWidth={4} />
-            <Text className="text-white font-black text-sm ml-2 uppercase ">
+            <Text className="text-white font-black text-sm ml-2 uppercase">
               Add Exercise
             </Text>
           </TouchableOpacity>
         </ScrollView>
 
-        {/* MODAL DE SELEÇÃO DE EXERCÍCIOS */}
+        {/* ── MODAL DE SELEÇÃO DE EXERCÍCIOS ── */}
         <Modal
           visible={isModalVisible}
           animationType="slide"
@@ -962,11 +1037,11 @@ export default function LogWorkoutScreen() {
                 >
                   <X color="white" size={30} />
                 </TouchableOpacity>
-                <Text className="text-white text-2xl font-black  uppercase tracking-tighter">
+                <Text className="text-white text-2xl font-black uppercase tracking-tighter">
                   Select Exercises
                 </Text>
                 <TouchableOpacity onPress={confirmSelection}>
-                  <Text className="text-[#E31C25] text-xl font-black uppercase ">
+                  <Text className="text-[#E31C25] text-xl font-black uppercase">
                     Add{" "}
                     {tempSelected.length > 0 ? `(${tempSelected.length})` : ""}
                   </Text>
@@ -980,7 +1055,7 @@ export default function LogWorkoutScreen() {
                   onChangeText={setSearch}
                   placeholder="Search exercises..."
                   placeholderTextColor="#52525b"
-                  className="flex-1 text-white font-bold  text-base"
+                  className="flex-1 text-white font-bold text-base"
                 />
               </View>
 
@@ -990,11 +1065,13 @@ export default function LogWorkoutScreen() {
                     setModalType("equipment");
                     setIsFilterModalVisible(true);
                   }}
-                  className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedEquipment ? "bg-[#E31C25]" : "bg-zinc-900"}`}
+                  className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${
+                    selectedEquipment ? "bg-[#E31C25]" : "bg-zinc-900"
+                  }`}
                 >
                   <Text
                     numberOfLines={1}
-                    className="text-white text-[10px] font-black uppercase  mr-2 flex-shrink"
+                    className="text-white text-[10px] font-black uppercase mr-2 flex-shrink"
                   >
                     {selectedEquipment || "Equipment"}
                   </Text>
@@ -1005,11 +1082,13 @@ export default function LogWorkoutScreen() {
                     setModalType("muscle");
                     setIsFilterModalVisible(true);
                   }}
-                  className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${selectedMuscle ? "bg-[#E31C25]" : "bg-zinc-900"}`}
+                  className={`flex-1 flex-row items-center justify-center rounded-2xl py-3 px-4 ${
+                    selectedMuscle ? "bg-[#E31C25]" : "bg-zinc-900"
+                  }`}
                 >
                   <Text
                     numberOfLines={1}
-                    className="text-white text-[10px] font-black uppercase  mr-2 flex-shrink"
+                    className="text-white text-[10px] font-black uppercase mr-2 flex-shrink"
                   >
                     {selectedMuscle || "Muscles"}
                   </Text>
@@ -1056,7 +1135,7 @@ export default function LogWorkoutScreen() {
               />
             </View>
 
-            {/* MODAL DE FILTROS ANINHADO DENTRO DO MODAL DE EXERCÍCIOS */}
+            {/* MODAL DE FILTROS */}
             <Modal
               visible={isFilterModalVisible}
               transparent
@@ -1069,7 +1148,7 @@ export default function LogWorkoutScreen() {
                   <TouchableWithoutFeedback>
                     <View className="bg-[#121212] rounded-t-[40px] h-[60%] p-8 border-t border-zinc-800">
                       <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
-                      <Text className="text-white text-xl font-black uppercase  mb-6">
+                      <Text className="text-white text-xl font-black uppercase mb-6">
                         {modalType === "muscle" ? "Muscles" : "Equipment"}
                       </Text>
                       <ScrollView
@@ -1092,7 +1171,7 @@ export default function LogWorkoutScreen() {
                               cachePolicy="memory-disk"
                             />
                           </View>
-                          <Text className="text-white text-lg flex-1 font-bold  uppercase">
+                          <Text className="text-white text-lg flex-1 font-bold uppercase">
                             All
                           </Text>
                           {(modalType === "muscle"
@@ -1128,7 +1207,7 @@ export default function LogWorkoutScreen() {
                                 <View className="w-full h-full bg-zinc-800" />
                               )}
                             </View>
-                            <Text className="text-white text-lg flex-1 font-bold  uppercase">
+                            <Text className="text-white text-lg flex-1 font-bold uppercase">
                               {opt}
                             </Text>
                             {(modalType === "muscle"
@@ -1147,7 +1226,7 @@ export default function LogWorkoutScreen() {
           </SafeAreaView>
         </Modal>
 
-        {/* MODAL TIPO DE SET */}
+        {/* ── MODAL TIPO DE SET ── */}
         <Modal visible={!!typeModal} transparent animationType="fade">
           <TouchableOpacity
             activeOpacity={1}
@@ -1155,7 +1234,7 @@ export default function LogWorkoutScreen() {
             onPress={() => setTypeModal(null)}
           >
             <View className="bg-[#0a0a0a] p-10 rounded-t-[40px] border-t border-zinc-800">
-              <Text className="text-white text-center font-black uppercase  mb-8 tracking-widest text-sm">
+              <Text className="text-white text-center font-black uppercase mb-8 tracking-widest text-sm">
                 Set Type
               </Text>
               <View className="flex-row justify-between mb-6">
@@ -1179,9 +1258,9 @@ export default function LogWorkoutScreen() {
                     }}
                     className="bg-zinc-900 w-[22%] aspect-square rounded-[25px] items-center justify-center border border-zinc-800 shadow-md"
                   >
-                    <Text className={`${i.c} font-black text-2xl `}>{i.i}</Text>
+                    <Text className={`${i.c} font-black text-2xl`}>{i.i}</Text>
                     <Text
-                      className={`${i.c} text-[8px] font-black uppercase mt-1 `}
+                      className={`${i.c} text-[8px] font-black uppercase mt-1`}
                     >
                       {i.l}
                     </Text>
@@ -1215,7 +1294,7 @@ export default function LogWorkoutScreen() {
                 }}
                 className="w-full py-4 bg-red-500/10 rounded-2xl items-center border border-red-500/20 mb-4"
               >
-                <Text className="text-red-500 font-black uppercase  text-sm tracking-widest">
+                <Text className="text-red-500 font-black uppercase text-sm tracking-widest">
                   Remove Set
                 </Text>
               </TouchableOpacity>
@@ -1223,14 +1302,14 @@ export default function LogWorkoutScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* MODAL REST TIMER */}
+        {/* ── MODAL REST TIMER ── */}
         <Modal visible={restModal.visible} transparent animationType="fade">
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             className="flex-1 bg-black/80 justify-center px-10"
           >
             <View className="bg-[#121212] p-8 rounded-[30px] border border-zinc-800">
-              <Text className="text-white text-center font-black uppercase  mb-6">
+              <Text className="text-white text-center font-black uppercase mb-6">
                 Rest Timer (Seconds)
               </Text>
               <TextInput
@@ -1269,14 +1348,14 @@ export default function LogWorkoutScreen() {
                   }}
                   className="flex-1 py-4 ml-2 items-center bg-[#E31C25] rounded-xl"
                 >
-                  <Text className="text-white font-black uppercase ">Save</Text>
+                  <Text className="text-white font-black uppercase">Save</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* MODAL REMOVER EXERCÍCIO */}
+        {/* ── MODAL REMOVER EXERCÍCIO ── */}
         <Modal
           visible={removeExerciseModal.visible}
           transparent
@@ -1287,7 +1366,7 @@ export default function LogWorkoutScreen() {
               <View className="bg-[#E31C25]/10 p-4 rounded-full mb-6">
                 <Trash2 color="#ef4444" size={32} />
               </View>
-              <Text className="text-white text-center text-xl font-black uppercase  mb-3">
+              <Text className="text-white text-center text-xl font-black uppercase mb-3">
                 Remove Exercise?
               </Text>
               <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
@@ -1320,7 +1399,7 @@ export default function LogWorkoutScreen() {
                   }}
                   className="flex-1 bg-[#E31C25] py-4 rounded-xl items-center"
                 >
-                  <Text className="text-white font-black uppercase ">
+                  <Text className="text-white font-black uppercase">
                     Yes, Remove
                   </Text>
                 </TouchableOpacity>
