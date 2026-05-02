@@ -1,8 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as NavigationBar from "expo-navigation-bar";
 import * as Notifications from "expo-notifications";
 import { Tabs, usePathname, useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { ChevronUp, Dumbbell, Home, Trash2 } from "lucide-react-native";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AppState,
   Image,
@@ -13,23 +15,15 @@ import {
 } from "react-native";
 import { useWorkout } from "./context/workoutcontext";
 
-// CONFIGURAÇÃO DINÂMICA DO HANDLER
 Notifications.setNotificationHandler({
   handleNotification: async () => {
-    // Verificamos o estado global da app no momento exato em que a notificação chega
     const isAppActive = AppState.currentState === "active";
-
-    /* IMPORTANTE: Aqui não conseguimos aceder facilmente ao context 'isMinimized'.
-       Por isso, vamos usar uma lógica de segurança: 
-       Se a app estiver aberta (active), o comportamento padrão será NÃO mostrar o pop-up (alert: false).
-       A notificação continuará a aparecer se a app estiver em segundo plano (background/inactive).
-    */
     return {
-      shouldShowAlert: !isAppActive, // Só mostra o alerta visual se a app NÃO estiver ativa
-      shouldPlaySound: !isAppActive, // Só toca som se a app NÃO estiver ativa
+      shouldShowAlert: !isAppActive,
+      shouldPlaySound: !isAppActive,
       shouldSetBadge: false,
       shouldShowBanner: !isAppActive,
-      shouldShowList: true, // Mantém na lista de notificações (central de notificações)
+      shouldShowList: true,
     };
   },
 });
@@ -37,6 +31,7 @@ Notifications.setNotificationHandler({
 export default function TabsLayout() {
   const pathname = usePathname();
   const router = useRouter();
+  const db = useSQLiteContext();
   const {
     isActive,
     isMinimized,
@@ -47,8 +42,32 @@ export default function TabsLayout() {
     stopWorkout,
   } = useWorkout();
 
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+
   const isResumoPage =
     pathname.includes("save_workout") || pathname.includes("workout_summary");
+
+  const loadProfilePicture = useCallback(async () => {
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) return;
+      const user = await db.getFirstAsync<{ profile_picture: string }>(
+        "SELECT profile_picture FROM users WHERE email = ?",
+        [email],
+      );
+      if (user?.profile_picture) {
+        setProfilePicture(user.profile_picture);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar foto de perfil:", e);
+    }
+  }, [db]);
+
+  useEffect(() => {
+    loadProfilePicture();
+    const interval = setInterval(loadProfilePicture, 3000);
+    return () => clearInterval(interval);
+  }, [loadProfilePicture]);
 
   useEffect(() => {
     async function setupApp() {
@@ -69,16 +88,8 @@ export default function TabsLayout() {
 
     setupApp();
 
-    // Listener para lidar com o caso específico de estar com a APP aberta mas MINIMIZADA
     const subscription = Notifications.addNotificationReceivedListener(
       (notification) => {
-        // Se a app está aberta E o treino está minimizado, queremos avisar o utilizador de alguma forma
-        // Já que o shouldShowAlert acima bloqueia o pop-up quando a app está aberta,
-        // podes adicionar um som ou vibração manual aqui se quiseres:
-        if (isActive && isMinimized) {
-        }
-
-        // Se estivermos dentro do treino (NÃO minimizado), garantimos que nada fica na gaveta
         if (isActive && !isMinimized) {
           Notifications.dismissAllNotificationsAsync();
         }
@@ -131,7 +142,9 @@ export default function TabsLayout() {
               >
                 <Image
                   source={{
-                    uri: "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
+                    uri:
+                      profilePicture ||
+                      "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
                   }}
                   className="w-full h-full"
                   resizeMode="cover"
@@ -149,7 +162,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="workout/new_routine" options={{ href: null }} />
         <Tabs.Screen name="workout/log_workout" options={{ href: null }} />
         <Tabs.Screen name="workout/save_workout" options={{ href: null }} />
-        <Tabs.Screen name="workout/workout_summary" options={{ href: null }} />~
+        <Tabs.Screen name="workout/workout_summary" options={{ href: null }} />
         <Tabs.Screen name="body_measures" options={{ href: null }} />
       </Tabs>
 
