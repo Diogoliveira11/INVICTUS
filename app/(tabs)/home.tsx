@@ -25,6 +25,7 @@ interface Workout {
   duration: string;
   notes: string;
   total_volume: number;
+  photo: string | null;
 }
 
 interface WorkoutExercise {
@@ -179,35 +180,23 @@ export default function ProgressResult() {
 
   const loadWorkoutDetails = async (workout: Workout) => {
     try {
-      // --- DEBUG: ver o workout selecionado ---
-      console.log(
-        "[loadWorkoutDetails] workout selecionado:",
-        JSON.stringify(workout, null, 2),
-      );
-
-      // Query correta com parâmetro passado separadamente ---
       const details = await db.getAllAsync<WorkoutExercise>(
         `SELECT 
-          e.name as exercise_name,
-          e.muscle_group,
-          ws.weight, 
-          ws.reps,
-          ws.distance,
-          ws.time,
-          ws.set_type, 
-          ws.index_order,
-          ws.is_personal_record
-        FROM workout_sets ws
-        JOIN exercises e ON ws.exercise_id = e.id
-        WHERE ws.workout_exercise_id = ?
-        ORDER BY e.name ASC, ws.index_order ASC`,
+        e.name as exercise_name,
+        e.muscle_group,
+        ws.weight, 
+        ws.reps,
+        ws.distance,
+        ws.time,
+        ws.set_type, 
+        ws.index_order,
+        ws.is_personal_record
+      FROM workout_sets ws
+      JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+      JOIN exercises e ON ws.exercise_id = e.id
+      WHERE we.workout_id = ?
+      ORDER BY we.index_order ASC, ws.index_order ASC`,
         [workout.id],
-      );
-
-      // --- DEBUG: ver os sets carregados ---
-      console.log(
-        "[loadWorkoutDetails] sets encontrados:",
-        JSON.stringify(details, null, 2),
       );
 
       setSelectedWorkout(workout);
@@ -351,11 +340,11 @@ export default function ProgressResult() {
                 >
                   <View className="flex-1">
                     <Text className="text-[#E31C25] text-[9px] font-black uppercase tracking-widest mb-1">
-                      {new Date(workout.date).toLocaleDateString("pt-PT", {
+                      {new Date(workout.date).toLocaleDateString("en-US", {
                         weekday: "long",
                       })}
                     </Text>
-                    <Text className="text-white text-lg font-black uppercase">
+                    <Text className="text-white text-lg font-black">
                       {workout.title || "Workout"}
                     </Text>
                     <View className="flex-row items-center mt-2">
@@ -397,7 +386,7 @@ export default function ProgressResult() {
                   <ChevronLeft size={24} color="white" />
                 </TouchableOpacity>
                 <View className="items-end">
-                  <Text className="text-white text-2xl font-black uppercase tracking-tighter">
+                  <Text className="text-white text-2xl font-black tracking-tighter">
                     {selectedWorkout?.title || "Workout"}
                   </Text>
                   <View className="flex-row items-center mt-1">
@@ -425,17 +414,27 @@ export default function ProgressResult() {
                 <View className="w-[1px] h-full bg-zinc-800" />
                 <View className="items-center">
                   <Text className="text-zinc-500 text-[8px] font-black uppercase">
-                    Data
+                    Date
                   </Text>
                   <Text className="text-white font-black">
                     {selectedWorkout
                       ? new Date(selectedWorkout.date).toLocaleDateString(
-                          "pt-PT",
+                          "en-US",
                         )
                       : "--"}
                   </Text>
                 </View>
               </View>
+              {/* Foto do treino */}
+              {selectedWorkout?.photo && (
+                <View className="mt-4 rounded-3xl overflow-hidden border border-zinc-800">
+                  <Image
+                    source={{ uri: selectedWorkout.photo }}
+                    style={{ width: "100%", height: 200 }}
+                    resizeMode="cover"
+                  />
+                </View>
+              )}
             </View>
 
             <ScrollView
