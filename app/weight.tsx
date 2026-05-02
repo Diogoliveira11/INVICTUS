@@ -21,8 +21,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const MIN_KG = 20;
 const MAX_KG = 300;
-const MIN_LB = 45;
-const MAX_LB = 661;
 const ITEM_WIDTH = 20;
 const DEFAULT_WEIGHT_KG = 70;
 const SNAP_OFFSET = SCREEN_WIDTH / 2 - ITEM_WIDTH / 2;
@@ -37,11 +35,9 @@ export default function WeightSelection() {
   const db = useSQLiteContext();
   const { weightUnit: unit } = useUnits();
 
-  // Estado interno sempre em KG para a FlatList
   const [weightKg, setWeightKg] = useState(DEFAULT_WEIGHT_KG);
   const flatListRef = useRef<FlatList>(null);
 
-  // Valor exibido: converte para LB se necessário
   const displayWeight =
     unit === "LB" ? Math.round(weightKg * 2.20462) : weightKg;
 
@@ -74,22 +70,38 @@ export default function WeightSelection() {
         return;
       }
 
-      // Guardamos sempre o valor na unidade selecionada pelo utilizador
       const weightToSave =
         unit === "LB" ? Math.round(weightKg * 2.20462) : weightKg;
 
+      // 1. Atualiza a tabela de utilizadores
       await updateUserWeight(db, userEmail, weightToSave);
+
+      // 2. CRITICAL: Cria a tabela de medições se ela não existir (evita erro de 'no such table')
+      await db.runAsync(`
+        CREATE TABLE IF NOT EXISTS body_measurements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_email TEXT NOT NULL,
+          value REAL NOT NULL,
+          type TEXT NOT NULL,
+          recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      // 3. Insere o peso inicial
+      await db.runAsync(
+        "INSERT INTO body_measurements (user_email, value, type, recorded_at) VALUES (?, ?, 'weight', datetime('now'))",
+        [userEmail, weightToSave],
+      );
+
       router.replace("/height");
     } catch (e) {
       console.error("❌ Erro ao guardar weight:", e);
       Alert.alert("Error", "Could not save weight.");
     }
   };
-
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 justify-between py-10">
-        {/* Título */}
         <View className="px-6 items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center">
             What´s your weight?
@@ -99,7 +111,6 @@ export default function WeightSelection() {
           </Text>
         </View>
 
-        {/* Número */}
         <View className="px-6 flex-row items-baseline justify-center">
           <Text className="text-white text-8xl font-bold">{displayWeight}</Text>
           <Text className="text-gray-400 text-2xl ml-2 font-medium">
@@ -107,7 +118,6 @@ export default function WeightSelection() {
           </Text>
         </View>
 
-        {/* Ruler — full width */}
         <View className="h-[120px] items-center justify-center relative">
           <View
             pointerEvents="none"
@@ -148,14 +158,12 @@ export default function WeightSelection() {
           />
         </View>
 
-        {/* Unidade selecionada (só informativo, não editável aqui) */}
         <View className="px-6 items-center">
           <View className="bg-[#2D2F33] rounded-full px-8 py-3">
             <Text className="text-white font-bold text-base">{unit}</Text>
           </View>
         </View>
 
-        {/* Botões */}
         <View className="px-6 flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"

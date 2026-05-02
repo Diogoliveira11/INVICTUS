@@ -47,9 +47,7 @@ const isNewRecord = (
   const w = parseFloat(currentW) || 0;
   const r = parseInt(currentR) || 0;
   if (w === 0 || r === 0) return false;
-  if (w > prWeight) return true;
-  if (w === prWeight && r > prReps) return true;
-  return false;
+  return w * r > prWeight * prReps;
 };
 
 const TimeInput = React.memo(
@@ -377,7 +375,7 @@ export default function LogWorkoutScreen() {
               [ex.id],
             );
             const prRes = await db.getFirstAsync<any>(
-              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY weight DESC, reps DESC LIMIT 1",
+              "SELECT weight, reps, (weight * reps) as volume FROM workout_sets WHERE exercise_id = ? ORDER BY volume DESC LIMIT 1",
               [ex.id],
             );
             return {
@@ -436,6 +434,22 @@ export default function LogWorkoutScreen() {
     if (!exercise) return;
     const currentSet = exercise.sets.find((s) => s.id === setId);
     if (!currentSet) return;
+
+    // Resolve os valores finais (usa sugeridos se estiver vazio)
+    const finalWeight =
+      currentSet.weight !== ""
+        ? currentSet.weight
+        : currentSet.suggestedWeight && currentSet.suggestedWeight !== "0"
+          ? currentSet.suggestedWeight
+          : "0";
+    const finalReps =
+      currentSet.reps !== ""
+        ? currentSet.reps
+        : currentSet.suggestedReps && currentSet.suggestedReps !== "0"
+          ? currentSet.suggestedReps
+          : "0";
+
+    // Auto-preenche valores sugeridos
     if (!currentSet.completed) {
       if (
         currentSet.weight === "" &&
@@ -450,7 +464,29 @@ export default function LogWorkoutScreen() {
       )
         updateSet(exLogId, setId, "reps", currentSet.suggestedReps);
     }
+
     toggleSetCompleted(exLogId, setId);
+
+    // Atualiza o PR em tempo real quando o set é completado
+    if (!currentSet.completed) {
+      const w = parseFloat(finalWeight);
+      const r = parseInt(finalReps);
+
+      if (w > 0 && r > 0) {
+        setExercises((prev) =>
+          prev.map((ex) => {
+            if (ex.logId !== exLogId) return ex;
+            const currentPR = ex.personalRecords[0];
+            const isNewPR =
+              !currentPR || w * r > currentPR.weight * currentPR.reps;
+            if (isNewPR) {
+              return { ...ex, personalRecords: [{ weight: w, reps: r }] };
+            }
+            return ex;
+          }),
+        );
+      }
+    }
   };
 
   const handleSetRestTime = (exLogId: string) => {
@@ -783,21 +819,37 @@ export default function LogWorkoutScreen() {
                     )}
                     <TouchableOpacity
                       onPress={() => handleToggleSet(ex.logId, set.id)}
-                      className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${set.completed ? "bg-[#E31C25]" : "bg-zinc-800"}`}
+                      className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${
+                        set.completed
+                          ? ex.personalRecords.length > 0 &&
+                            isNewRecord(
+                              set.weight || set.suggestedWeight || "0",
+                              set.reps || set.suggestedReps || "0",
+                              ex.personalRecords[0].weight,
+                              ex.personalRecords[0].reps,
+                            )
+                            ? "bg-amber-500"
+                            : "bg-[#E31C25]"
+                          : "bg-zinc-800"
+                      }`}
                     >
                       {set.completed &&
                       ex.personalRecords.length > 0 &&
                       isNewRecord(
-                        set.weight,
-                        set.reps,
+                        set.weight || set.suggestedWeight || "0",
+                        set.reps || set.suggestedReps || "0",
                         ex.personalRecords[0].weight,
                         ex.personalRecords[0].reps,
                       ) ? (
-                        <View className="absolute -top-3 -left-2 bg-amber-500 rounded-full p-1 border-2 border-black">
-                          <Trophy size={10} color="black" />
-                        </View>
-                      ) : null}
-                      <Check size={20} color="white" strokeWidth={5} />
+                        <>
+                          <View className="absolute -top-3 -left-2 bg-amber-500 rounded-full p-1 border-2 border-black">
+                            <Trophy size={10} color="black" />
+                          </View>
+                          <Trophy size={16} color="black" strokeWidth={3} />
+                        </>
+                      ) : (
+                        <Check size={20} color="white" strokeWidth={5} />
+                      )}
                     </TouchableOpacity>
                   </View>
 

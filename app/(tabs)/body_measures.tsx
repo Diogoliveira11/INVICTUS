@@ -318,6 +318,7 @@ export default function BodyMeasuresScreen() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_email TEXT NOT NULL,
         value REAL NOT NULL,
+        type TEXT NOT NULL,
         recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
@@ -329,11 +330,12 @@ export default function BodyMeasuresScreen() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
+      // Adicionado: WHERE type = 'weight' para bater com o insert do weight.tsx
       const rows = await db.getAllAsync<Measurement>(
         `SELECT id, value, recorded_at
-         FROM body_measurements
-         WHERE user_email = ?
-         ORDER BY recorded_at ASC`,
+        FROM body_measurements
+        WHERE user_email = ? AND type = 'weight'
+        ORDER BY recorded_at ASC`,
         [email],
       );
       setAllData(rows);
@@ -359,13 +361,14 @@ export default function BodyMeasuresScreen() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
+      // ATUALIZADO: Adicionada a coluna 'type' e o valor 'weight'
       await db.runAsync(
-        `INSERT INTO body_measurements (user_email, value, recorded_at)
-         VALUES (?, ?, datetime('now'))`,
+        `INSERT INTO body_measurements (user_email, value, type, recorded_at)
+        VALUES (?, ?, 'weight', datetime('now'))`,
         [email, parsed],
       );
 
-      // Sync latest weight back to users table so Edit Profile stays in sync
+      // Sync latest weight back to users table
       await db.runAsync(`UPDATE users SET weight = ? WHERE email = ?`, [
         String(parsed),
         email,

@@ -311,20 +311,13 @@ export default function SaveWorkoutScreen() {
     reps: number,
   ): Promise<number> => {
     try {
-      const absoluteMaxWeight = await db.getFirstAsync<{ weight: number }>(
-        "SELECT MAX(weight) as weight FROM workout_sets WHERE exercise_id = ?",
+      const bestSet = await db.getFirstAsync<{ weight: number; reps: number }>(
+        "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
         [exerciseId],
       );
-      if (!absoluteMaxWeight?.weight) return 1;
-      if (weight > absoluteMaxWeight.weight) return 1;
-      if (weight === absoluteMaxWeight.weight) {
-        const bestReps = await db.getFirstAsync<{ reps: number }>(
-          "SELECT MAX(reps) as reps FROM workout_sets WHERE exercise_id = ? AND weight = ?",
-          [exerciseId, weight],
-        );
-        if (reps > (bestReps?.reps || 0)) return 1;
-      }
-      return 0;
+
+      if (!bestSet) return 1;
+      return weight * reps > bestSet.weight * bestSet.reps ? 1 : 0;
     } catch {
       return 0;
     }
