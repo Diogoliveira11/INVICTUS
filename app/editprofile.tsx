@@ -9,13 +9,16 @@ import {
   ArrowLeft,
   Camera,
   Check,
+  ChevronRight,
   HelpCircle,
   Image as ImageIcon,
+  X,
 } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Image as RNImage,
   ScrollView,
   Text,
@@ -48,9 +51,6 @@ export default function EditProfile() {
 
   const [permissionModalVisible, setPermissionModalVisible] = useState(false);
   const [permissionModalMessage, setPermissionModalMessage] = useState("");
-
-  // Ref to store pending action so we don't need state re-render
-  const pendingCameraRef = useRef<boolean | null>(null);
 
   const redColor = "#E31C25";
 
@@ -91,45 +91,50 @@ export default function EditProfile() {
     loadUserData();
   }, [db]);
 
-  const pickImage = async (useCamera: boolean) => {
-    // 1. Close the image source modal first
+  const launchPicker = async (useCamera: boolean) => {
+    if (useCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        setPermissionModalMessage(
+          "WE NEED CAMERA ACCESS TO TAKE YOUR PROFILE PHOTO!",
+        );
+        setPermissionModalVisible(true);
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.5,
+        mediaTypes: ["images"],
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } else {
+      if (Platform.OS === "ios") {
+        const { status } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          setPermissionModalMessage(
+            "WE NEED GALLERY ACCESS TO CHOOSE YOUR PROFILE PHOTO!",
+          );
+          setPermissionModalVisible(true);
+          return;
+        }
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        quality: 0.5,
+        mediaTypes: ["images"],
+        allowsMultipleSelection: false,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        setProfileImage(result.assets[0].uri);
+      }
+    }
+  };
+
+  const handleImageOption = (useCamera: boolean) => {
     setShowImageModal(false);
-
-    // 2. Wait for the modal close animation to finish before requesting permission
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    // 3. Request permission
-    const permission = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permission.status !== "granted") {
-      // 4. If denied, show our custom modal
-      setPermissionModalMessage(
-        useCamera
-          ? "WE NEED CAMERA ACCESS TO TAKE YOUR PROFILE PHOTO!"
-          : "WE NEED GALLERY ACCESS TO CHOOSE YOUR PROFILE PHOTO!",
-      );
-      setPermissionModalVisible(true);
-      return;
-    }
-
-    // 5. Permission granted — launch picker
-    const result = await (useCamera
-      ? ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.5,
-        })
-      : ImagePicker.launchImageLibraryAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.5,
-        }));
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setProfileImage(result.assets[0].uri);
-    }
+    const delay = Platform.OS === "ios" ? 800 : 100;
+    setTimeout(() => launchPicker(useCamera), delay);
   };
 
   const handleSave = async () => {
@@ -282,42 +287,214 @@ export default function EditProfile() {
       </ScrollView>
 
       {/* MODAL CHOOSE SOURCE */}
-      <Modal visible={showImageModal} transparent animationType="slide">
-        <TouchableOpacity
-          activeOpacity={1}
-          className="flex-1 bg-black/60 justify-end"
-          onPress={() => setShowImageModal(false)}
+      <Modal
+        visible={showImageModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            justifyContent: "flex-end",
+          }}
         >
-          <View className="bg-[#121212] p-10 rounded-t-[40px] border-t border-zinc-800">
-            <Text className="text-white text-center font-black uppercase mb-8 tracking-widest text-sm">
-              Choose Source
-            </Text>
-            <View className="flex-row justify-around mb-6">
-              <TouchableOpacity
-                onPress={() => pickImage(true)}
-                className="items-center"
-              >
-                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
-                  <Camera color={redColor} size={32} />
-                </View>
-                <Text className="text-zinc-400 font-black uppercase text-[10px]">
-                  Camera
+          <View
+            style={{
+              backgroundColor: "#0f0f0f",
+              borderTopLeftRadius: 40,
+              borderTopRightRadius: 40,
+              borderTopWidth: 1,
+              borderColor: "#27272a",
+              paddingHorizontal: 24,
+              paddingTop: 24,
+              paddingBottom: 48,
+            }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                backgroundColor: "#3f3f46",
+                borderRadius: 2,
+                alignSelf: "center",
+                marginBottom: 24,
+              }}
+            />
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 28,
+              }}
+            >
+              <View>
+                <Text
+                  style={{
+                    color: "white",
+                    fontSize: 22,
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Profile Photo
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => pickImage(false)}
-                className="items-center"
-              >
-                <View className="bg-zinc-900 p-5 rounded-3xl mb-2 border border-zinc-800 shadow-md">
-                  <ImageIcon color={redColor} size={32} />
-                </View>
-                <Text className="text-zinc-400 font-black uppercase text-[10px]">
-                  Gallery
+                <Text
+                  style={{
+                    color: "#52525b",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    marginTop: 2,
+                  }}
+                >
+                  Choose how to add your image
                 </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowImageModal(false)}
+                style={{
+                  backgroundColor: "#27272a",
+                  padding: 10,
+                  borderRadius: 50,
+                  borderWidth: 1,
+                  borderColor: "#3f3f46",
+                }}
+              >
+                <X size={16} color="#71717a" />
               </TouchableOpacity>
             </View>
+
+            {/* Camera */}
+            <TouchableOpacity
+              onPress={() => handleImageOption(true)}
+              activeOpacity={0.7}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#1a1a1a",
+                padding: 20,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#27272a",
+                marginBottom: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  backgroundColor: "#E31C2518",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 16,
+                }}
+              >
+                <Camera color={redColor} size={26} strokeWidth={2.5} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Take Photo
+                </Text>
+                <Text
+                  style={{
+                    color: "#52525b",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    marginTop: 3,
+                  }}
+                >
+                  Use your camera
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: "#27272a",
+                  padding: 8,
+                  borderRadius: 12,
+                }}
+              >
+                <ChevronRight color="#52525b" size={18} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Gallery */}
+            <TouchableOpacity
+              onPress={() => handleImageOption(false)}
+              activeOpacity={0.7}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#1a1a1a",
+                padding: 20,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#27272a",
+              }}
+            >
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  backgroundColor: "#E31C2518",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 16,
+                }}
+              >
+                <ImageIcon color={redColor} size={26} strokeWidth={2.5} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Choose from Gallery
+                </Text>
+                <Text
+                  style={{
+                    color: "#52525b",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    marginTop: 3,
+                  }}
+                >
+                  Pick from your photos
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: "#27272a",
+                  padding: 8,
+                  borderRadius: 12,
+                }}
+              >
+                <ChevronRight color="#52525b" size={18} />
+              </View>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* MODAL PERMISSÃO NEGADA — estilo "ATTENTION" */}
