@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -13,8 +14,6 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import {
-  FlatList,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -26,6 +25,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { FILTER_ICONS } from "../../constants/exercise_filters";
 
 const MUSCLE_GROUPS = [
   "Abs",
@@ -518,40 +519,88 @@ export default function CreateExerciseScreen() {
 
       {/* MODAL SELECÇÃO MÚSCULO / EQUIPAMENTO */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View className="flex-1 bg-black/90 justify-end">
-          <View className="bg-zinc-900 rounded-t-[40px] h-[70%]">
-            <View className="w-12 h-1 bg-zinc-800 rounded-full self-center my-4" />
-            <Text className="text-white text-center font-black uppercase mb-4">
-              Select {modalType === "muscle" ? "Muscle" : "Equipment"}
-            </Text>
-            <FlatList
-              data={modalType === "muscle" ? MUSCLE_GROUPS : EQUIPMENTS}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
+        <TouchableOpacity
+          activeOpacity={1}
+          className="flex-1 bg-black/80 justify-end"
+          onPress={() => setModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1}>
+            <View
+              className="bg-[#121212] rounded-t-[40px] p-8 border-t border-zinc-800"
+              style={{ height: 500 }}
+            >
+              <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mb-6" />
+              <Text className="text-white text-xl font-black uppercase mb-6">
+                {modalType === "muscle" ? "Muscles" : "Equipment"}
+              </Text>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 40 }}
+              >
+                {/* Opção ALL */}
                 <TouchableOpacity
                   onPress={() => {
-                    if (modalType === "muscle") setMuscleGroup(item);
-                    else setEquipment(item);
+                    if (modalType === "muscle") setMuscleGroup("Select");
+                    else setEquipment("Select");
                     setModalVisible(false);
                   }}
-                  className="flex-row items-center px-8 py-4 border-b border-zinc-800/50"
+                  className="flex-row items-center py-4 border-b border-zinc-900"
                 >
-                  <Text className="text-white text-lg font-bold flex-1">
-                    {item}
+                  <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
+                    <Image
+                      source={FILTER_ICONS["ALL"]}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  </View>
+                  <Text className="text-white text-lg flex-1 font-bold uppercase">
+                    All
                   </Text>
-                  {(modalType === "muscle" ? muscleGroup : equipment) ===
-                    item && <Check color="#E31C25" size={20} />}
+                  {(modalType === "muscle"
+                    ? muscleGroup === "Select"
+                    : equipment === "Select") && (
+                    <Check color="#E31C25" size={24} />
+                  )}
                 </TouchableOpacity>
-              )}
-            />
-            <TouchableOpacity
-              onPress={() => setModalVisible(false)}
-              className="m-6 bg-zinc-800 py-4 rounded-2xl items-center"
-            >
-              <Text className="text-white font-bold uppercase">Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+
+                {/* Opções dinâmicas */}
+                {(modalType === "muscle" ? MUSCLE_GROUPS : EQUIPMENTS).map(
+                  (opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => {
+                        if (modalType === "muscle") setMuscleGroup(opt);
+                        else setEquipment(opt);
+                        setModalVisible(false);
+                      }}
+                      className="flex-row items-center py-4 border-b border-zinc-900"
+                    >
+                      <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
+                        {FILTER_ICONS[opt.toUpperCase()] ? (
+                          <Image
+                            source={FILTER_ICONS[opt.toUpperCase()]}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                          />
+                        ) : (
+                          <View className="w-full h-full bg-zinc-800" />
+                        )}
+                      </View>
+                      <Text className="text-white text-lg flex-1 font-bold uppercase">
+                        {opt}
+                      </Text>
+                      {(modalType === "muscle" ? muscleGroup : equipment) ===
+                        opt && <Check color="#E31C25" size={24} />}
+                    </TouchableOpacity>
+                  ),
+                )}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );

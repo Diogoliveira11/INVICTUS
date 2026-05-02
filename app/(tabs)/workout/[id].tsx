@@ -664,7 +664,7 @@ export default function ExerciseDetailScreen() {
         </TouchableOpacity>
         <Text
           numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase italic"
+          className="text-white text-lg font-black flex-1 text-center px-4 uppercase"
         >
           {exercise.name}
         </Text>
@@ -699,7 +699,7 @@ export default function ExerciseDetailScreen() {
         {activeTab === "Summary" && (
           <View>
             {/* GIF */}
-            <View className="mx-5 mt-5 h-56 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
+            <View className="mx-5 mt-5 h-72 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
               {gifSource ? (
                 <Image
                   source={gifSource}
@@ -721,7 +721,7 @@ export default function ExerciseDetailScreen() {
               <Text className="text-zinc-500 uppercase font-black text-[10px]">
                 Target Muscle
               </Text>
-              <Text className="text-white font-black italic uppercase text-sm">
+              <Text className="text-white font-black uppercase text-sm">
                 {exercise.muscle_group}
               </Text>
             </View>
@@ -731,7 +731,7 @@ export default function ExerciseDetailScreen() {
               {/* Header row: value + time filter */}
               <View className="flex-row items-start justify-between px-5 pt-5 pb-2">
                 <View>
-                  <Text className="text-[#E31C25] text-2xl font-black italic">
+                  <Text className="text-[#E31C25] text-2xl font-black">
                     {formatMetricValue(latestValue)}
                     {latestDate && (
                       <Text className="text-zinc-500 text-sm font-bold">
@@ -812,7 +812,7 @@ export default function ExerciseDetailScreen() {
               >
                 <View className="flex-row items-center gap-2">
                   <Trophy size={18} color="#E31C25" />
-                  <Text className="text-white font-black uppercase italic text-sm ml-2">
+                  <Text className="text-white font-black uppercase text-sm ml-2">
                     Personal Records
                   </Text>
                 </View>
@@ -898,7 +898,7 @@ export default function ExerciseDetailScreen() {
         {/* ══════════════ HISTORY TAB ══════════════ */}
         {activeTab === "History" && (
           <View className="p-6">
-            <Text className="text-white font-black uppercase italic text-lg mb-6">
+            <Text className="text-white font-black uppercase text-lg mb-6">
               Recent Activity
             </Text>
 
@@ -924,13 +924,13 @@ export default function ExerciseDetailScreen() {
                             year: "numeric",
                           })}
                         </Text>
-                        <Text className="text-white font-black italic uppercase">
+                        <Text className="text-white font-black uppercase">
                           Completed Set
                         </Text>
                       </View>
                     </View>
                     <View className="items-end">
-                      <Text className="text-[#E31C25] font-black text-lg italic">
+                      <Text className="text-[#E31C25] font-black text-lg">
                         {item.weight}
                         <Text className="text-zinc-500 text-xs">
                           {weightUnit}
@@ -945,7 +945,7 @@ export default function ExerciseDetailScreen() {
             ) : (
               <View className="items-center justify-center pt-10">
                 <Trophy size={48} color="#3f3f46" />
-                <Text className="text-zinc-500 text-center mt-4 font-bold uppercase italic">
+                <Text className="text-zinc-500 text-center mt-4 font-bold uppercase">
                   No history found
                 </Text>
               </View>
@@ -958,12 +958,12 @@ export default function ExerciseDetailScreen() {
           <View className="p-6">
             <View className="flex-row items-center mb-4">
               <BookOpen size={20} color="#E31C25" />
-              <Text className="text-white font-black ml-2 uppercase italic text-lg">
+              <Text className="text-white font-black ml-2 uppercase text-lg">
                 Execution Guide
               </Text>
             </View>
             <View className="bg-zinc-900/30 p-6 rounded-[30px] border border-zinc-800">
-              <Text className="text-zinc-400 leading-6 text-base italic">
+              <Text className="text-zinc-400 leading-6 text-base">
                 {exercise.instructions && exercise.instructions.trim() !== ""
                   ? exercise.instructions
                   : "No instructions available."}
