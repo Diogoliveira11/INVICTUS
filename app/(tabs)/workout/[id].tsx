@@ -172,7 +172,7 @@ type ExerciseDetails = {
 type RawSet = {
   weight: number;
   reps: number;
-  date: string; // from workouts.date
+  date: string;
 };
 
 type ChartPoint = { date: string; value: number };
@@ -219,7 +219,6 @@ function filterByTime(sets: RawSet[], filter: TimeFilter): RawSet[] {
 }
 
 function buildChartPoints(sets: RawSet[], metric: MetricKey): ChartPoint[] {
-  // Group by date
   const grouped: { [date: string]: RawSet[] } = {};
   for (const s of sets) {
     const key = s.date.slice(0, 10);
@@ -273,7 +272,6 @@ function calcPersonalRecords(
     }
   }
 
-  // Session volume grouped by date
   const grouped: { [date: string]: number } = {};
   for (const s of sets) {
     const key = s.date.slice(0, 10);
@@ -281,7 +279,6 @@ function calcPersonalRecords(
   }
   const bestSessionVolume = Math.max(...Object.values(grouped));
 
-  // Set records per rep count
   const repMap: { [reps: number]: number } = {};
   for (const s of sets) {
     if (!repMap[s.reps] || s.weight > repMap[s.reps]) {
@@ -302,24 +299,17 @@ function calcPersonalRecords(
 }
 
 // ─── SPARKLINE CHART ────────────────────────────────────────────────────────
-function formatYLabel(
-  v: number,
-  metric: MetricKey,
-  weightUnit: string,
-): string {
+function formatYLabel(v: number, metric: MetricKey): string {
   if (metric === "Total Reps") return `${Math.round(v)}`;
-  // Show integer if no fractional part, otherwise 1 decimal
   const rounded = Math.round(v * 10) / 10;
   return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
 }
 
 function niceYLabels(minV: number, maxV: number): number[] {
   if (minV === maxV) {
-    // Only one unique value — show it centered with ±1 padding
     return [maxV + 1, maxV, minV - 1];
   }
   const range = maxV - minV;
-  // Pick a step that gives clean round numbers
   const rawStep = range / 3;
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
   const niceSteps = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
@@ -332,7 +322,6 @@ function niceYLabels(minV: number, maxV: number): number[] {
   for (let v = niceMin; v <= niceMax + step * 0.01; v += step) {
     labels.push(Math.round(v * 100) / 100);
   }
-  // Return 3 evenly spaced: top, mid, bottom
   if (labels.length >= 3) {
     const last = labels.length - 1;
     const mid = Math.round(last / 2);
@@ -375,7 +364,6 @@ function SparkChart({
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
 
-  // Add vertical padding so line never touches top/bottom edge
   const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.15;
   const minV = rawMin - padding;
   const maxV = rawMax + padding;
@@ -385,12 +373,10 @@ function SparkChart({
     PAD_LEFT + (i / Math.max(points.length - 1, 1)) * chartW;
   const toY = (v: number) => PAD_TOP + chartH - ((v - minV) / rangeV) * chartH;
 
-  // Polyline
   const polyPoints = points
     .map((p, i) => `${toX(i)},${toY(p.value)}`)
     .join(" ");
 
-  // Area fill path
   const firstX = toX(0);
   const lastX = toX(points.length - 1);
   const baseY = PAD_TOP + chartH;
@@ -399,16 +385,13 @@ function SparkChart({
     points.map((p, i) => `L${toX(i)},${toY(p.value)}`).join(" ") +
     ` L${lastX},${baseY} Z`;
 
-  // Y axis: nice round labels based on actual data range
   const yLabelValues = niceYLabels(rawMin, rawMax);
   const yLabels = yLabelValues.map((v) => ({
-    text: formatYLabel(v, metric, weightUnit),
+    text: formatYLabel(v, metric),
     y: toY(v),
   }));
 
-  // X axis: show up to 4 dates, always first + last
   const formatDate = (dateStr: string) => {
-    // Handle both "YYYY-MM-DD" and ISO strings
     const parts = dateStr.slice(0, 10).split("-");
     const d = new Date(
       Number(parts[0]),
@@ -426,7 +409,6 @@ function SparkChart({
   } else if (points.length <= 5) {
     xIndices = [0, Math.floor((points.length - 1) / 2), points.length - 1];
   } else {
-    // 4 labels: first, 1/3, 2/3, last
     xIndices = [
       0,
       Math.round((points.length - 1) / 3),
@@ -435,12 +417,8 @@ function SparkChart({
     ];
   }
 
-  // Unit suffix for Y axis
-  const unitSuffix = metric === "Total Reps" ? " rep" : ` ${weightUnit}`;
-
   return (
     <Svg width={W} height={H}>
-      {/* Y grid lines + labels */}
       {yLabels.map((yl, i) => (
         <React.Fragment key={i}>
           <Line
@@ -465,10 +443,8 @@ function SparkChart({
         </React.Fragment>
       ))}
 
-      {/* Area fill */}
       <Path d={areaPath} fill="#E31C25" fillOpacity={0.1} />
 
-      {/* Line */}
       <Polyline
         points={polyPoints}
         fill="none"
@@ -478,12 +454,10 @@ function SparkChart({
         strokeLinecap="round"
       />
 
-      {/* Dots on each data point */}
       {points.map((p, i) => (
         <Circle key={i} cx={toX(i)} cy={toY(p.value)} r={3.5} fill="#E31C25" />
       ))}
 
-      {/* X axis date labels */}
       {xIndices.map((idx) => (
         <SvgText
           key={idx}
@@ -500,6 +474,169 @@ function SparkChart({
         </SvgText>
       ))}
     </Svg>
+  );
+}
+
+// ─── DELETE CONFIRMATION MODAL ───────────────────────────────────────────────
+function DeleteModal({
+  visible,
+  exerciseName,
+  onCancel,
+  onConfirm,
+}: {
+  visible: boolean;
+  exerciseName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      {/* Backdrop */}
+      <TouchableOpacity
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)" }}
+        activeOpacity={1}
+        onPress={onCancel}
+      />
+
+      {/* Modal card — centred */}
+      <View
+        style={{
+          position: "absolute",
+          left: 24,
+          right: 24,
+          top: "38%",
+          backgroundColor: "#18181b",
+          borderRadius: 28,
+          borderWidth: 1,
+          borderColor: "#27272a",
+          overflow: "hidden",
+        }}
+      >
+        {/* Icon + title */}
+        <View
+          style={{ alignItems: "center", paddingTop: 32, paddingBottom: 8 }}
+        >
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: "#2d0a0a",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: "#7f1d1d",
+            }}
+          >
+            <Trash2 size={24} color="#ef4444" />
+          </View>
+          <Text
+            style={{
+              color: "#fff",
+              fontWeight: "900",
+              fontSize: 18,
+              textTransform: "uppercase",
+              letterSpacing: 1,
+              marginBottom: 8,
+            }}
+          >
+            Delete Exercise
+          </Text>
+          <Text
+            style={{
+              color: "#71717a",
+              fontSize: 13,
+              fontWeight: "600",
+              textAlign: "center",
+              paddingHorizontal: 24,
+              lineHeight: 20,
+            }}
+          >
+            Are you sure you want to delete{" "}
+            <Text style={{ color: "#a1a1aa", fontWeight: "800" }}>
+              {exerciseName}
+            </Text>
+            {"?"}
+          </Text>
+          <Text
+            style={{
+              color: "#52525b",
+              fontSize: 12,
+              fontWeight: "600",
+              textAlign: "center",
+              paddingHorizontal: 24,
+              marginTop: 6,
+            }}
+          >
+            This action cannot be undone.
+          </Text>
+        </View>
+
+        {/* Divider */}
+        <View
+          style={{
+            height: 1,
+            backgroundColor: "#27272a",
+            marginTop: 24,
+          }}
+        />
+
+        {/* Buttons */}
+        <View style={{ flexDirection: "row" }}>
+          <TouchableOpacity
+            onPress={onCancel}
+            style={{
+              flex: 1,
+              paddingVertical: 18,
+              alignItems: "center",
+              borderRightWidth: 0.5,
+              borderRightColor: "#27272a",
+            }}
+          >
+            <Text
+              style={{
+                color: "#a1a1aa",
+                fontWeight: "800",
+                fontSize: 15,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Cancel
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onConfirm}
+            style={{
+              flex: 1,
+              paddingVertical: 18,
+              alignItems: "center",
+              borderLeftWidth: 0.5,
+              borderLeftColor: "#27272a",
+            }}
+          >
+            <Text
+              style={{
+                color: "#ef4444",
+                fontWeight: "900",
+                fontSize: 15,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Delete
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -524,6 +661,9 @@ export default function ExerciseDetailScreen() {
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showPR, setShowPR] = useState(false);
 
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const metrics: MetricKey[] = [
     "Heaviest Weight",
     "One Rep Max",
@@ -544,10 +684,10 @@ export default function ExerciseDetailScreen() {
         );
         if (result) {
           setExercise(result);
-          setActiveTab(result.is_custom === 1 ? "History" : "Summary");
+          // Both custom and standard exercises start on Summary
+          setActiveTab("Summary");
         }
 
-        // Fetch sets with real workout date via joins
         const rows = await db.getAllAsync<RawSet>(
           `SELECT 
              ws.weight, 
@@ -588,7 +728,6 @@ export default function ExerciseDetailScreen() {
     [allSets, weightUnit],
   );
 
-  // Latest value for the metric header
   const latestPoint = chartPoints[chartPoints.length - 1] ?? null;
   const latestValue = latestPoint?.value ?? null;
   const latestDate = latestPoint?.date ?? null;
@@ -610,24 +749,15 @@ export default function ExerciseDetailScreen() {
     }
   };
 
-  const handleDelete = async () => {
-    Alert.alert("Delete", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await db.runAsync("DELETE FROM exercises WHERE id = ?", [
-              id as string,
-            ]);
-            router.replace("/workout/explore_exercises");
-          } catch {
-            Alert.alert("Error", "It could not be deleted.");
-          }
-        },
-      },
-    ]);
+  const handleDeleteConfirm = async () => {
+    try {
+      await db.runAsync("DELETE FROM exercises WHERE id = ?", [id as string]);
+      setShowDeleteModal(false);
+      router.replace("/workout/explore_exercises");
+    } catch {
+      setShowDeleteModal(false);
+      Alert.alert("Error", "It could not be deleted.");
+    }
   };
 
   // ── Loading / not found ──
@@ -645,9 +775,11 @@ export default function ExerciseDetailScreen() {
       </View>
     );
 
+  // Custom exercises: Summary + History (no How to)
+  // Standard exercises: Summary + History + How to
   const tabs =
     exercise.is_custom === 1
-      ? ["History", "How to"]
+      ? ["Summary", "History"]
       : ["Summary", "History", "How to"];
 
   const gifSource = exercise.gif ? (GIF_MAP[exercise.gif] ?? null) : null;
@@ -669,7 +801,10 @@ export default function ExerciseDetailScreen() {
           {exercise.name}
         </Text>
         {exercise.is_custom === 1 ? (
-          <TouchableOpacity onPress={handleDelete} className="p-2">
+          <TouchableOpacity
+            onPress={() => setShowDeleteModal(true)}
+            className="p-2"
+          >
             <Trash2 color="#ef4444" size={22} />
           </TouchableOpacity>
         ) : (
@@ -698,23 +833,25 @@ export default function ExerciseDetailScreen() {
         {/* ══════════════ SUMMARY TAB ══════════════ */}
         {activeTab === "Summary" && (
           <View>
-            {/* GIF */}
-            <View className="mx-5 mt-5 h-72 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
-              {gifSource ? (
-                <Image
-                  source={gifSource}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View className="items-center justify-center gap-2">
-                  <Target size={40} color="#d4d4d8" />
-                  <Text className="text-zinc-400 font-bold uppercase text-xs">
-                    No preview
-                  </Text>
-                </View>
-              )}
-            </View>
+            {/* GIF — only for non-custom exercises */}
+            {exercise.is_custom === 0 && (
+              <View className="mx-5 mt-5 h-72 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
+                {gifSource ? (
+                  <Image
+                    source={gifSource}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View className="items-center justify-center gap-2">
+                    <Target size={40} color="#d4d4d8" />
+                    <Text className="text-zinc-400 font-bold uppercase text-xs">
+                      No preview
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Muscle tag */}
             <View className="mx-5 mt-3 bg-zinc-900/60 px-5 py-3 rounded-2xl border border-zinc-800 flex-row items-center justify-between">
@@ -827,7 +964,6 @@ export default function ExerciseDetailScreen() {
 
               {showPR && (
                 <View className="px-5 pb-5">
-                  {/* PR rows */}
                   {[
                     {
                       label: "Heaviest Weight",
@@ -859,7 +995,6 @@ export default function ExerciseDetailScreen() {
                     </View>
                   ))}
 
-                  {/* Set Records */}
                   {personalRecords.setRecords.length > 0 && (
                     <View className="mt-4">
                       <Text className="text-zinc-500 uppercase font-black text-[10px] mb-3">
@@ -903,7 +1038,6 @@ export default function ExerciseDetailScreen() {
             </Text>
 
             {allSets.length > 0 ? (
-              // Group by date and show last 20 sets
               [...allSets]
                 .reverse()
                 .slice(0, 20)
@@ -998,7 +1132,6 @@ export default function ExerciseDetailScreen() {
             paddingTop: 8,
           }}
         >
-          {/* Handle */}
           <View
             style={{
               width: 36,
@@ -1049,6 +1182,14 @@ export default function ExerciseDetailScreen() {
           ))}
         </View>
       </Modal>
+
+      {/* ── Delete Confirmation Modal ── */}
+      <DeleteModal
+        visible={showDeleteModal}
+        exerciseName={exercise?.name ?? ""}
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+      />
     </SafeAreaView>
   );
 }
