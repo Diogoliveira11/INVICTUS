@@ -69,42 +69,54 @@ export default function CreateExerciseScreen() {
   const redColor = "#E31C25";
 
   const launchPicker = async (useCamera: boolean) => {
-    const permission = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (useCamera) {
+      // Câmara — sempre pede permissão
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        setPermissionModalMessage(
+          "WE NEED CAMERA ACCESS TO ADD AN EXERCISE PHOTO!",
+        );
+        setPermissionModalVisible(true);
+        return;
+      }
 
-    if (permission.status !== "granted") {
-      setPermissionModalMessage(
-        useCamera
-          ? "WE NEED CAMERA ACCESS TO ADD AN EXERCISE PHOTO!"
-          : "WE NEED GALLERY ACCESS TO CHOOSE AN EXERCISE PHOTO!",
-      );
-      setPermissionModalVisible(true);
-      return;
-    }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.5,
+        mediaTypes: ["images"],
+      });
 
-    const result = useCamera
-      ? await ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.5,
-          mediaTypes: ["images"],
-        })
-      : await ImagePicker.launchImageLibraryAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.5,
-          mediaTypes: ["images"],
-        });
+      if (!result.canceled && result.assets?.[0]) {
+        setImageUri(result.assets[0].uri);
+      }
+    } else {
+      // Galeria — no Android 13+ não precisa de permissão
+      if (Platform.OS === "ios") {
+        const { status } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          setPermissionModalMessage(
+            "WE NEED GALLERY ACCESS TO CHOOSE AN EXERCISE PHOTO!",
+          );
+          setPermissionModalVisible(true);
+          return;
+        }
+      }
 
-    if (!result.canceled && result.assets?.[0]) {
-      setImageUri(result.assets[0].uri);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        quality: 0.5,
+        mediaTypes: ["images"],
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets?.[0]) {
+        setImageUri(result.assets[0].uri);
+      }
     }
   };
 
   const handleImageOption = (useCamera: boolean) => {
     setShowImageModal(false);
-    const delay = Platform.OS === "ios" ? 500 : 300;
+    const delay = Platform.OS === "ios" ? 800 : 100;
     setTimeout(() => launchPicker(useCamera), delay);
   };
 
