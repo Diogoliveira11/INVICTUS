@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { ChevronLeft, Clock } from "lucide-react-native";
+import { StatusBar } from "expo-status-bar";
+import { ArrowLeft, Clock } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -38,8 +39,6 @@ export default function WorkoutHistory() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
-      // Consulta à sua tabela 'workouts' filtrando pelo utilizador logado
-      // Usamos ORDER BY date DESC para mostrar os mais recentes primeiro
       const rows = await db.getAllAsync<WorkoutEntry>(
         `SELECT id, title, date, duration, total_volume 
          FROM workouts 
@@ -56,12 +55,10 @@ export default function WorkoutHistory() {
     }
   };
 
-  // Função auxiliar para formatar a data vinda do SQLite
   const formatDate = (dateStr: string) => {
     const workoutDate = new Date(dateStr);
     const today = new Date();
 
-    // Resetar as horas para comparar apenas os dias
     const workoutDay = new Date(
       workoutDate.getFullYear(),
       workoutDate.getMonth(),
@@ -73,7 +70,6 @@ export default function WorkoutHistory() {
       today.getDate(),
     );
 
-    // Calcular a diferença em milissegundos e converter para dias
     const diffTime = todayDay.getTime() - workoutDay.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -82,7 +78,6 @@ export default function WorkoutHistory() {
     } else if (diffDays === 1) {
       return "YESTERDAY";
     } else {
-      // Para 2 dias ou mais, mostra a data completa com o ano
       return workoutDate
         .toLocaleDateString("en-US", {
           month: "short",
@@ -94,18 +89,25 @@ export default function WorkoutHistory() {
   };
 
   return (
-    <View className="flex-1 bg-black" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="flex-row items-center px-6 py-4">
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
+      <StatusBar style="light" />
+
+      {/* HEADER */}
+      <View
+        style={{ paddingTop: insets.top }}
+        className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900"
+      >
         <TouchableOpacity
-          onPress={() => router.push("/home")}
-          className="bg-zinc-900 p-2 rounded-full"
+          onPress={() => router.replace("/profile")}
+          className="p-2"
         >
-          <ChevronLeft color="white" size={24} />
+          <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
-        <Text className="text-white text-xl font-black ml-4 uppercase tracking-tighter">
+        <Text className="text-white text-lg font-black flex-1 text-center px-4 uppercase">
           Workout History
         </Text>
+        {/* Spacer para centrar o título */}
+        <View style={{ width: 40 }} />
       </View>
 
       {loading ? (
@@ -113,7 +115,11 @@ export default function WorkoutHistory() {
           <ActivityIndicator color="#E31C25" size="large" />
         </View>
       ) : (
-        <ScrollView className="px-6 mt-4" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          className="px-6 mt-4"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 60 }}
+        >
           {history.length === 0 ? (
             <Text className="text-zinc-500 text-center mt-10 font-bold uppercase">
               Nenhum treino registado ainda.

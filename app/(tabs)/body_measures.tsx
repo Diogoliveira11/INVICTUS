@@ -3,8 +3,8 @@ import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
-import { ArrowLeft, ChevronDown, Plus } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, Plus } from "lucide-react-native";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -18,57 +18,25 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Line, Polyline } from "react-native-svg";
-import { useUnits } from "./context/units_context";
-
-// We need Text from react-native-svg — let's redo with proper imports
-import Svg2, {
-  Circle as C2,
-  Line as L2,
-  Polyline as P2,
+import Svg, {
+  Circle,
+  Line,
+  Path,
+  Polyline,
   Text as SvgText,
 } from "react-native-svg";
+import { useUnits } from "./context/units_context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CHART_WIDTH = SCREEN_WIDTH - 48; // px-6 on each side
-const CHART_HEIGHT = 160;
-const PADDING_X = 40;
-const PADDING_Y = 20;
+const RED = "#E31C25";
 
 type Measurement = {
   id: number;
   value: number;
-  recorded_at: string; // ISO string
+  recorded_at: string;
 };
 
-type PeriodKey = "1M" | "3M" | "6M" | "1Y" | "All";
-
-const PERIODS: { label: string; key: PeriodKey }[] = [
-  { label: "Last month", key: "1M" },
-  { label: "Last 3 months", key: "3M" },
-  { label: "Last 6 months", key: "6M" },
-  { label: "Last year", key: "1Y" },
-  { label: "All time", key: "All" },
-];
-
-const RED = "#E31C25";
-
-// ── helpers ────────────────────────────────────────────────────────────────
-
-function filterByPeriod(data: Measurement[], period: PeriodKey): Measurement[] {
-  if (period === "All") return data;
-  const now = new Date();
-  const months = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12 }[period];
-  const cutoff = new Date(now);
-  cutoff.setMonth(cutoff.getMonth() - months);
-  return data.filter((d) => new Date(d.recorded_at) >= cutoff);
-}
-
-function formatAxisDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
+// ─── HELPERS ────────────────────────────────────────────────────────────────
 function formatHistoryDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("en-US", {
@@ -78,77 +46,147 @@ function formatHistoryDate(iso: string): string {
   });
 }
 
-// ── LineChart ───────────────────────────────────────────────────────────────
+function formatAxisDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
-function LineChart({ data, unit }: { data: Measurement[]; unit: string }) {
-  if (data.length === 0) return null;
+// Nice round Y labels (same logic as [id].tsx)
+function niceYLabels(minV: number, maxV: number): number[] {
+  if (minV === maxV) return [maxV + 1, maxV, minV - 1];
+  const range = maxV - minV;
+  const rawStep = range / 3;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const niceSteps = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
+  const step = niceSteps.find((s) => s >= rawStep) ?? rawStep;
+  const niceMin = Math.floor(minV / step) * step;
+  const niceMax = Math.ceil(maxV / step) * step;
+  const labels: number[] = [];
+  for (let v = niceMin; v <= niceMax + step * 0.01; v += step) {
+    labels.push(Math.round(v * 100) / 100);
+  }
+  if (labels.length >= 3) {
+    const last = labels.length - 1;
+    return [labels[last], labels[Math.round(last / 2)], labels[0]];
+  }
+  return labels.reverse().slice(0, 3);
+}
+
+// ─── CHART — all time, alternating X labels ───────────────────────────────
+function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
+  const W = SCREEN_WIDTH - 48;
+  const H = 190;
+  const PAD_LEFT = 46;
+  const PAD_RIGHT = 16;
+  const PAD_TOP = 12;
+  const PAD_BOTTOM = 48;
+  const chartW = W - PAD_LEFT - PAD_RIGHT;
+  const chartH = H - PAD_TOP - PAD_BOTTOM;
+
+  if (data.length === 0) {
+    return (
+      <View
+        style={{ height: H, alignItems: "center", justifyContent: "center" }}
+      >
+        <Text
+          style={{
+            color: "#3f3f46",
+            fontWeight: "bold",
+            fontSize: 13,
+            textTransform: "uppercase",
+          }}
+        >
+          No data yet
+        </Text>
+      </View>
+    );
+  }
 
   const values = data.map((d) => d.value);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
-  const range = maxVal - minVal || 1;
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.15;
+  const minV = rawMin - padding;
+  const maxV = rawMax + padding;
+  const rangeV = maxV - minV;
 
-  const innerW = CHART_WIDTH - PADDING_X * 2;
-  const innerH = CHART_HEIGHT - PADDING_Y * 2;
+  // X positions: proportional to real elapsed time
+  const timestamps = data.map((d) => new Date(d.recorded_at).getTime());
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+  const rangeTime = maxTime - minTime || 1;
 
-  const toX = (i: number) =>
-    PADDING_X + (i / Math.max(data.length - 1, 1)) * innerW;
-  const toY = (v: number) =>
-    PADDING_Y + innerH - ((v - minVal) / range) * innerH;
+  const toX = (ts: number) => {
+    if (data.length === 1) return PAD_LEFT + chartW / 2;
+    return PAD_LEFT + ((ts - minTime) / rangeTime) * chartW;
+  };
+  const toY = (v: number) => PAD_TOP + chartH - ((v - minV) / rangeV) * chartH;
 
-  const points = data.map((d, i) => `${toX(i)},${toY(d.value)}`).join(" ");
+  const polyPoints = data
+    .map((d) => `${toX(new Date(d.recorded_at).getTime())},${toY(d.value)}`)
+    .join(" ");
 
-  // Y-axis labels (4 lines)
-  const yLabels = [0, 1, 2, 3].map((i) => {
-    const v = minVal + (range / 3) * i;
-    const y = toY(v);
-    return { label: v.toFixed(1) + unit, y };
-  });
+  // Area path
+  const firstX = toX(timestamps[0]);
+  const lastX = toX(timestamps[timestamps.length - 1]);
+  const baseY = PAD_TOP + chartH;
+  const areaPath =
+    `M${firstX},${baseY} ` +
+    data
+      .map((d) => `L${toX(new Date(d.recorded_at).getTime())},${toY(d.value)}`)
+      .join(" ") +
+    ` L${lastX},${baseY} Z`;
 
-  // X-axis: show first, middle, last
-  const xIndices =
-    data.length === 1
-      ? [0]
-      : data.length === 2
-        ? [0, 1]
-        : [0, Math.floor((data.length - 1) / 2), data.length - 1];
+  // Y labels
+  const yLabelValues = niceYLabels(rawMin, rawMax);
+  const yLabels = yLabelValues.map((v) => ({
+    text: `${Math.round(v * 10) / 10}`,
+    y: toY(v),
+  }));
+
+  // X date labels — alternating rows
+  const shouldShowLabel = (i: number) => {
+    if (data.length <= 4) return true;
+    return i % 2 === 0;
+  };
 
   return (
-    <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-      {/* Grid lines */}
-      {yLabels.map((l, i) => (
-        <Line
-          key={i}
-          x1={PADDING_X}
-          y1={l.y}
-          x2={CHART_WIDTH - 10}
-          y2={l.y}
-          stroke="#27272a"
-          strokeWidth="1"
-        />
+    <Svg width={W} height={H}>
+      {/* Y grid + labels */}
+      {yLabels.map((yl, i) => (
+        <React.Fragment key={i}>
+          <Line
+            x1={PAD_LEFT}
+            y1={yl.y}
+            x2={W - PAD_RIGHT}
+            y2={yl.y}
+            stroke="#27272a"
+            strokeWidth={1}
+            strokeDasharray="4,3"
+          />
+          <SvgText
+            x={PAD_LEFT - 5}
+            y={yl.y + 4}
+            fontSize={10}
+            fill="#71717a"
+            textAnchor="end"
+            fontWeight="bold"
+          >
+            {yl.text}
+          </SvgText>
+        </React.Fragment>
       ))}
 
-      {/* Y labels */}
-      {yLabels.map((l, i) => (
-        <Svg
-          key={`yl-${i}`}
-          x={0}
-          y={l.y - 6}
-          width={PADDING_X - 4}
-          height={14}
-        >
-          <Circle cx={0} cy={0} r={0} />
-          {/* We render text via a trick below */}
-        </Svg>
-      ))}
+      {/* Area */}
+      <Path d={areaPath} fill={RED} fillOpacity={0.1} />
 
       {/* Line */}
       {data.length > 1 && (
         <Polyline
-          points={points}
+          points={polyPoints}
           fill="none"
           stroke={RED}
-          strokeWidth="2.5"
+          strokeWidth={2.5}
           strokeLinejoin="round"
           strokeLinecap="round"
         />
@@ -158,142 +196,40 @@ function LineChart({ data, unit }: { data: Measurement[]; unit: string }) {
       {data.map((d, i) => (
         <Circle
           key={i}
-          cx={toX(i)}
+          cx={toX(new Date(d.recorded_at).getTime())}
           cy={toY(d.value)}
-          r={4}
+          r={3.5}
           fill={RED}
-          stroke="#000"
-          strokeWidth={2}
         />
       ))}
+
+      {/* X date labels — alternating rows */}
+      {data.map((d, i) => {
+        if (!shouldShowLabel(i)) return null;
+        const x = toX(new Date(d.recorded_at).getTime());
+        const isOdd = i % 2 !== 0;
+        const labelY = baseY + (isOdd ? 36 : 20);
+        const anchor =
+          i === 0 ? "start" : i === data.length - 1 ? "end" : "middle";
+        return (
+          <SvgText
+            key={i}
+            x={x}
+            y={labelY}
+            fontSize={9}
+            fill="#71717a"
+            textAnchor={anchor}
+            fontWeight="bold"
+          >
+            {formatAxisDate(d.recorded_at)}
+          </SvgText>
+        );
+      })}
     </Svg>
   );
 }
 
-function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
-  if (data.length === 0) return null;
-
-  // 1. Valores para o eixo Y (Peso/Medida)
-  const values = data.map((d) => d.value);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
-  const rangeY = maxVal - minVal || 1;
-
-  // 2. Timestamps para o eixo X (Tempo) - Isto garante a distância proporcional
-  const timestamps = data.map((d) => new Date(d.recorded_at).getTime());
-  const minTime = Math.min(...timestamps);
-  const maxTime = Math.max(...timestamps);
-  const rangeX = maxTime - minTime || 1;
-
-  const innerW = CHART_WIDTH - PADDING_X * 2;
-  const innerH = CHART_HEIGHT - PADDING_Y * 2;
-
-  // 3. Função toX: Calcula a posição baseada no tempo decorrido
-  const toX = (timestamp: number) => {
-    if (data.length === 1) return PADDING_X + innerW / 2;
-    // (Tempo Atual - Tempo Inicial) / Tempo Total * Largura do Gráfico
-    return PADDING_X + ((timestamp - minTime) / rangeX) * innerW;
-  };
-
-  const toY = (v: number) =>
-    PADDING_Y + innerH - ((v - minVal) / rangeY) * innerH;
-
-  const points = data
-    .map((d) => `${toX(new Date(d.recorded_at).getTime())},${toY(d.value)}`)
-    .join(" ");
-
-  const yTicks = [0, 1, 2, 3].map((i) => {
-    const v = minVal + (rangeY / 3) * i;
-    return { label: v.toFixed(1), y: toY(v) };
-  });
-
-  return (
-    <Svg2 width={CHART_WIDTH} height={CHART_HEIGHT + 24}>
-      {/* Linhas de Grade Horizontais */}
-      {yTicks.map((t, i) => (
-        <L2
-          key={i}
-          x1={PADDING_X}
-          y1={t.y}
-          x2={CHART_WIDTH - 6}
-          y2={t.y}
-          stroke="#27272a"
-          strokeWidth="1"
-        />
-      ))}
-
-      {/* Labels do Eixo Y (Valores) */}
-      {yTicks.map((t, i) => (
-        <SvgText
-          key={`yl${i}`}
-          x={PADDING_X - 4}
-          y={t.y + 4}
-          fontSize="9"
-          fill="#52525b"
-          textAnchor="end"
-          fontWeight="bold"
-        >
-          {t.label}
-        </SvgText>
-      ))}
-
-      {/* A Linha do Gráfico */}
-      {data.length > 1 && (
-        <P2
-          points={points}
-          fill="none"
-          stroke={RED}
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      )}
-
-      {/* Pontos (Círculos) - Posicionados proporcionalmente ao tempo */}
-      {data.map((d, i) => (
-        <C2
-          key={i}
-          cx={toX(new Date(d.recorded_at).getTime())}
-          cy={toY(d.value)}
-          r={4}
-          fill={RED}
-          stroke="#000"
-          strokeWidth={2}
-        />
-      ))}
-
-      {/* Datas no Eixo X (Início e Fim) */}
-      {data.length > 0 && (
-        <>
-          <SvgText
-            x={toX(timestamps[0])}
-            y={CHART_HEIGHT + 18}
-            fontSize="9"
-            fill="#52525b"
-            textAnchor="start"
-            fontWeight="bold"
-          >
-            {formatAxisDate(data[0].recorded_at)}
-          </SvgText>
-          {data.length > 1 && (
-            <SvgText
-              x={toX(timestamps[data.length - 1])}
-              y={CHART_HEIGHT + 18}
-              fontSize="9"
-              fill="#52525b"
-              textAnchor="end"
-              fontWeight="bold"
-            >
-              {formatAxisDate(data[data.length - 1].recorded_at)}
-            </SvgText>
-          )}
-        </>
-      )}
-    </Svg2>
-  );
-}
-
-// ── Main Screen ─────────────────────────────────────────────────────────────
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
 export default function BodyMeasuresScreen() {
   const router = useRouter();
@@ -306,13 +242,11 @@ export default function BodyMeasuresScreen() {
 
   const [loading, setLoading] = useState(true);
   const [allData, setAllData] = useState<Measurement[]>([]);
-  const [period, setPeriod] = useState<PeriodKey>("3M");
-  const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
-  // ── DB setup & load ──────────────────────────────────────────────────────
 
+  // ── DB setup & load ───────────────────────────────────────────────────────
   const ensureTable = useCallback(async () => {
     await db.runAsync(`
       CREATE TABLE IF NOT EXISTS body_measurements (
@@ -330,14 +264,12 @@ export default function BodyMeasuresScreen() {
       await ensureTable();
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
-
-      // Mudança aqui: Usamos o activeTab na query
       const rows = await db.getAllAsync<Measurement>(
         `SELECT id, value, recorded_at
-        FROM body_measurements
-        WHERE user_email = ? AND type = ?
-        ORDER BY recorded_at ASC`,
-        [email, activeTab], // activeTab será 'weight' ou 'height'
+         FROM body_measurements
+         WHERE user_email = ? AND type = ?
+         ORDER BY recorded_at ASC`,
+        [email, activeTab],
       );
       setAllData(rows);
     } catch (e) {
@@ -351,25 +283,19 @@ export default function BodyMeasuresScreen() {
     if (isFocused) loadData();
   }, [isFocused, loadData]);
 
-  // ── Add measurement ──────────────────────────────────────────────────────
-
+  // ── Add measurement ───────────────────────────────────────────────────────
   const handleAdd = async () => {
     const parsed = parseFloat(newValue.replace(",", "."));
     if (isNaN(parsed) || parsed <= 0) return;
-
     setSaving(true);
     try {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
-
-      // 1. Insere na tabela de histórico usando o activeTab ('weight' ou 'height')
       await db.runAsync(
         `INSERT INTO body_measurements (user_email, value, type, recorded_at)
-          VALUES (?, ?, ?, datetime('now'))`,
+         VALUES (?, ?, ?, datetime('now'))`,
         [email, parsed, activeTab],
       );
-
-      // 2. Atualiza o valor mais recente na tabela de utilizadores (perfil)
       if (activeTab === "weight") {
         await db.runAsync(`UPDATE users SET weight = ? WHERE email = ?`, [
           String(parsed),
@@ -381,10 +307,9 @@ export default function BodyMeasuresScreen() {
           email,
         ]);
       }
-
       setNewValue("");
       setShowAddModal(false);
-      await loadData(); // Recarrega os dados do gráfico ativo
+      await loadData();
     } catch (e) {
       console.error("Error saving measurement:", e);
     } finally {
@@ -392,14 +317,8 @@ export default function BodyMeasuresScreen() {
     }
   };
 
-  // ── Derived ──────────────────────────────────────────────────────────────
-
-  const filtered = filterByPeriod(allData, period);
+  // ── Derived ───────────────────────────────────────────────────────────────
   const latest = allData.length > 0 ? allData[allData.length - 1] : null;
-  const selectedPeriodLabel =
-    PERIODS.find((p) => p.key === period)?.label ?? "Last 3 months";
-
-  // ── Render ───────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -436,98 +355,50 @@ export default function BodyMeasuresScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60 }}
       >
-        {/* TOP ROW — latest value + period picker */}
-        <View className="flex-row items-center justify-between px-6 mt-6 mb-4">
-          <View className="flex-row items-baseline gap-2">
-            <Text className="text-white text-2xl font-black uppercase">
-              {latest
-                ? `${latest.value}${activeTab === "weight" ? weightUnit : heightUnit}`
-                : "—"}
-            </Text>
-            {latest && (
-              <Text
-                style={{ color: RED }}
-                className="text-sm font-black uppercase"
-              >
-                {formatAxisDate(latest.recorded_at)}
-              </Text>
-            )}
-          </View>
-
-          <TouchableOpacity
-            onPress={() => setShowPeriodModal(true)}
-            className="flex-row items-center gap-1"
-          >
-            <Text
-              style={{ color: RED }}
-              className="font-black text-sm uppercase"
+        {/* Metric toggle */}
+        <View className="flex-row px-6 mt-6 gap-3">
+          {(["weight", "height"] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={{ backgroundColor: activeTab === tab ? RED : "#1c1c1e" }}
+              className="px-6 py-2 rounded-full border border-zinc-800"
             >
-              {selectedPeriodLabel}
-            </Text>
-            <ChevronDown size={14} color={RED} strokeWidth={3} />
-          </TouchableOpacity>
+              <Text
+                style={{ color: activeTab === tab ? "white" : "#52525b" }}
+                className="font-black uppercase text-sm"
+              >
+                {tab === "weight" ? "Weight" : "Height"}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* CHART */}
-        <View className="px-6">
-          {filtered.length >= 1 ? (
-            <LineChartFull
-              data={filtered}
-              unit={activeTab === "weight" ? weightUnit : heightUnit}
-            />
-          ) : (
-            <View
-              style={{ height: CHART_HEIGHT }}
-              className="items-center justify-center"
+        {/* Latest value */}
+        <View className="flex-row items-baseline gap-2 px-6 mt-5 mb-2">
+          <Text className="text-white text-2xl font-black uppercase">
+            {latest ? `${latest.value}${currentUnit}` : "—"}
+          </Text>
+          {latest && (
+            <Text
+              style={{ color: RED }}
+              className="text-sm font-black uppercase"
             >
-              <Text className="text-zinc-700 font-black uppercase text-sm">
-                No data for this period
-              </Text>
-            </View>
+              {formatAxisDate(latest.recorded_at)}
+            </Text>
           )}
         </View>
 
-        {/* METRIC SELECTOR TABS */}
-        <View className="px-6 mt-6 flex-row gap-3">
-          {/* Botão Weight */}
-          <TouchableOpacity
-            onPress={() => setActiveTab("weight")}
-            style={{
-              backgroundColor: activeTab === "weight" ? RED : "#1c1c1e",
-            }}
-            className="px-6 py-2 rounded-full border border-zinc-800"
-          >
-            <Text
-              style={{ color: activeTab === "weight" ? "white" : "#52525b" }}
-              className="font-black uppercase text-sm"
-            >
-              Weight
-            </Text>
-          </TouchableOpacity>
-
-          {/* Botão Height */}
-          <TouchableOpacity
-            onPress={() => setActiveTab("height")}
-            style={{
-              backgroundColor: activeTab === "height" ? RED : "#1c1c1e",
-            }}
-            className="px-6 py-2 rounded-full border border-zinc-800"
-          >
-            <Text
-              style={{ color: activeTab === "height" ? "white" : "#52525b" }}
-              className="font-black uppercase text-sm"
-            >
-              Height
-            </Text>
-          </TouchableOpacity>
+        {/* Chart — all time, no filter */}
+        <View className="px-6 mt-2">
+          <LineChartFull data={allData} unit={currentUnit} />
         </View>
 
-        {/* HISTORY */}
+        {/* History */}
         <View className="px-6 mt-8">
           <Text className="text-zinc-500 text-[11px] font-black uppercase tracking-widest mb-4">
             {activeTab} History
           </Text>
-
           {allData.length === 0 ? (
             <Text className="text-zinc-700 font-bold uppercase text-sm">
               No entries yet.
@@ -543,7 +414,6 @@ export default function BodyMeasuresScreen() {
                 </Text>
                 <Text className="text-white font-black text-base">
                   {m.value}
-                  {/* MUDANÇA AQUI: Usa currentUnit em vez de weightUnit ou KG */}
                   {currentUnit}
                 </Text>
               </View>
@@ -568,20 +438,16 @@ export default function BodyMeasuresScreen() {
           >
             <TouchableOpacity activeOpacity={1}>
               <View className="bg-[#121212] px-8 pt-8 pb-12 rounded-t-[40px] border-t border-zinc-800">
-                {/* TÍTULO DINÂMICO */}
                 <Text className="text-white text-center font-black uppercase mb-2 tracking-widest text-base">
                   Add {activeTab === "weight" ? "Weight" : "Height"}
                 </Text>
-
                 <Text className="text-zinc-600 text-center font-bold uppercase text-[10px] mb-8">
                   Today´s measurement
                 </Text>
-
                 <View className="flex-row items-center border-b border-zinc-700 mb-8 pb-2">
                   <TextInput
                     value={newValue}
                     onChangeText={setNewValue}
-                    // PLACEHOLDER DINÂMICO
                     placeholder={
                       activeTab === "weight" ? "e.g. 70.5" : "e.g. 175"
                     }
@@ -591,12 +457,10 @@ export default function BodyMeasuresScreen() {
                     selectionColor={RED}
                     autoFocus
                   />
-                  {/* UNIDADE DINÂMICA */}
                   <Text className="text-zinc-500 font-black uppercase text-lg ml-2">
                     {currentUnit}
                   </Text>
                 </View>
-
                 <TouchableOpacity
                   onPress={handleAdd}
                   disabled={saving || !newValue.trim()}
@@ -618,43 +482,6 @@ export default function BodyMeasuresScreen() {
             </TouchableOpacity>
           </TouchableOpacity>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* MODAL — Period Picker */}
-      <Modal visible={showPeriodModal} transparent animationType="slide">
-        <TouchableOpacity
-          activeOpacity={1}
-          className="flex-1 bg-black/60 justify-end"
-          onPress={() => setShowPeriodModal(false)}
-        >
-          <TouchableOpacity activeOpacity={1}>
-            <View className="bg-[#121212] px-6 pt-8 pb-12 rounded-t-[40px] border-t border-zinc-800">
-              <Text className="text-white text-center font-black uppercase mb-6 tracking-widest text-sm">
-                Select Period
-              </Text>
-              {PERIODS.map((p) => (
-                <TouchableOpacity
-                  key={p.key}
-                  onPress={() => {
-                    setPeriod(p.key);
-                    setShowPeriodModal(false);
-                  }}
-                  className="flex-row items-center justify-between py-4 border-b border-zinc-800"
-                >
-                  <Text className="text-white font-bold uppercase text-base">
-                    {p.label}
-                  </Text>
-                  {period === p.key && (
-                    <View
-                      style={{ backgroundColor: RED }}
-                      className="w-2 h-2 rounded-full"
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
       </Modal>
     </View>
   );

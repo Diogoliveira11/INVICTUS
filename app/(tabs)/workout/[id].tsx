@@ -184,8 +184,6 @@ type MetricKey =
   | "Session Volume"
   | "Total Reps";
 
-type TimeFilter = "Last 3 months" | "Year" | "All time";
-
 type PersonalRecords = {
   heaviestWeight: number;
   best1RM: number;
@@ -200,24 +198,6 @@ function epley1RM(weight: number, reps: number): number {
   return Math.round(weight * (1 + reps / 30) * 10) / 10;
 }
 
-function filterByTime(sets: RawSet[], filter: TimeFilter): RawSet[] {
-  const now = new Date();
-  return sets.filter((s) => {
-    const d = new Date(s.date);
-    if (filter === "Last 3 months") {
-      const cutoff = new Date(now);
-      cutoff.setMonth(cutoff.getMonth() - 3);
-      return d >= cutoff;
-    }
-    if (filter === "Year") {
-      const cutoff = new Date(now);
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
-      return d >= cutoff;
-    }
-    return true;
-  });
-}
-
 function buildChartPoints(sets: RawSet[], metric: MetricKey): ChartPoint[] {
   const grouped: { [date: string]: RawSet[] } = {};
   for (const s of sets) {
@@ -225,7 +205,6 @@ function buildChartPoints(sets: RawSet[], metric: MetricKey): ChartPoint[] {
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(s);
   }
-
   return Object.entries(grouped)
     .map(([date, rows]) => {
       let value = 0;
@@ -258,10 +237,8 @@ function calcPersonalRecords(
       setRecords: [],
     };
   }
-
   const heaviestWeight = Math.max(...sets.map((s) => s.weight));
   const best1RM = Math.max(...sets.map((s) => epley1RM(s.weight, s.reps)));
-
   let bestSetVolume = { weight: 0, reps: 0 };
   let bestVol = 0;
   for (const s of sets) {
@@ -271,24 +248,19 @@ function calcPersonalRecords(
       bestSetVolume = { weight: s.weight, reps: s.reps };
     }
   }
-
   const grouped: { [date: string]: number } = {};
   for (const s of sets) {
     const key = s.date.slice(0, 10);
     grouped[key] = (grouped[key] || 0) + s.weight * s.reps;
   }
   const bestSessionVolume = Math.max(...Object.values(grouped));
-
   const repMap: { [reps: number]: number } = {};
   for (const s of sets) {
-    if (!repMap[s.reps] || s.weight > repMap[s.reps]) {
-      repMap[s.reps] = s.weight;
-    }
+    if (!repMap[s.reps] || s.weight > repMap[s.reps]) repMap[s.reps] = s.weight;
   }
   const setRecords = Object.entries(repMap)
     .map(([reps, weight]) => ({ reps: Number(reps), weight }))
     .sort((a, b) => a.reps - b.reps);
-
   return {
     heaviestWeight,
     best1RM,
@@ -298,38 +270,28 @@ function calcPersonalRecords(
   };
 }
 
-// ─── SPARKLINE CHART ────────────────────────────────────────────────────────
-function formatYLabel(v: number, metric: MetricKey): string {
-  if (metric === "Total Reps") return `${Math.round(v)}`;
-  const rounded = Math.round(v * 10) / 10;
-  return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
-}
-
+// ─── NICE Y LABELS ────────────────────────────────────────────────────────────
 function niceYLabels(minV: number, maxV: number): number[] {
-  if (minV === maxV) {
-    return [maxV + 1, maxV, minV - 1];
-  }
+  if (minV === maxV) return [maxV + 1, maxV, minV - 1];
   const range = maxV - minV;
   const rawStep = range / 3;
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
   const niceSteps = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
   const step = niceSteps.find((s) => s >= rawStep) ?? rawStep;
-
   const niceMin = Math.floor(minV / step) * step;
   const niceMax = Math.ceil(maxV / step) * step;
-
   const labels: number[] = [];
   for (let v = niceMin; v <= niceMax + step * 0.01; v += step) {
     labels.push(Math.round(v * 100) / 100);
   }
   if (labels.length >= 3) {
     const last = labels.length - 1;
-    const mid = Math.round(last / 2);
-    return [labels[last], labels[mid], labels[0]];
+    return [labels[last], labels[Math.round(last / 2)], labels[0]];
   }
   return labels.reverse().slice(0, 3);
 }
 
+// ─── SPARK CHART — alternating X labels, no time filter ──────────────────────
 function SparkChart({
   points,
   metric,
@@ -340,11 +302,12 @@ function SparkChart({
   weightUnit: string;
 }) {
   const W = Dimensions.get("window").width - 48;
-  const H = 180;
+  const H = 190;
   const PAD_LEFT = 46;
   const PAD_RIGHT = 16;
   const PAD_TOP = 12;
-  const PAD_BOTTOM = 40;
+  // Extra bottom padding: even-index labels sit at +20, odd at +36
+  const PAD_BOTTOM = 48;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
   const chartH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -363,7 +326,6 @@ function SparkChart({
   const values = points.map((p) => p.value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
-
   const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.15;
   const minV = rawMin - padding;
   const maxV = rawMax + padding;
@@ -385,12 +347,19 @@ function SparkChart({
     points.map((p, i) => `L${toX(i)},${toY(p.value)}`).join(" ") +
     ` L${lastX},${baseY} Z`;
 
+  // Y labels
   const yLabelValues = niceYLabels(rawMin, rawMax);
   const yLabels = yLabelValues.map((v) => ({
-    text: formatYLabel(v, metric),
+    text:
+      metric === "Total Reps"
+        ? `${Math.round(v)}`
+        : `${Math.round(v * 10) / 10}`,
     y: toY(v),
   }));
 
+  // X labels: every other point gets a label, alternating row (staggered)
+  // Row A (higher, closer to chart): even indices → y = baseY + 18
+  // Row B (lower): odd indices → y = baseY + 34
   const formatDate = (dateStr: string) => {
     const parts = dateStr.slice(0, 10).split("-");
     const d = new Date(
@@ -401,24 +370,15 @@ function SparkChart({
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  let xIndices: number[];
-  if (points.length === 1) {
-    xIndices = [0];
-  } else if (points.length === 2) {
-    xIndices = [0, 1];
-  } else if (points.length <= 5) {
-    xIndices = [0, Math.floor((points.length - 1) / 2), points.length - 1];
-  } else {
-    xIndices = [
-      0,
-      Math.round((points.length - 1) / 3),
-      Math.round(((points.length - 1) * 2) / 3),
-      points.length - 1,
-    ];
-  }
+  // For ≤ 4 points show all; for more, show every other one
+  const shouldShowLabel = (i: number) => {
+    if (points.length <= 4) return true;
+    return i % 2 === 0;
+  };
 
   return (
     <Svg width={W} height={H}>
+      {/* Y grid + labels */}
       {yLabels.map((yl, i) => (
         <React.Fragment key={i}>
           <Line
@@ -443,8 +403,10 @@ function SparkChart({
         </React.Fragment>
       ))}
 
+      {/* Area fill */}
       <Path d={areaPath} fill="#E31C25" fillOpacity={0.1} />
 
+      {/* Line */}
       <Polyline
         points={polyPoints}
         fill="none"
@@ -454,30 +416,41 @@ function SparkChart({
         strokeLinecap="round"
       />
 
+      {/* Dots */}
       {points.map((p, i) => (
         <Circle key={i} cx={toX(i)} cy={toY(p.value)} r={3.5} fill="#E31C25" />
       ))}
 
-      {xIndices.map((idx) => (
-        <SvgText
-          key={idx}
-          x={toX(idx)}
-          y={PAD_TOP + chartH + 20}
-          fontSize={10}
-          fill="#71717a"
-          textAnchor={
-            idx === 0 ? "start" : idx === points.length - 1 ? "end" : "middle"
-          }
-          fontWeight="bold"
-        >
-          {formatDate(points[idx].date)}
-        </SvgText>
-      ))}
+      {/* X date labels — alternating rows */}
+      {points.map((p, i) => {
+        if (!shouldShowLabel(i)) return null;
+        // Even indices: row closer to chart (y = baseY + 18)
+        // Odd indices: lower row (y = baseY + 34)  — but since we skip odds above, all shown are even
+        // If ≤4 points, alternate: even → baseY+18, odd → baseY+34
+        const isOdd = i % 2 !== 0;
+        const labelY = baseY + (isOdd ? 36 : 20);
+        const x = toX(i);
+        const anchor =
+          i === 0 ? "start" : i === points.length - 1 ? "end" : "middle";
+        return (
+          <SvgText
+            key={i}
+            x={x}
+            y={labelY}
+            fontSize={9}
+            fill="#71717a"
+            textAnchor={anchor}
+            fontWeight="bold"
+          >
+            {formatDate(p.date)}
+          </SvgText>
+        );
+      })}
     </Svg>
   );
 }
 
-// ─── DELETE CONFIRMATION MODAL ───────────────────────────────────────────────
+// ─── DELETE MODAL ────────────────────────────────────────────────────────────
 function DeleteModal({
   visible,
   exerciseName,
@@ -496,14 +469,11 @@ function DeleteModal({
       animationType="fade"
       onRequestClose={onCancel}
     >
-      {/* Backdrop */}
       <TouchableOpacity
         style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)" }}
         activeOpacity={1}
         onPress={onCancel}
       />
-
-      {/* Modal card — centred */}
       <View
         style={{
           position: "absolute",
@@ -517,7 +487,6 @@ function DeleteModal({
           overflow: "hidden",
         }}
       >
-        {/* Icon + title */}
         <View
           style={{ alignItems: "center", paddingTop: 32, paddingBottom: 8 }}
         >
@@ -577,17 +546,9 @@ function DeleteModal({
             This action cannot be undone.
           </Text>
         </View>
-
-        {/* Divider */}
         <View
-          style={{
-            height: 1,
-            backgroundColor: "#27272a",
-            marginTop: 24,
-          }}
+          style={{ height: 1, backgroundColor: "#27272a", marginTop: 24 }}
         />
-
-        {/* Buttons */}
         <View style={{ flexDirection: "row" }}>
           <TouchableOpacity
             onPress={onCancel}
@@ -611,16 +572,9 @@ function DeleteModal({
               Cancel
             </Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={onConfirm}
-            style={{
-              flex: 1,
-              paddingVertical: 18,
-              alignItems: "center",
-              borderLeftWidth: 0.5,
-              borderLeftColor: "#27272a",
-            }}
+            style={{ flex: 1, paddingVertical: 18, alignItems: "center" }}
           >
             <Text
               style={{
@@ -652,16 +606,10 @@ export default function ExerciseDetailScreen() {
   const [exercise, setExercise] = useState<ExerciseDetails | null>(null);
   const [allSets, setAllSets] = useState<RawSet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("");
-
-  // Summary tab state
+  const [activeTab, setActiveTab] = useState("Summary");
   const [activeMetric, setActiveMetric] =
     useState<MetricKey>("Heaviest Weight");
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("Last 3 months");
-  const [showTimeModal, setShowTimeModal] = useState(false);
   const [showPR, setShowPR] = useState(false);
-
-  // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const metrics: MetricKey[] = [
@@ -672,9 +620,6 @@ export default function ExerciseDetailScreen() {
     "Total Reps",
   ];
 
-  const timeFilters: TimeFilter[] = ["Last 3 months", "Year", "All time"];
-
-  // ── Load data ──
   useEffect(() => {
     async function loadData() {
       try {
@@ -684,21 +629,14 @@ export default function ExerciseDetailScreen() {
         );
         if (result) {
           setExercise(result);
-          // Both custom and standard exercises start on Summary
           setActiveTab("Summary");
         }
-
         const rows = await db.getAllAsync<RawSet>(
-          `SELECT 
-             ws.weight, 
-             ws.reps, 
-             w.date
+          `SELECT ws.weight, ws.reps, w.date
            FROM workout_sets ws
            JOIN workout_exercises we ON ws.workout_exercise_id = we.id
            JOIN workouts w ON we.workout_id = w.id
-           WHERE ws.exercise_id = ?
-             AND ws.weight > 0
-             AND ws.reps > 0
+           WHERE ws.exercise_id = ? AND ws.weight > 0 AND ws.reps > 0
            ORDER BY w.date ASC`,
           [id as string],
         );
@@ -712,15 +650,10 @@ export default function ExerciseDetailScreen() {
     loadData();
   }, [id, db, isFocused]);
 
-  // ── Derived data ──
-  const filteredSets = useMemo(
-    () => filterByTime(allSets, timeFilter),
-    [allSets, timeFilter],
-  );
-
+  // All time — no filter
   const chartPoints = useMemo(
-    () => buildChartPoints(filteredSets, activeMetric),
-    [filteredSets, activeMetric],
+    () => buildChartPoints(allSets, activeMetric),
+    [allSets, activeMetric],
   );
 
   const personalRecords = useMemo(
@@ -738,15 +671,12 @@ export default function ExerciseDetailScreen() {
     return `${v} ${weightUnit}`;
   };
 
-  // ── Handlers ──
   const handleBack = () => {
-    if (from === "workout") {
+    if (from === "workout")
       router.replace("/(tabs)/workout/log_workout" as any);
-    } else if (from === "new_routine") {
+    else if (from === "new_routine")
       router.replace("/(tabs)/workout/new_routine" as any);
-    } else {
-      router.replace("/(tabs)/workout/explore_exercises" as any);
-    }
+    else router.replace("/(tabs)/workout/explore_exercises" as any);
   };
 
   const handleDeleteConfirm = async () => {
@@ -760,7 +690,6 @@ export default function ExerciseDetailScreen() {
     }
   };
 
-  // ── Loading / not found ──
   if (loading)
     return (
       <View className="flex-1 bg-black justify-center items-center">
@@ -775,8 +704,6 @@ export default function ExerciseDetailScreen() {
       </View>
     );
 
-  // Custom exercises: Summary + History (no How to)
-  // Standard exercises: Summary + History + How to
   const tabs =
     exercise.is_custom === 1
       ? ["Summary", "History"]
@@ -784,7 +711,6 @@ export default function ExerciseDetailScreen() {
 
   const gifSource = exercise.gif ? (GIF_MAP[exercise.gif] ?? null) : null;
 
-  // ── Render ──
   return (
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
@@ -830,12 +756,12 @@ export default function ExerciseDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* ══════════════ SUMMARY TAB ══════════════ */}
+        {/* ══ SUMMARY ══ */}
         {activeTab === "Summary" && (
           <View>
-            {/* GIF — only for non-custom exercises */}
+            {/* GIF */}
             {exercise.is_custom === 0 && (
-              <View className="mx-5 mt-5 h-72 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
+              <View className="mx-5 mt-5 h-64 bg-white rounded-[32px] overflow-hidden items-center justify-center border-4 border-zinc-900">
                 {gifSource ? (
                   <Image
                     source={gifSource}
@@ -863,40 +789,35 @@ export default function ExerciseDetailScreen() {
               </Text>
             </View>
 
-            {/* ── Chart Card ── */}
+            {/* Chart card — no time filter button */}
             <View className="mx-5 mt-4 bg-zinc-900/40 rounded-[28px] border border-zinc-800 overflow-hidden pb-4">
-              {/* Header row: value + time filter */}
-              <View className="flex-row items-start justify-between px-5 pt-5 pb-2">
-                <View>
-                  <Text className="text-[#E31C25] text-2xl font-black">
-                    {formatMetricValue(latestValue)}
-                    {latestDate && (
-                      <Text className="text-zinc-500 text-sm font-bold">
-                        {" "}
-                        {new Date(latestDate).toLocaleDateString("en-US", {
+              <View className="px-5 pt-5 pb-2">
+                <Text className="text-[#E31C25] text-2xl font-black">
+                  {formatMetricValue(latestValue)}
+                  {latestDate && (
+                    <Text className="text-zinc-500 text-sm font-bold">
+                      {" "}
+                      {(() => {
+                        const parts = latestDate.slice(0, 10).split("-");
+                        const d = new Date(
+                          Number(parts[0]),
+                          Number(parts[1]) - 1,
+                          Number(parts[2]),
+                        );
+                        return d.toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
-                        })}
-                      </Text>
-                    )}
-                  </Text>
-                  <Text className="text-zinc-500 text-[10px] font-bold uppercase mt-0.5">
-                    {activeMetric}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setShowTimeModal(true)}
-                  className="flex-row items-center bg-zinc-800 rounded-xl px-3 py-2 gap-1"
-                >
-                  <Text className="text-white font-bold text-xs">
-                    {timeFilter}
-                  </Text>
-                  <ChevronDown size={12} color="#a1a1aa" />
-                </TouchableOpacity>
+                        });
+                      })()}
+                    </Text>
+                  )}
+                </Text>
+                <Text className="text-zinc-500 text-[10px] font-bold uppercase mt-0.5">
+                  {activeMetric}
+                </Text>
               </View>
 
-              {/* Chart */}
-              <View className="px-0 mt-2">
+              <View className="mt-2">
                 <SparkChart
                   points={chartPoints}
                   metric={activeMetric}
@@ -904,7 +825,7 @@ export default function ExerciseDetailScreen() {
                 />
               </View>
 
-              {/* Metric selector */}
+              {/* Metric pills */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -941,13 +862,13 @@ export default function ExerciseDetailScreen() {
               </ScrollView>
             </View>
 
-            {/* ── Personal Records Card ── */}
+            {/* Personal Records */}
             <View className="mx-5 mt-4 mb-8 bg-zinc-900/40 rounded-[28px] border border-zinc-800 overflow-hidden">
               <TouchableOpacity
                 onPress={() => setShowPR(!showPR)}
                 className="flex-row items-center justify-between px-5 py-4"
               >
-                <View className="flex-row items-center gap-2">
+                <View className="flex-row items-center">
                   <Trophy size={18} color="#E31C25" />
                   <Text className="text-white font-black uppercase text-sm ml-2">
                     Personal Records
@@ -994,7 +915,6 @@ export default function ExerciseDetailScreen() {
                       </Text>
                     </View>
                   ))}
-
                   {personalRecords.setRecords.length > 0 && (
                     <View className="mt-4">
                       <Text className="text-zinc-500 uppercase font-black text-[10px] mb-3">
@@ -1030,13 +950,12 @@ export default function ExerciseDetailScreen() {
           </View>
         )}
 
-        {/* ══════════════ HISTORY TAB ══════════════ */}
+        {/* ══ HISTORY ══ */}
         {activeTab === "History" && (
           <View className="p-6">
             <Text className="text-white font-black uppercase text-lg mb-6">
               Recent Activity
             </Text>
-
             {allSets.length > 0 ? (
               [...allSets]
                 .reverse()
@@ -1087,7 +1006,7 @@ export default function ExerciseDetailScreen() {
           </View>
         )}
 
-        {/* ══════════════ HOW TO TAB ══════════════ */}
+        {/* ══ HOW TO ══ */}
         {activeTab === "How to" && (
           <View className="p-6">
             <View className="flex-row items-center mb-4">
@@ -1107,83 +1026,6 @@ export default function ExerciseDetailScreen() {
         )}
       </ScrollView>
 
-      {/* ── Time Filter Modal ── */}
-      <Modal
-        visible={showTimeModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTimeModal(false)}
-      >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)" }}
-          activeOpacity={1}
-          onPress={() => setShowTimeModal(false)}
-        />
-        <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: "#18181b",
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            paddingBottom: 40,
-            paddingTop: 8,
-          }}
-        >
-          <View
-            style={{
-              width: 36,
-              height: 4,
-              backgroundColor: "#3f3f46",
-              borderRadius: 2,
-              alignSelf: "center",
-              marginBottom: 16,
-            }}
-          />
-          {timeFilters.map((tf) => (
-            <TouchableOpacity
-              key={tf}
-              onPress={() => {
-                setTimeFilter(tf);
-                setShowTimeModal(false);
-              }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingHorizontal: 24,
-                paddingVertical: 18,
-                borderBottomWidth: 1,
-                borderBottomColor: "#27272a",
-              }}
-            >
-              <Text
-                style={{
-                  color: timeFilter === tf ? "#E31C25" : "#fff",
-                  fontWeight: "800",
-                  fontSize: 16,
-                }}
-              >
-                {tf}
-              </Text>
-              {timeFilter === tf && (
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: "#E31C25",
-                  }}
-                />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </Modal>
-
-      {/* ── Delete Confirmation Modal ── */}
       <DeleteModal
         visible={showDeleteModal}
         exerciseName={exercise?.name ?? ""}

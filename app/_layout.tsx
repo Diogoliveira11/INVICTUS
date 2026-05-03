@@ -139,7 +139,6 @@ export default function RootLayout() {
                   <Stack.Screen
                     name="workouthistory"
                     options={{
-                      presentation: "modal",
                       animation: "slide_from_right",
                     }}
                   />
