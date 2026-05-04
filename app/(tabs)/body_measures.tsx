@@ -51,35 +51,33 @@ function formatAxisDate(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// Nice round Y labels (same logic as [id].tsx)
+// ─── NICE Y LABELS ────────────────────────────────────────────────────────────
 function niceYLabels(minV: number, maxV: number): number[] {
-  if (minV === maxV) return [maxV + 1, maxV, minV - 1];
+  if (minV === maxV) {
+    const base = Math.round(minV);
+    return [base + 1, base, base - 1];
+  }
   const range = maxV - minV;
-  const rawStep = range / 3;
+  const rawStep = range / 2;
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-  const niceSteps = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
-  const step = niceSteps.find((s) => s >= rawStep) ?? rawStep;
-  const niceMin = Math.floor(minV / step) * step;
-  const niceMax = Math.ceil(maxV / step) * step;
-  const labels: number[] = [];
-  for (let v = niceMin; v <= niceMax + step * 0.01; v += step) {
-    labels.push(Math.round(v * 100) / 100);
-  }
-  if (labels.length >= 3) {
-    const last = labels.length - 1;
-    return [labels[last], labels[Math.round(last / 2)], labels[0]];
-  }
-  return labels.reverse().slice(0, 3);
+  const candidates = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
+  const step = candidates.find((s) => s >= rawStep) ?? rawStep;
+  const r = (v: number) => Math.round(v * 100) / 100;
+  const bottom = r(Math.floor(minV / step) * step);
+  const mid = r(bottom + step);
+  const top = r(bottom + step * 2);
+  return [top, mid, bottom];
 }
 
-// ─── CHART — all time, alternating X labels ───────────────────────────────
+// ─── CHART — all time, single X row for ≤6 pts, alternating for >6 ──────────
 function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
   const W = SCREEN_WIDTH - 48;
-  const H = 190;
+  const needsDoubleRow = data.length > 6;
+  const H = needsDoubleRow ? 200 : 185;
   const PAD_LEFT = 46;
   const PAD_RIGHT = 16;
   const PAD_TOP = 12;
-  const PAD_BOTTOM = 48;
+  const PAD_BOTTOM = needsDoubleRow ? 52 : 36;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
   const chartH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -105,7 +103,7 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
   const values = data.map((d) => d.value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
-  const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.15;
+  const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.12;
   const minV = rawMin - padding;
   const maxV = rawMax + padding;
   const rangeV = maxV - minV;
@@ -126,7 +124,6 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
     .map((d) => `${toX(new Date(d.recorded_at).getTime())},${toY(d.value)}`)
     .join(" ");
 
-  // Area path
   const firstX = toX(timestamps[0]);
   const lastX = toX(timestamps[timestamps.length - 1]);
   const baseY = PAD_TOP + chartH;
@@ -137,18 +134,29 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
       .join(" ") +
     ` L${lastX},${baseY} Z`;
 
-  // Y labels
+  // Y axis: always 3 clean round labels
   const yLabelValues = niceYLabels(rawMin, rawMax);
   const yLabels = yLabelValues.map((v) => ({
     text: `${Math.round(v * 10) / 10}`,
     y: toY(v),
   }));
 
-  // X date labels — alternating rows
-  const shouldShowLabel = (i: number) => {
-    if (data.length <= 4) return true;
-    return i % 2 === 0;
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
+
+  // X labels: ≤6 → all same row; >6 → even indices same row, last odd on row below
+  const xIndices: { idx: number; y: number }[] = [];
+  if (data.length <= 6) {
+    data.forEach((_, i) => xIndices.push({ idx: i, y: baseY + 20 }));
+  } else {
+    data.forEach((_, i) => {
+      if (i % 2 === 0) xIndices.push({ idx: i, y: baseY + 20 });
+    });
+    const last = data.length - 1;
+    if (last % 2 !== 0) xIndices.push({ idx: last, y: baseY + 36 });
+  }
 
   return (
     <Svg width={W} height={H}>
@@ -203,25 +211,22 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         />
       ))}
 
-      {/* X date labels — alternating rows */}
-      {data.map((d, i) => {
-        if (!shouldShowLabel(i)) return null;
-        const x = toX(new Date(d.recorded_at).getTime());
-        const isOdd = i % 2 !== 0;
-        const labelY = baseY + (isOdd ? 36 : 20);
+      {/* X date labels — same row for ≤6 pts */}
+      {xIndices.map(({ idx, y }) => {
+        const x = toX(new Date(data[idx].recorded_at).getTime());
         const anchor =
-          i === 0 ? "start" : i === data.length - 1 ? "end" : "middle";
+          idx === 0 ? "start" : idx === data.length - 1 ? "end" : "middle";
         return (
           <SvgText
-            key={i}
+            key={idx}
             x={x}
-            y={labelY}
+            y={y}
             fontSize={9}
             fill="#71717a"
-            textAnchor={anchor}
+            textAnchor={anchor as any}
             fontWeight="bold"
           >
-            {formatAxisDate(d.recorded_at)}
+            {formatDate(data[idx].recorded_at)}
           </SvgText>
         );
       })}
@@ -291,11 +296,33 @@ export default function BodyMeasuresScreen() {
     try {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
-      await db.runAsync(
-        `INSERT INTO body_measurements (user_email, value, type, recorded_at)
-         VALUES (?, ?, ?, datetime('now'))`,
-        [email, parsed, activeTab],
+
+      // Check if there is already a measurement of this type for today
+      const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const existing = await db.getFirstAsync<{ id: number }>(
+        `SELECT id FROM body_measurements
+         WHERE user_email = ? AND type = ? AND date(recorded_at) = ?`,
+        [email, activeTab, today],
       );
+
+      if (existing) {
+        // Update the existing record for today instead of inserting a new one
+        await db.runAsync(
+          `UPDATE body_measurements
+           SET value = ?, recorded_at = datetime('now')
+           WHERE id = ?`,
+          [parsed, existing.id],
+        );
+      } else {
+        // No entry yet for today — insert normally
+        await db.runAsync(
+          `INSERT INTO body_measurements (user_email, value, type, recorded_at)
+           VALUES (?, ?, ?, datetime('now'))`,
+          [email, parsed, activeTab],
+        );
+      }
+
+      // Always keep the users table in sync with the latest value
       if (activeTab === "weight") {
         await db.runAsync(`UPDATE users SET weight = ? WHERE email = ?`, [
           String(parsed),
@@ -307,6 +334,7 @@ export default function BodyMeasuresScreen() {
           email,
         ]);
       }
+
       setNewValue("");
       setShowAddModal(false);
       await loadData();

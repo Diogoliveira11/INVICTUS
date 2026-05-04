@@ -271,27 +271,28 @@ function calcPersonalRecords(
 }
 
 // ─── NICE Y LABELS ────────────────────────────────────────────────────────────
+// Always returns exactly [top, mid, bottom] — 3 clean round numbers
+// covering the data range with a nice step (never floating junk)
 function niceYLabels(minV: number, maxV: number): number[] {
-  if (minV === maxV) return [maxV + 1, maxV, minV - 1];
+  if (minV === maxV) {
+    const base = Math.round(minV);
+    return [base + 1, base, base - 1];
+  }
+  // We want exactly 2 intervals (3 labels): step ≈ range/2
   const range = maxV - minV;
-  const rawStep = range / 3;
+  const rawStep = range / 2;
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-  const niceSteps = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
-  const step = niceSteps.find((s) => s >= rawStep) ?? rawStep;
-  const niceMin = Math.floor(minV / step) * step;
-  const niceMax = Math.ceil(maxV / step) * step;
-  const labels: number[] = [];
-  for (let v = niceMin; v <= niceMax + step * 0.01; v += step) {
-    labels.push(Math.round(v * 100) / 100);
-  }
-  if (labels.length >= 3) {
-    const last = labels.length - 1;
-    return [labels[last], labels[Math.round(last / 2)], labels[0]];
-  }
-  return labels.reverse().slice(0, 3);
+  const candidates = [1, 2, 2.5, 5, 10].map((s) => s * magnitude);
+  const step = candidates.find((s) => s >= rawStep) ?? rawStep;
+  const r = (v: number) => Math.round(v * 100) / 100;
+  const bottom = r(Math.floor(minV / step) * step);
+  const mid = r(bottom + step);
+  const top = r(bottom + step * 2);
+  return [top, mid, bottom];
 }
 
-// ─── SPARK CHART — alternating X labels, no time filter ──────────────────────
+// ─── SPARK CHART ─────────────────────────────────────────────────────────────
+// Y: 3 clean round labels   X: single row always — alternating only for >6 pts
 function SparkChart({
   points,
   metric,
@@ -302,12 +303,12 @@ function SparkChart({
   weightUnit: string;
 }) {
   const W = Dimensions.get("window").width - 48;
-  const H = 190;
+  const needsDoubleRow = points.length > 6;
+  const H = needsDoubleRow ? 200 : 185;
   const PAD_LEFT = 46;
   const PAD_RIGHT = 16;
   const PAD_TOP = 12;
-  // Extra bottom padding: even-index labels sit at +20, odd at +36
-  const PAD_BOTTOM = 48;
+  const PAD_BOTTOM = needsDoubleRow ? 52 : 36;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
   const chartH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -326,7 +327,7 @@ function SparkChart({
   const values = points.map((p) => p.value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
-  const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.15;
+  const padding = rawMax === rawMin ? 1 : (rawMax - rawMin) * 0.12;
   const minV = rawMin - padding;
   const maxV = rawMax + padding;
   const rangeV = maxV - minV;
@@ -347,19 +348,16 @@ function SparkChart({
     points.map((p, i) => `L${toX(i)},${toY(p.value)}`).join(" ") +
     ` L${lastX},${baseY} Z`;
 
-  // Y labels
+  // Y axis: always 3 labels
   const yLabelValues = niceYLabels(rawMin, rawMax);
   const yLabels = yLabelValues.map((v) => ({
     text:
       metric === "Total Reps"
-        ? `${Math.round(v)}`
+        ? `${Math.round(v)} reps`
         : `${Math.round(v * 10) / 10}`,
     y: toY(v),
   }));
 
-  // X labels: every other point gets a label, alternating row (staggered)
-  // Row A (higher, closer to chart): even indices → y = baseY + 18
-  // Row B (lower): odd indices → y = baseY + 34
   const formatDate = (dateStr: string) => {
     const parts = dateStr.slice(0, 10).split("-");
     const d = new Date(
@@ -370,11 +368,50 @@ function SparkChart({
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  // For ≤ 4 points show all; for more, show every other one
-  const shouldShowLabel = (i: number) => {
-    if (points.length <= 4) return true;
-    return i % 2 === 0;
-  };
+  // X labels logic:
+  // ≤6 points  → ALL labels on the SAME single row (baseY + 20)
+  // >6 points  → alternating rows: even=baseY+20, odd=baseY+36
+  //              but only show even indices (skip odds) to avoid clutter
+  const xLabels: {
+    i: number;
+    x: number;
+    y: number;
+    anchor: string;
+    text: string;
+  }[] = [];
+  if (points.length <= 6) {
+    points.forEach((p, i) => {
+      xLabels.push({
+        i,
+        x: toX(i),
+        y: baseY + 20,
+        anchor: i === 0 ? "start" : i === points.length - 1 ? "end" : "middle",
+        text: formatDate(p.date),
+      });
+    });
+  } else {
+    points.forEach((p, i) => {
+      if (i % 2 !== 0) return; // skip odd
+      xLabels.push({
+        i,
+        x: toX(i),
+        y: baseY + 20,
+        anchor: i === 0 ? "start" : i === points.length - 1 ? "end" : "middle",
+        text: formatDate(p.date),
+      });
+    });
+    // Also show last point if it was skipped (odd)
+    const last = points.length - 1;
+    if (last % 2 !== 0) {
+      xLabels.push({
+        i: last,
+        x: toX(last),
+        y: baseY + 36,
+        anchor: "end",
+        text: formatDate(points[last].date),
+      });
+    }
+  }
 
   return (
     <Svg width={W} height={H}>
@@ -421,31 +458,20 @@ function SparkChart({
         <Circle key={i} cx={toX(i)} cy={toY(p.value)} r={3.5} fill="#E31C25" />
       ))}
 
-      {/* X date labels — alternating rows */}
-      {points.map((p, i) => {
-        if (!shouldShowLabel(i)) return null;
-        // Even indices: row closer to chart (y = baseY + 18)
-        // Odd indices: lower row (y = baseY + 34)  — but since we skip odds above, all shown are even
-        // If ≤4 points, alternate: even → baseY+18, odd → baseY+34
-        const isOdd = i % 2 !== 0;
-        const labelY = baseY + (isOdd ? 36 : 20);
-        const x = toX(i);
-        const anchor =
-          i === 0 ? "start" : i === points.length - 1 ? "end" : "middle";
-        return (
-          <SvgText
-            key={i}
-            x={x}
-            y={labelY}
-            fontSize={9}
-            fill="#71717a"
-            textAnchor={anchor}
-            fontWeight="bold"
-          >
-            {formatDate(p.date)}
-          </SvgText>
-        );
-      })}
+      {/* X date labels */}
+      {xLabels.map((lbl) => (
+        <SvgText
+          key={lbl.i}
+          x={lbl.x}
+          y={lbl.y}
+          fontSize={9}
+          fill="#71717a"
+          textAnchor={lbl.anchor as any}
+          fontWeight="bold"
+        >
+          {lbl.text}
+        </SvgText>
+      ))}
     </Svg>
   );
 }
