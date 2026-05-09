@@ -228,7 +228,10 @@ export default function ProgressResult() {
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar style="light" />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 20,
+          flexGrow: 1,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <View

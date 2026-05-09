@@ -290,7 +290,7 @@ export default function ProfileScreen() {
         <View className="px-6 mt-10 mb-20">
           <ActionButton
             label="Statistics"
-            onPress={() => router.push("/volumestats")}
+            onPress={() => router.push("/statistics")}
           />
           <ActionButton
             label="Body Measures"

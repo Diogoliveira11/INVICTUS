@@ -367,7 +367,7 @@ export default function LogWorkoutScreen() {
               [ex.id],
             );
             const prRes = await db.getFirstAsync<any>(
-              "SELECT weight, reps, (weight * reps) as volume FROM workout_sets WHERE exercise_id = ? ORDER BY volume DESC LIMIT 1",
+              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
               [ex.id],
             );
             return {
@@ -458,16 +458,16 @@ export default function LogWorkoutScreen() {
         let newSessionBestVolume = ex.sessionBestVolume ?? 0;
 
         if (isCompleting && currentVolume > 0) {
-          // Atualiza PR histórico se bater o recorde anterior
           const historicalPR = ex.personalRecords[0];
           const historicalVolume = historicalPR
             ? historicalPR.weight * historicalPR.reps
             : 0;
+
+          // PR se bater o histórico OU se não houver histórico
           if (currentVolume > historicalVolume) {
             newPersonalRecords = [{ weight: w, reps: r }];
           }
 
-          // Atualiza o melhor volume da sessão
           if (currentVolume > newSessionBestVolume) {
             newSessionBestVolume = currentVolume;
           }
@@ -538,7 +538,7 @@ export default function LogWorkoutScreen() {
           [ex.id],
         );
         const prRes = await db.getFirstAsync<any>(
-          "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY weight DESC, reps DESC LIMIT 1",
+          "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
           [ex.id],
         );
         return {
@@ -609,7 +609,7 @@ export default function LogWorkoutScreen() {
                 pathname: "/workout/save_workout",
                 params: {
                   routineName: activeRoutineName,
-                  routineId: activeRoutineId,
+                  ...(activeRoutineId ? { routineId: activeRoutineId } : {}),
                 },
               })
             }
