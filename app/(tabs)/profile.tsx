@@ -10,25 +10,247 @@ import {
   Settings,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Line, Rect, Text as SvgText } from "react-native-svg";
+import { useUnits } from "./context/units_context";
 
-// Dados para o gráfico
-const chartData = [
-  { day: "Jan 25", value: 1.5 },
-  { day: "", value: 0 },
-  { day: "Feb 1", value: 3.8 },
-  { day: "", value: 2.5 },
-  { day: "Feb 8", value: 2.8 },
-  { day: "", value: 4.2 },
-  { day: "Apr 6", value: 1.8 },
-];
+const SCREEN_W = Dimensions.get("window").width;
+const RED = "#E31C25";
 
+// ─── TYPES ───────────────────────────────────────────────────────────────────
+type MetricFilter = "Duration" | "Volume" | "Reps";
+type TimeFilter = "3 Months" | "Year" | "All time";
+
+type BarPoint = {
+  label: string; // e.g. "Jan 25", "Feb 1"
+  value: number; // seconds / kg / reps
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// Parses "MM:SS" or "H:MM:SS" → total seconds
+function parseTimerToSeconds(s: string): number {
+  if (!s) return 0;
+  const parts = s.split(":").map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return 0;
+}
+
+function formatDuration(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "0min";
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (h === 0) return `${m}min`;
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
+}
+
+function formatMetricValue(
+  value: number,
+  metric: MetricFilter,
+  weightUnit: string,
+): string {
+  if (metric === "Duration") return formatDuration(value);
+  if (metric === "Volume") {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k ${weightUnit}`;
+    return `${Math.round(value)} ${weightUnit}`;
+  }
+  return `${value} reps`;
+}
+
+// Generate weekly buckets for a given number of past weeks
+function getWeekBuckets(
+  weeks: number,
+): { label: string; monday: string; sunday: string }[] {
+  const buckets = [];
+  const now = new Date();
+  // Find this week's Monday
+  const day = now.getDay();
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - ((day + 6) % 7));
+  thisMonday.setHours(0, 0, 0, 0);
+
+  for (let i = weeks - 1; i >= 0; i--) {
+    const monday = new Date(thisMonday);
+    monday.setDate(thisMonday.getDate() - i * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const label = monday.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    buckets.push({
+      label,
+      monday: monday.toISOString().slice(0, 10),
+      sunday: sunday.toISOString().slice(0, 10),
+    });
+  }
+  return buckets;
+}
+
+// ─── BAR CHART ───────────────────────────────────────────────────────────────
+function ProfileBarChart({
+  data,
+  metric,
+  weightUnit,
+}: {
+  data: BarPoint[];
+  metric: MetricFilter;
+  weightUnit: string;
+}) {
+  const W = SCREEN_W - 64; // mx-4 + p-5 * 2
+  const H = 130;
+  const PAD_LEFT = 36;
+  const PAD_RIGHT = 4;
+  const PAD_TOP = 8;
+  const PAD_BOTTOM = 24;
+  const chartW = W - PAD_LEFT - PAD_RIGHT;
+  const chartH = H - PAD_TOP - PAD_BOTTOM;
+
+  if (data.length === 0 || data.every((d) => d.value === 0)) {
+    return (
+      <View
+        style={{
+          height: H,
+          alignItems: "center",
+          justifyContent: "center",
+          marginTop: 12,
+        }}
+      >
+        <Text
+          style={{
+            color: "#3f3f46",
+            fontWeight: "bold",
+            fontSize: 12,
+            textTransform: "uppercase",
+          }}
+        >
+          No data
+        </Text>
+      </View>
+    );
+  }
+
+  const maxV = Math.max(...data.map((d) => d.value), 1);
+
+  // Nice Y max
+  const niceMax = (() => {
+    if (maxV <= 0) return 1;
+    const mag = Math.pow(10, Math.floor(Math.log10(maxV)));
+    const candidates = [1, 2, 2.5, 5, 10].map((s) => s * mag);
+    return candidates.find((c) => c >= maxV) ?? maxV;
+  })();
+
+  // Y grid lines: 0, mid, max
+  const yLines = [0, niceMax / 2, niceMax];
+
+  const barW = Math.max(6, Math.min(18, (chartW / data.length) * 0.6));
+  const gap = chartW / data.length;
+  const toX = (i: number) => PAD_LEFT + gap * i + gap / 2;
+  const toBarH = (v: number) => Math.max(2, (v / niceMax) * chartH);
+  const toBarY = (v: number) => PAD_TOP + chartH - toBarH(v);
+
+  // X labels: show every other label if too many
+  const showLabel = (i: number) => {
+    if (data.length <= 6) return true;
+    if (data.length <= 12) return i % 2 === 0;
+    return i % 3 === 0;
+  };
+
+  const formatYLabel = (v: number) => {
+    if (metric === "Duration") {
+      const h = Math.floor(v / 3600);
+      const m = Math.floor((v % 3600) / 60);
+      if (v === 0) return "0";
+      if (h === 0) return `${m}m`;
+      return m === 0 ? `${h}h` : `${h}h`;
+    }
+    if (metric === "Volume") {
+      if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
+      return `${Math.round(v)}`;
+    }
+    return `${Math.round(v)}`;
+  };
+
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Svg width={W} height={H}>
+        {/* Y grid lines + labels */}
+        {yLines.map((v, i) => {
+          const y = PAD_TOP + chartH - (v / niceMax) * chartH;
+          return (
+            <React.Fragment key={i}>
+              <Line
+                x1={PAD_LEFT}
+                y1={y}
+                x2={W - PAD_RIGHT}
+                y2={y}
+                stroke="#27272a"
+                strokeWidth={1}
+                strokeDasharray="3,3"
+              />
+              <SvgText
+                x={PAD_LEFT - 4}
+                y={y + 4}
+                fontSize={8}
+                fill="#52525b"
+                textAnchor="end"
+                fontWeight="bold"
+              >
+                {formatYLabel(v)}
+              </SvgText>
+            </React.Fragment>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((d, i) => (
+          <React.Fragment key={i}>
+            <Rect
+              x={toX(i) - barW / 2}
+              y={toBarY(d.value)}
+              width={barW}
+              height={toBarH(d.value)}
+              rx={3}
+              fill={d.value > 0 ? RED : "#1f1f1f"}
+            />
+            {showLabel(i) && (
+              <SvgText
+                x={toX(i)}
+                y={H - 4}
+                fontSize={8}
+                fill="#52525b"
+                textAnchor="middle"
+                fontWeight="bold"
+              >
+                {d.label}
+              </SvgText>
+            )}
+          </React.Fragment>
+        ))}
+      </Svg>
+    </View>
+  );
+}
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const db = useSQLiteContext();
+  const { weightUnit: weightUnitRaw } = useUnits();
+  const weightUnit = weightUnitRaw.toLowerCase();
 
   const [userData, setUserData] = useState<{
     username: string;
@@ -38,39 +260,106 @@ export default function ProfileScreen() {
   } | null>(null);
 
   const [workoutCount, setWorkoutCount] = useState(0);
-  const [activeFilter, setActiveFilter] = useState("Duration");
+  const [activeMetric, setActiveMetric] = useState<MetricFilter>("Duration");
+  const [activeTime, setActiveTime] = useState<TimeFilter>("3 Months");
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [chartData, setChartData] = useState<BarPoint[]>([]);
+  const [summaryValue, setSummaryValue] = useState(0);
 
+  const timeFilters: TimeFilter[] = ["3 Months", "Year", "All time"];
+
+  // ── Load profile ──────────────────────────────────────────────────────────
   const loadProfileData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
-
-      // 1. Buscar dados dinâmicos
       const userRow = await db.getFirstAsync<any>(
         "SELECT username, email, created_count, profile_picture FROM users WHERE email = ?",
         [email],
       );
-
       if (userRow) {
         setUserData(userRow);
-
-        // 2. Contar treinos reais
         const countResult = await db.getFirstAsync<{ count: number }>(
           "SELECT COUNT(*) as count FROM workouts WHERE user_id = (SELECT id FROM users WHERE email = ?)",
           [email],
         );
-        setWorkoutCount(countResult?.count || 0);
+        setWorkoutCount(countResult?.count ?? 0);
       }
-    } catch (error) {
-      console.error("Erro ao carregar perfil:", error);
+    } catch (e) {
+      console.error("Erro ao carregar perfil:", e);
     }
   }, [db]);
+
+  // ── Load chart data ───────────────────────────────────────────────────────
+  const loadChartData = useCallback(async () => {
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) return;
+      const userRow = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM users WHERE email = ?",
+        [email],
+      );
+      if (!userRow) return;
+
+      // Decide how many weeks to show
+      const weeks =
+        activeTime === "3 Months" ? 13 : activeTime === "Year" ? 52 : 104;
+      const buckets = getWeekBuckets(weeks);
+
+      const points: BarPoint[] = await Promise.all(
+        buckets.map(async (b) => {
+          let value = 0;
+
+          if (activeMetric === "Duration") {
+            const rows = await db.getAllAsync<{ duration: string }>(
+              `SELECT duration FROM workouts
+               WHERE user_id = ? AND date(date) BETWEEN ? AND ? AND duration IS NOT NULL`,
+              [userRow.id, b.monday, b.sunday],
+            );
+            value = rows.reduce(
+              (acc, r) => acc + parseTimerToSeconds(r.duration ?? ""),
+              0,
+            );
+          } else if (activeMetric === "Volume") {
+            const row = await db.getFirstAsync<{ vol: number }>(
+              `SELECT SUM(ws.weight * ws.reps) as vol
+               FROM workout_sets ws
+               JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+               JOIN workouts w ON we.workout_id = w.id
+               WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
+              [userRow.id, b.monday, b.sunday],
+            );
+            value = Math.round(row?.vol ?? 0);
+          } else {
+            // Reps
+            const row = await db.getFirstAsync<{ cnt: number }>(
+              `SELECT SUM(ws.reps) as cnt
+               FROM workout_sets ws
+               JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+               JOIN workouts w ON we.workout_id = w.id
+               WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
+              [userRow.id, b.monday, b.sunday],
+            );
+            value = row?.cnt ?? 0;
+          }
+
+          return { label: b.label, value };
+        }),
+      );
+
+      setChartData(points);
+      setSummaryValue(points.reduce((acc, p) => acc + p.value, 0));
+    } catch (e) {
+      console.error("Erro ao carregar chart:", e);
+    }
+  }, [db, activeMetric, activeTime]);
 
   useEffect(() => {
     if (isFocused) {
       loadProfileData();
+      loadChartData();
     }
-  }, [isFocused, loadProfileData]);
+  }, [isFocused, loadProfileData, loadChartData]);
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("userEmail");
@@ -86,11 +375,11 @@ export default function ProfileScreen() {
     });
   };
 
-  const FilterButton = ({ label }: { label: string }) => {
-    const isActive = activeFilter === label;
+  const FilterButton = ({ label }: { label: MetricFilter }) => {
+    const isActive = activeMetric === label;
     return (
       <TouchableOpacity
-        onPress={() => setActiveFilter(label)}
+        onPress={() => setActiveMetric(label)}
         className={`px-5 py-2 rounded-full mr-2 border ${
           isActive
             ? "bg-[#E31C25] border-[#E31C25]"
@@ -105,48 +394,6 @@ export default function ProfileScreen() {
       </TouchableOpacity>
     );
   };
-
-  const BarChart = () => (
-    <View className="items-center mt-3">
-      <View className="flex-row items-end h-[120px] relative w-full pr-1">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <View
-            key={i}
-            className="absolute left-0 right-0 h-[1px] bg-zinc-800/50"
-            style={{ bottom: i * 24 }}
-          />
-        ))}
-        <View className="flex-row items-end justify-between flex-1 pl-4 h-full">
-          {chartData.map((bar, index) => (
-            <View
-              key={index}
-              className="bg-[#E31C25] rounded-t-sm"
-              style={{
-                width: 14,
-                height: (bar.value / 4.5) * 120,
-                marginHorizontal: 2,
-              }}
-            />
-          ))}
-        </View>
-      </View>
-      <View className="flex-row justify-between w-full pl-3 pr-1 mt-1">
-        {chartData.map((bar, index) =>
-          bar.day ? (
-            <Text
-              key={index}
-              className="text-zinc-600 text-[10px] font-bold"
-              style={{ width: 35, textAlign: "center" }}
-            >
-              {bar.day}
-            </Text>
-          ) : (
-            <View key={index} style={{ width: 35 }} />
-          ),
-        )}
-      </View>
-    </View>
-  );
 
   const ActionButton = ({
     label,
@@ -174,7 +421,7 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* HEADER - COM SETTINGS DE VOLTA */}
+        {/* HEADER */}
         <View className="flex-row justify-between items-center px-6 py-4">
           <Text className="text-zinc-600 font-black uppercase tracking-widest text-[10px]">
             Athlete Profile
@@ -188,15 +435,12 @@ export default function ProfileScreen() {
                 Logout
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               onPress={() => router.push("/editprofile")}
               className="bg-zinc-900/80 w-10 h-10 rounded-xl items-center justify-center border border-zinc-800"
             >
               <Pencil size={16} color="#FFFFFF" />
             </TouchableOpacity>
-
-            {/* BOTÃO DE DEFINIÇÕES RECOLOCADO */}
             <TouchableOpacity
               onPress={() =>
                 router.push({
@@ -226,7 +470,6 @@ export default function ProfileScreen() {
               />
             </View>
           </View>
-
           <View className="flex-1 ml-6">
             <View className="mb-3">
               <Text className="text-white text-4xl font-black leading-[34px] tracking-tighter">
@@ -236,7 +479,6 @@ export default function ProfileScreen() {
                 {userData?.username?.split(" ").slice(1).join(" ") || ""}
               </Text>
             </View>
-
             <View className="flex-row gap-x-5 border-t border-zinc-900 pt-3">
               <View>
                 <Text className="text-zinc-600 text-[9px] uppercase font-black tracking-widest">
@@ -263,21 +505,36 @@ export default function ProfileScreen() {
           <View className="flex-row justify-between items-center mb-2">
             <View>
               <Text className="text-white font-black text-2xl tracking-tighter uppercase">
-                {workoutCount > 0 ? "Activity" : "No Data"}
+                {summaryValue > 0
+                  ? formatMetricValue(summaryValue, activeMetric, weightUnit)
+                  : "No Data"}
               </Text>
               <Text className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">
-                Performance tracker
+                {activeMetric === "Duration"
+                  ? "this period"
+                  : activeMetric === "Volume"
+                    ? "total volume"
+                    : "total reps"}
               </Text>
             </View>
-            <TouchableOpacity className="flex-row items-center gap-1 bg-zinc-800/50 px-4 py-1.5 rounded-full border border-zinc-700/50">
+
+            {/* Time filter button */}
+            <TouchableOpacity
+              onPress={() => setShowTimeModal(true)}
+              className="flex-row items-center gap-1 bg-zinc-800/50 px-4 py-1.5 rounded-full border border-zinc-700/50"
+            >
               <Text className="text-zinc-300 text-[10px] font-bold uppercase">
-                3 Months
+                {activeTime}
               </Text>
               <ChevronDown size={12} color="#E31C25" strokeWidth={4} />
             </TouchableOpacity>
           </View>
 
-          <BarChart />
+          <ProfileBarChart
+            data={chartData}
+            metric={activeMetric}
+            weightUnit={weightUnit}
+          />
 
           <View className="flex-row mt-6 justify-center">
             <FilterButton label="Duration" />
@@ -302,6 +559,82 @@ export default function ProfileScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* TIME FILTER MODAL */}
+      <Modal
+        visible={showTimeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimeModal(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)" }}
+          activeOpacity={1}
+          onPress={() => setShowTimeModal(false)}
+        />
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#18181b",
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingBottom: 40,
+            paddingTop: 8,
+          }}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 4,
+              backgroundColor: "#3f3f46",
+              borderRadius: 2,
+              alignSelf: "center",
+              marginBottom: 16,
+            }}
+          />
+          {timeFilters.map((tf) => (
+            <TouchableOpacity
+              key={tf}
+              onPress={() => {
+                setActiveTime(tf);
+                setShowTimeModal(false);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: 24,
+                paddingVertical: 18,
+                borderBottomWidth: 1,
+                borderBottomColor: "#27272a",
+              }}
+            >
+              <Text
+                style={{
+                  color: activeTime === tf ? RED : "#fff",
+                  fontWeight: "800",
+                  fontSize: 16,
+                }}
+              >
+                {tf}
+              </Text>
+              {activeTime === tf && (
+                <View
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: RED,
+                  }}
+                />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Modal>
     </View>
   );
 }
