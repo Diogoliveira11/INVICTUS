@@ -3,7 +3,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -19,6 +19,11 @@ import {
   View,
 } from "react-native";
 import { getUserData, login, resetPassword } from "../../src/database";
+
+// NOVOS IMPORTS PARA BIOMETRIA
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
+import * as SecureStore from "expo-secure-store";
 
 const { width, height } = Dimensions.get("window");
 
@@ -47,6 +52,17 @@ export default function LoginScreen() {
   const [statusType, setStatusType] = useState<StatusType>("success");
   const [statusMessage, setStatusMessage] = useState("");
 
+  // Lógica para carregar biometria automaticamente se desejar ou verificar hardware
+  useEffect(() => {
+    checkBiometrics();
+  }, []);
+
+  const checkBiometrics = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    // Podes usar isto para esconder o ícone se o telemóvel não tiver biometria
+  };
+
   const showStatus = (type: StatusType, message: string) => {
     setStatusType(type);
     setStatusMessage(message);
@@ -62,6 +78,43 @@ export default function LoginScreen() {
     setForgotError("");
   };
 
+  // FUNÇÃO DE BIOMETRIA
+  const handleBiometricAuth = async () => {
+    try {
+      const results = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Login INVICTUS",
+        disableDeviceFallback: false,
+      });
+
+      if (results.success) {
+        const savedEmail = await SecureStore.getItemAsync("user_email");
+        const savedPass = await SecureStore.getItemAsync("user_password");
+
+        if (savedEmail && savedPass) {
+          setLoading(true);
+          const user = (await login(db, savedEmail, savedPass)) as any;
+          if (user) {
+            await AsyncStorage.setItem(
+              "userEmail",
+              savedEmail.toLowerCase().trim(),
+            );
+            router.replace("/(tabs)/home");
+          } else {
+            setError("Saved credentials no longer valid.");
+          }
+          setLoading(false);
+        } else {
+          showStatus(
+            "error",
+            "Please login with password once to enable biometrics.",
+          );
+        }
+      }
+    } catch (e) {
+      setError("Biometric authentication failed.");
+    }
+  };
+
   const handleLogin = async () => {
     if (loading) return;
     if (!email || !password) {
@@ -73,6 +126,11 @@ export default function LoginScreen() {
       const user = (await login(db, email, password)) as any;
       if (user) {
         setError("");
+
+        // GUARDAR CREDENCIAIS PARA BIOMETRIA FUTURA
+        await SecureStore.setItemAsync("user_email", email);
+        await SecureStore.setItemAsync("user_password", password);
+
         await AsyncStorage.setItem("userEmail", email.toLowerCase().trim());
         await AsyncStorage.setItem("hasOnboarded", "true");
         await AsyncStorage.setItem("profileComplete", "true");
@@ -89,34 +147,27 @@ export default function LoginScreen() {
 
   const handleResetPassword = async () => {
     if (loading) return;
-
-    // Inline validation — show errors inside the modal, not in a status popup
     if (!forgotEmail || !forgotName || !newPassword) {
       setForgotError("Please fill in all fields.");
       return;
     }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(forgotEmail.trim())) {
       setForgotError("Please enter a valid email address.");
       return;
     }
-
     setForgotError("");
     setLoading(true);
-
     try {
       const userData = (await getUserData(
         db,
         forgotEmail.toLowerCase().trim(),
       )) as any;
-
       if (!userData) {
         setForgotError("No account found with this email.");
         setLoading(false);
         return;
       }
-
       if (userData.username.trim() !== forgotName.trim()) {
         setForgotError(
           "Name doesn't match. Check uppercase/lowercase letters.",
@@ -124,22 +175,18 @@ export default function LoginScreen() {
         setLoading(false);
         return;
       }
-
       if (userData.pass === newPassword) {
         setForgotError("New password must be different from the current one.");
         setLoading(false);
         return;
       }
-
       const success = await resetPassword(
         db,
         forgotEmail.toLowerCase().trim(),
         forgotName,
         newPassword,
       );
-
       if (success) {
-        // Close modal first, then show success — no race condition
         handleCloseForgotModal();
         showStatus("success", "Your password has been updated successfully!");
       } else {
@@ -170,11 +217,9 @@ export default function LoginScreen() {
         }}
       />
 
-      {/* Container principal para o formulário e rodapé */}
       <View
         style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24 }}
       >
-        {/* O Título */}
         <Text
           className="text-white text-5xl font-bold mb-10 text-center"
           style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
@@ -239,17 +284,32 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            className="bg-white h-14 w-full rounded-full justify-center items-center mt-4"
-            onPress={handleLogin}
-          >
-            <Text className="text-black font-bold text-lg uppercase">
-              Log In
-            </Text>
-          </TouchableOpacity>
+          {/* BOTÕES DE LOGIN E BIOMETRIA LADO A LADO */}
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              className="bg-white h-14 flex-1 rounded-full justify-center items-center"
+              onPress={handleLogin}
+            >
+              <Text className="text-black font-bold text-lg uppercase">
+                {loading ? "..." : "Log In"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleBiometricAuth}
+              className="bg-white/10 w-14 h-14 rounded-full justify-center items-center border border-white/20"
+            >
+              <MaterialCommunityIcons
+                name={
+                  Platform.OS === "ios" ? "face-recognition" : "fingerprint"
+                }
+                size={30}
+                color="white"
+              />
+            </TouchableOpacity>
+          </View>
         </BlurView>
 
-        {/* ── NOVO RODAPÉ DE CADASTRO (IGUAL À REFERÊNCIA) ── */}
         <View className="flex-row justify-center items-center mt-8">
           <Text className="text-white text-sm">Don´t have an account? </Text>
           <TouchableOpacity onPress={() => router.push("./signup")}>
@@ -270,7 +330,6 @@ export default function LoginScreen() {
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
           <TouchableWithoutFeedback onPress={handleCloseForgotModal}>
             <View
@@ -280,7 +339,6 @@ export default function LoginScreen() {
                 justifyContent: "flex-end",
               }}
             >
-              {/* Inner touchable stops the modal content from closing the modal */}
               <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View
                   style={{
@@ -300,7 +358,6 @@ export default function LoginScreen() {
                     }}
                     bounces={false}
                   >
-                    {/* Drag handle */}
                     <View
                       style={{
                         width: 48,
@@ -311,15 +368,12 @@ export default function LoginScreen() {
                         marginBottom: 24,
                       }}
                     />
-
                     <Text className="text-white text-2xl font-bold mb-2 text-center">
                       Reset Password
                     </Text>
                     <Text className="text-white/40 text-xs text-center mb-8">
                       Enter your details exactly as registered
                     </Text>
-
-                    {/* Exact Full Name */}
                     <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
                       <TextInput
                         className="text-white text-base"
@@ -333,8 +387,6 @@ export default function LoginScreen() {
                         }}
                       />
                     </View>
-
-                    {/* Email */}
                     <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
                       <TextInput
                         className="text-white text-base"
@@ -349,8 +401,6 @@ export default function LoginScreen() {
                         }}
                       />
                     </View>
-
-                    {/* New Password */}
                     <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
                       <TextInput
                         className="text-white text-base"
@@ -364,8 +414,6 @@ export default function LoginScreen() {
                         }}
                       />
                     </View>
-
-                    {/* Inline error — stays inside modal, no popup conflict */}
                     {forgotError ? (
                       <View className="flex-row items-center mb-4 px-1">
                         <Text style={{ color: "#f87171", fontSize: 11 }}>
@@ -373,7 +421,6 @@ export default function LoginScreen() {
                         </Text>
                       </View>
                     ) : null}
-
                     <TouchableOpacity
                       onPress={handleResetPassword}
                       disabled={loading}
@@ -392,7 +439,7 @@ export default function LoginScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ── STATUS MODAL (success only — errors stay inline in the modal) ── */}
+      {/* ── STATUS MODAL ── */}
       <Modal visible={statusVisible} transparent animationType="fade">
         <View
           style={{
@@ -406,9 +453,7 @@ export default function LoginScreen() {
           <View className="w-full rounded-[35px] overflow-hidden border border-white/10 bg-[#1a1a1a]">
             <View className="p-8 items-center">
               <View
-                className={`w-16 h-16 rounded-full justify-center items-center mb-4 ${
-                  statusType === "success" ? "bg-green-500/20" : "bg-red-500/20"
-                }`}
+                className={`w-16 h-16 rounded-full justify-center items-center mb-4 ${statusType === "success" ? "bg-green-500/20" : "bg-red-500/20"}`}
               >
                 <Text
                   style={{
@@ -427,9 +472,7 @@ export default function LoginScreen() {
               </Text>
               <TouchableOpacity
                 onPress={() => setStatusVisible(false)}
-                className={`w-full h-12 rounded-xl justify-center items-center ${
-                  statusType === "success" ? "bg-green-500" : "bg-red-500"
-                }`}
+                className={`w-full h-12 rounded-xl justify-center items-center ${statusType === "success" ? "bg-green-500" : "bg-red-500"}`}
               >
                 <Text className="text-white font-bold uppercase text-xs tracking-widest">
                   Continue

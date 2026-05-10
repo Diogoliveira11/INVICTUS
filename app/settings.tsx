@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router"; // Adicionado useLocalSearchParams
 import { StatusBar } from "expo-status-bar";
 import {
-  ArrowLeft,
+  ChevronLeft,
   ChevronRight,
   ClipboardList,
   Dumbbell,
@@ -64,19 +64,19 @@ export default function SettingsScreen() {
 
       {/* HEADER */}
       <View
-        style={{ paddingTop: insets.top }}
-        className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900"
+        style={{ paddingTop: insets.top + 8 }}
+        className="pb-3 bg-black flex-row items-center px-4 border-b border-zinc-900"
       >
-        <TouchableOpacity onPress={() => router.back()} className="p-2">
-          <ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
-        <Text
-          numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase"
+        <TouchableOpacity
+          onPress={() => router.replace("/profile")}
+          className="w-9 h-9 items-center justify-center"
         >
+          <ChevronLeft size={26} color="#fff" />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-white text-lg font-bold tracking-wide">
           Settings
         </Text>
-        <View className="w-10" />
+        <View className="w-9" />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -195,6 +195,8 @@ type PersonalRecords = {
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 function epley1RM(weight: number, reps: number): number {
   if (reps === 1) return weight;
+  if (reps >= 12) return weight;
+
   return Math.round(weight * (1 + reps / 30) * 10) / 10;
 }
 
@@ -237,8 +239,12 @@ function calcPersonalRecords(
       setRecords: [],
     };
   }
+
   const heaviestWeight = Math.max(...sets.map((s) => s.weight));
+
+  // Aqui o best1RM agora respeita a regra das < 12 reps definida acima
   const best1RM = Math.max(...sets.map((s) => epley1RM(s.weight, s.reps)));
+
   let bestSetVolume = { weight: 0, reps: 0 };
   let bestVol = 0;
   for (const s of sets) {
@@ -248,12 +254,14 @@ function calcPersonalRecords(
       bestSetVolume = { weight: s.weight, reps: s.reps };
     }
   }
+
   const grouped: { [date: string]: number } = {};
   for (const s of sets) {
     const key = s.date.slice(0, 10);
     grouped[key] = (grouped[key] || 0) + s.weight * s.reps;
   }
   const bestSessionVolume = Math.max(...Object.values(grouped));
+
   const repMap: { [reps: number]: number } = {};
   for (const s of sets) {
     if (!repMap[s.reps] || s.weight > repMap[s.reps]) repMap[s.reps] = s.weight;
@@ -261,6 +269,7 @@ function calcPersonalRecords(
   const setRecords = Object.entries(repMap)
     .map(([reps, weight]) => ({ reps: Number(reps), weight }))
     .sort((a, b) => a.reps - b.reps);
+
   return {
     heaviestWeight,
     best1RM,

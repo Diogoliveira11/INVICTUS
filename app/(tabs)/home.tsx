@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { ChevronLeft, Clock, Dumbbell, Trophy } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../(tabs)/context/units_context";
+import { clearActiveWorkout, getActiveWorkout } from "../../src/activeWorkout";
 
 interface Workout {
   id: number;
@@ -62,12 +63,36 @@ export default function ProgressResult() {
   const [userName, setUserName] = useState("Invictus User");
   const [weeklyGoal, setWeeklyGoal] = useState(0);
 
+  const [recoveryModal, setRecoveryModal] = useState<{
+    visible: boolean;
+    workoutName: string;
+    routineId: string;
+  } | null>(null);
+
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>(
     [],
   );
+
+  useEffect(() => {
+    const checkUnfinishedWorkout = async () => {
+      try {
+        const data = await getActiveWorkout(db);
+        if (data && data.sets.length > 0) {
+          setRecoveryModal({
+            visible: true,
+            workoutName: data.workout.routine_name || "Unnamed",
+            routineId: data.workout.routine_id || "",
+          });
+        }
+      } catch (e) {
+        console.log("No unfinished workout found");
+      }
+    };
+    checkUnfinishedWorkout();
+  }, [db]);
 
   const loadUserData = useCallback(async () => {
     try {
@@ -85,12 +110,6 @@ export default function ProgressResult() {
       console.error("Erro perfil:", e);
     }
   }, [db]);
-
-  const secondsToTime = (secs: number): string => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s < 10 ? "0" + s : s}`;
-  };
 
   const loadStats = useCallback(async () => {
     try {
@@ -115,12 +134,6 @@ export default function ProgressResult() {
         [firstDayISO, userRow.id],
       );
 
-      // --- DEBUG: ver os treinos carregados ---
-      console.log(
-        "[loadStats] workouts esta semana:",
-        JSON.stringify(historyRows, null, 2),
-      );
-
       setWeeklyHistory(historyRows || []);
       setWorkoutsCount(historyRows.length);
 
@@ -135,13 +148,10 @@ export default function ProgressResult() {
         if (item.duration) {
           const parts = item.duration.split(":").map(Number);
           if (parts.length === 3) {
-            // formato HH:MM:SS
             totalSeconds += parts[0] * 3600 + parts[1] * 60 + parts[2];
           } else if (parts.length === 2) {
-            // formato MM:SS
             totalSeconds += parts[0] * 60 + parts[1];
           } else if (parts.length === 1 && !isNaN(parts[0])) {
-            // formato em segundos
             totalSeconds += parts[0];
           }
         }
@@ -212,7 +222,7 @@ export default function ProgressResult() {
       setTimeout(() => setIsDetailsVisible(true), 300);
     } catch (e) {
       console.error("[loadWorkoutDetails] erro:", e);
-      Alert.alert("Erro", "Não foi possível carregar os detalhes.");
+      Alert.alert("Error", "Could not load workout details.");
     }
   };
 
@@ -321,6 +331,127 @@ export default function ProgressResult() {
         </View>
       </ScrollView>
 
+      {/* ── RECOVERY MODAL ── */}
+      {recoveryModal?.visible && (
+        <Modal transparent animationType="fade">
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.85)",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 24,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "#111",
+                width: "100%",
+                borderRadius: 32,
+                padding: 32,
+                borderWidth: 1,
+                borderColor: "#27272a",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: "rgba(227,28,37,0.1)",
+                  padding: 16,
+                  borderRadius: 999,
+                  marginBottom: 20,
+                  borderWidth: 1,
+                  borderColor: "rgba(227,28,37,0.2)",
+                }}
+              >
+                <Dumbbell size={32} color="#E31C25" />
+              </View>
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 20,
+                  fontWeight: "900",
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                  textAlign: "center",
+                }}
+              >
+                Unfinished Workout
+              </Text>
+              <Text
+                style={{
+                  color: "#71717a",
+                  fontSize: 13,
+                  fontWeight: "600",
+                  textTransform: "uppercase",
+                  textAlign: "center",
+                  marginBottom: 28,
+                }}
+              >
+                You have an unfinished workout {"\n"}
+                {recoveryModal.workoutName} in progress.
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setRecoveryModal(null);
+                  router.push({
+                    pathname: "/workout/log_workout",
+                    params: {
+                      routineId: recoveryModal.routineId,
+                      recover: "true",
+                    },
+                  } as any);
+                }}
+                style={{
+                  width: "100%",
+                  backgroundColor: "#E31C25",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    fontSize: 16,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Resume Workout
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  await clearActiveWorkout(db);
+                  setRecoveryModal(null);
+                }}
+                style={{
+                  width: "100%",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: "#27272a",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#71717a",
+                    fontWeight: "700",
+                    fontSize: 14,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Discard
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* MODAL 1: HISTÓRICO */}
       <Modal visible={isHistoryVisible} animationType="slide" transparent>
         <View className="flex-1 bg-black/90 justify-end">
@@ -411,7 +542,7 @@ export default function ProgressResult() {
               <View className="flex-row mt-8 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-900 justify-around">
                 <View className="items-center">
                   <Text className="text-zinc-500 text-[8px] font-black uppercase">
-                    Volume Total
+                    Total Volume
                   </Text>
                   <Text className="text-white font-black">
                     {workoutExercises.some(
@@ -435,7 +566,6 @@ export default function ProgressResult() {
                   </Text>
                 </View>
               </View>
-              {/* Foto do treino */}
               {selectedWorkout?.photo && (
                 <View className="mt-4 rounded-3xl overflow-hidden border border-zinc-800">
                   <Image
@@ -583,7 +713,6 @@ export default function ProgressResult() {
         <View className="flex-1 bg-black/90 justify-end">
           <View className="h-[75%] bg-[#080808] rounded-t-[50px] border-t border-zinc-800">
             <View className="w-12 h-1 bg-zinc-800 rounded-full self-center mt-4" />
-
             <View className="flex-row items-center px-8 py-8">
               <TouchableOpacity
                 onPress={() => setIsVolumeModalVisible(false)}

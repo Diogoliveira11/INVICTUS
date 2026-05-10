@@ -8,16 +8,15 @@
     "scheme": "INVICTUS",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "We need camera access to add exercise photos.",
         "NSPhotoLibraryUsageDescription": "We need gallery access to choose exercise photos.",
-        "NSPhotoLibraryAddUsageDescription": "We need gallery access to save exercise photos."
+        "NSPhotoLibraryAddUsageDescription": "We need gallery access to save exercise photos.",
+        "NSFaceIDUsageDescription": "Permitir que o INVICTUS utilize FaceID para acesso rápido."
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -37,10 +36,11 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_IMAGES"
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/icon.jpeg"
@@ -68,7 +68,14 @@
       ],
       "expo-sqlite",
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermissionText": "Permitir que o INVICTUS utilize FaceID para acesso rápido."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

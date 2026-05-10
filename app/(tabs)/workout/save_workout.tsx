@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-
 import {
   AlertCircle,
   AlertTriangle,
@@ -35,6 +34,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { clearActiveWorkout } from "../../../src/activeWorkout";
+import { addToSyncQueue } from "../../../src/syncQueue";
 import { useUnits } from "../context/units_context";
 import { useWorkout } from "../context/workoutcontext";
 
@@ -324,20 +325,36 @@ export default function SaveWorkoutScreen() {
   }, [exercises]);
 
   // ── PR check ──
+  // ── PR check com Carga Máxima Teórica (Regra das < 12 reps) ──
   const checkPersonalRecord = async (
     exerciseId: number,
     weight: number,
     reps: number,
   ): Promise<number> => {
     try {
+      // 1. Calcular a carga teórica atual (1RM) usando a Fórmula de Epley
+      // Apenas se reps < 12, caso contrário usamos o peso real
+      const currentTheoreticalMax =
+        reps < 12 ? weight * (1 + reps / 30) : weight;
+
+      // 2. Buscar o melhor desempenho anterior
       const bestSet = await db.getFirstAsync<{ weight: number; reps: number }>(
-        "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
+        "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC",
         [exerciseId],
       );
 
-      if (!bestSet) return 1;
-      return weight * reps > bestSet.weight * bestSet.reps ? 1 : 0;
-    } catch {
+      if (!bestSet) return 1; // Se é o primeiro treino, é recorde
+
+      // 3. Calcular a máxima teórica do recorde antigo (respeitando a mesma regra)
+      const previousTheoreticalMax =
+        bestSet.reps < 12
+          ? bestSet.weight * (1 + bestSet.reps / 30)
+          : bestSet.weight;
+
+      // 4. Se a nova estimativa for maior, é um novo Personal Record
+      return currentTheoreticalMax > previousTheoreticalMax ? 1 : 0;
+    } catch (e) {
+      console.error("Erro ao verificar PR:", e);
       return 0;
     }
   };
@@ -350,6 +367,7 @@ export default function SaveWorkoutScreen() {
         "SELECT id FROM users WHERE email = ?",
         [userEmail],
       );
+
       if (!user) return;
 
       await db.runAsync(
@@ -423,11 +441,25 @@ export default function SaveWorkoutScreen() {
         }
       }
 
+      // Adicionar à fila de sincronização
+      await addToSyncQueue(db, "WORKOUT_COMPLETED", {
+        routineId,
+        routineName,
+        totalVolume: stats.totalVolume,
+        totalSets: stats.totalSets,
+        duration: timer,
+        completedAt: new Date().toISOString(),
+      });
+
+      // Limpar treino ativo após guardar com sucesso
+      await clearActiveWorkout(db);
+
       stopWorkout();
       setDescription("");
       setWorkoutImage(null);
       setShowSuccessModal(true);
     } catch (e) {
+      console.error("[save_workout] erro DETALHADO:", JSON.stringify(e));
       console.error("[save_workout] erro:", e);
     }
   };

@@ -2,8 +2,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import {
-  ArrowLeft,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Lock,
   Mail,
@@ -53,7 +53,6 @@ export default function AccountSettingsScreen() {
   // Captura parâmetros da rota (ex: se passaste o email no login)
   const params = useLocalSearchParams();
   const userEmail = params.email as string;
-  console.log("📧 Email recebido nas configurações:", userEmail); // ADICIONE ESTE LOG
 
   // Estados dos Modais
   const [isUserModalVisible, setIsUserModalVisible] = useState(false);
@@ -153,19 +152,19 @@ export default function AccountSettingsScreen() {
 
       {/* HEADER */}
       <View
-        style={{ paddingTop: insets.top }}
-        className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900"
+        style={{ paddingTop: insets.top + 8 }}
+        className="pb-3 bg-black flex-row items-center px-4 border-b border-zinc-900"
       >
-        <TouchableOpacity onPress={() => router.back()} className="p-2">
-          <ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
-        <Text
-          numberOfLines={1}
-          className="text-white text-lg font-black flex-1 text-center px-4 uppercase"
+        <TouchableOpacity
+          onPress={() => router.replace("/profile")}
+          className="w-9 h-9 items-center justify-center"
         >
+          <ChevronLeft size={26} color="#fff" />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-white text-lg font-bold tracking-wide">
           Account Settings
         </Text>
-        <View className="w-10" />
+        <View className="w-9" />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

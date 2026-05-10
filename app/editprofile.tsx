@@ -6,9 +6,9 @@ import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import {
   AlertTriangle,
-  ArrowLeft,
   Camera,
   Check,
+  ChevronLeft,
   ChevronRight,
   HelpCircle,
   Image as ImageIcon,
@@ -165,16 +165,20 @@ export default function EditProfile() {
       <StatusBar style="light" />
 
       <View
-        style={{ paddingTop: insets.top + 10 }}
-        className="flex-row justify-between items-center px-6 pb-5 border-b border-zinc-900"
+        style={{ paddingTop: insets.top + 8 }}
+        className="pb-3 bg-black flex-row items-center px-4 border-b border-zinc-900"
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={28} color="#FFF" />
+        <TouchableOpacity
+          onPress={() => router.replace("/profile")}
+          className="w-9 h-9 items-center justify-center"
+        >
+          <ChevronLeft size={26} color="#fff" />
         </TouchableOpacity>
-        <Text className="text-white font-black uppercase text-xl tracking-tighter">
-          Edit Profile
+        <Text className="flex-1 text-center text-white text-lg font-bold tracking-wide">
+          Settings
         </Text>
         <TouchableOpacity onPress={handleSave}>
+          <View className="w-9" />
           <Text
             style={{ color: redColor }}
             className="font-black uppercase text-xl tracking-tighter"

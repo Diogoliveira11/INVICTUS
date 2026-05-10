@@ -50,6 +50,7 @@ type WorkoutContextType = {
   timer: string;
   restTimer: number | null;
   activeRestSetId: string | null;
+  resumeWorkout: (elapsed: number) => void;
   exercises: ActiveExercise[];
   lastExercise: string;
   setExercises: React.Dispatch<React.SetStateAction<ActiveExercise[]>>;
@@ -64,7 +65,7 @@ type WorkoutContextType = {
   setIsMinimized: (val: boolean) => void;
   setLastExercise: (val: string) => void;
   stopWorkout: (confirm?: boolean) => void;
-  startWorkout: (name: string) => void;
+  startWorkout: (name: string, initialSeconds?: number) => void;
 };
 
 // Fora do componente — configura como as notificações se comportam quando a app está em foreground
@@ -94,6 +95,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const endTimeRef = useRef<number | null>(null);
   const restIntervalRef = useRef<any>(null);
+
+  const resumeWorkout = (elapsed: number) => {
+    startTimeRef.current = Date.now() - elapsed * 1000;
+    setSeconds(elapsed);
+    setIsActive(true);
+    setIsMinimized(false);
+  };
 
   // Pedir permissões e criar canal Android
   useEffect(() => {
@@ -285,9 +293,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const startWorkout = (name: string) => {
-    startTimeRef.current = Date.now();
-    setSeconds(0);
+  const startWorkout = (name: string, initialSeconds: number = 0) => {
+    startTimeRef.current = Date.now() - initialSeconds * 1000;
+    setSeconds(initialSeconds);
     setExercises([]);
     setIsActive(true);
     setIsMinimized(false);
@@ -335,6 +343,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         setIsMinimized,
         setLastExercise,
         setIsActive,
+        resumeWorkout,
       }}
     >
       {children}

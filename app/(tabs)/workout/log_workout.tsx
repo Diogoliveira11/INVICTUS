@@ -15,7 +15,13 @@ import {
   Trophy,
   X,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -31,6 +37,12 @@ import {
   View,
 } from "react-native";
 import { IMAGE_MAP } from "../../../constants/exercise_images";
+import {
+  createActiveWorkout,
+  getActiveWorkout,
+  saveActiveWorkoutExercises,
+  upsertActiveWorkoutSet,
+} from "../../../src/activeWorkout";
 import { useUnits } from "../context/units_context";
 import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
 
@@ -202,6 +214,19 @@ export default function LogWorkoutScreen() {
   const params = useLocalSearchParams();
   const db = useSQLiteContext();
 
+  const hasRecovered = useRef(false);
+  const recoveredDataRef = useRef<{
+    exercises: ActiveExercise[];
+    routineName: string;
+    workoutId: number;
+    elapsed: number;
+  } | null>(null);
+  const [recoveryModal, setRecoveryModal] = useState<{
+    visible: boolean;
+    workoutName: string;
+    routineId: string;
+  } | null>(null);
+
   const {
     timer,
     restTimer,
@@ -215,6 +240,7 @@ export default function LogWorkoutScreen() {
     isActive,
     stopWorkout,
     startWorkout,
+    resumeWorkout,
   } = useWorkout();
 
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
@@ -231,6 +257,7 @@ export default function LogWorkoutScreen() {
   const [dbExercises, setDbExercises] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [tempSelected, setTempSelected] = useState<any[]>([]);
+  const [activeWorkoutId, setActiveWorkoutId] = useState<number | null>(null);
   const [typeModal, setTypeModal] = useState<{
     visible: boolean;
     exId: string;
@@ -257,6 +284,17 @@ export default function LogWorkoutScreen() {
       };
     }, [setIsMinimized]),
   );
+
+  useEffect(() => {
+    if (recoveredDataRef.current && isActive) {
+      const data = recoveredDataRef.current;
+      recoveredDataRef.current = null;
+      startWorkout("", data.elapsed);
+      setExercises(data.exercises);
+      setActiveRoutineName(data.routineName);
+      setActiveWorkoutId(data.workoutId);
+    }
+  }, [isActive]);
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -325,6 +363,56 @@ export default function LogWorkoutScreen() {
   }, [exercises]);
 
   const initWorkout = useCallback(async () => {
+    const recover = params.recover === "true";
+
+    if (recover && !hasRecovered.current) {
+      hasRecovered.current = true;
+      console.log("🔄 A tentar recuperar treino...");
+      try {
+        const saved = await getActiveWorkout(db);
+        console.log("📦 saved:", JSON.stringify(saved?.workout));
+        console.log(
+          "📦 exercises_json:",
+          saved?.workout?.exercises_json?.slice(0, 100),
+        );
+        console.log("📦 sets count:", saved?.sets?.length);
+        if (saved && saved.workout.exercises_json) {
+          let recoveredExercises: ActiveExercise[] = JSON.parse(
+            saved.workout.exercises_json,
+          );
+
+          saved.sets.forEach((s) => {
+            const ex = recoveredExercises.find(
+              (e) => String(e.id) === String(s.exercise_id),
+            );
+            if (ex) {
+              const set = ex.sets.find((set) => set.id === s.id);
+              if (set) {
+                set.weight = s.weight;
+                set.reps = s.reps;
+                set.completed = s.completed === 1;
+              }
+            }
+          });
+
+          const startedAt = new Date(saved.workout.started_at).getTime();
+          const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+
+          startWorkout("", elapsed);
+
+          setTimeout(async () => {
+            setExercises(recoveredExercises);
+            setActiveRoutineName(saved.workout.routine_name || "");
+            setActiveWorkoutId(saved.workout.id);
+            setIsActive(true);
+          }, 50);
+
+          return;
+        }
+      } catch (e) {
+        console.error("Error recovering workout:", e);
+      }
+    }
     const routineId = Array.isArray(params.routineId)
       ? params.routineId[0]
       : params.routineId;
@@ -340,9 +428,20 @@ export default function LogWorkoutScreen() {
       if (!isActive) {
         startWorkout("");
         setActiveRoutineName("");
+        // Criar treino ativo para treino livre (sem rotina)
+        const workoutDbId = await createActiveWorkout(db, null, "");
+        setActiveWorkoutId(workoutDbId);
       }
       return;
     }
+
+    // Criar treino ativo para treino com rotina
+    const workoutDbId = await createActiveWorkout(
+      db,
+      routineId || null,
+      activeRoutineName || "",
+    );
+    setActiveWorkoutId(workoutDbId);
 
     if (exercises.length > 0) return;
 
@@ -360,6 +459,7 @@ export default function LogWorkoutScreen() {
       );
 
       if (routineExs && routineExs.length > 0) {
+        hasRecovered.current = true;
         const prepared = await Promise.all(
           routineExs.map(async (ex) => {
             const prevRes = await db.getFirstAsync<any>(
@@ -400,20 +500,15 @@ export default function LogWorkoutScreen() {
           }),
         );
         setExercises(prepared as ActiveExercise[]);
+        console.log("💾 A guardar exercises_json, count:", prepared.length);
+        await saveActiveWorkoutExercises(db, workoutDbId, prepared);
+        console.log("✅ exercises_json guardado!");
         setIsActive(true);
       }
     } catch (e) {
       console.error(e);
     }
-  }, [
-    params.routineId,
-    params.reset,
-    db,
-    weightUnit,
-    exercises.length,
-    isActive,
-    startWorkout,
-  ]);
+  }, [params.routineId, params.reset, db, weightUnit, startWorkout]);
 
   useEffect(() => {
     db.getAllAsync<any>("SELECT * FROM exercises ORDER BY name ASC").then(
@@ -423,7 +518,7 @@ export default function LogWorkoutScreen() {
   }, [initWorkout]);
 
   // ─── Toggle set — tudo numa única mutação de estado ───────────────────────
-  const handleToggleSet = (exLogId: string, setId: string) => {
+  const handleToggleSet = async (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);
     if (!exercise) return;
     const currentSet = exercise.sets.find((s) => s.id === setId);
@@ -444,6 +539,26 @@ export default function LogWorkoutScreen() {
         : currentSet.suggestedReps && currentSet.suggestedReps !== "0"
           ? currentSet.suggestedReps
           : "0";
+
+    if (activeWorkoutId) {
+      try {
+        const setIndex = exercise.sets.findIndex((s) => s.id === setId);
+        await upsertActiveWorkoutSet(db, activeWorkoutId, {
+          id: setId,
+          exerciseId: String(exercise.id),
+          exerciseName: exercise.name,
+          setIndex,
+          setType: currentSet.type,
+          weight: isCompleting ? finalWeight : currentSet.weight,
+          reps: isCompleting ? finalReps : currentSet.reps,
+          completed: isCompleting,
+          notes: exercise.notes ?? "",
+          restTime: exercise.rest_time,
+        });
+      } catch (e) {
+        console.error("❌ Erro ao guardar série:", e);
+      }
+    }
 
     setExercises((prev) =>
       prev.map((ex) => {
