@@ -160,11 +160,38 @@ function ProfileBarChart({
   const toBarH = (v: number) => Math.max(2, (v / niceMax) * chartH);
   const toBarY = (v: number) => PAD_TOP + chartH - toBarH(v);
 
-  // X labels: show every other label if too many
+  // X labels: adapt density based on total number of bars
+  // ≤13 (3M): every month change
+  // ≤52 (Year): every month change
+  // >52 (All time): every 3rd month change only
+  const monthChangeIndices: number[] = [];
+  data.forEach((d, i) => {
+    if (i === 0) {
+      monthChangeIndices.push(i);
+      return;
+    }
+    const prevMonth = data[i - 1].label.split(" ")[0];
+    const currMonth = d.label.split(" ")[0];
+    if (currMonth !== prevMonth) monthChangeIndices.push(i);
+  });
+
   const showLabel = (i: number) => {
-    if (data.length <= 6) return true;
-    if (data.length <= 12) return i % 2 === 0;
-    return i % 3 === 0;
+    const pos = monthChangeIndices.indexOf(i);
+    if (pos === -1) return false;
+    if (data.length <= 52) return true; // Year: every month
+    return pos % 3 === 0; // All time: every 3rd month
+  };
+
+  // For All time show "May'25" style, otherwise just "May"
+  const getXLabel = (label: string, i: number): string => {
+    if (data.length <= 52) return label.split(" ")[0];
+    // Include year: label is "May 1" → find year from position
+    // We can infer year from bucket count backwards from now
+    const weeksBack = data.length - 1 - i;
+    const d = new Date();
+    d.setDate(d.getDate() - weeksBack * 7);
+    const yr = String(d.getFullYear()).slice(2); // "25"
+    return `${label.split(" ")[0]}'${yr}`;
   };
 
   const formatYLabel = (v: number) => {
@@ -228,12 +255,12 @@ function ProfileBarChart({
               <SvgText
                 x={toX(i)}
                 y={H - 4}
-                fontSize={8}
+                fontSize={7.5}
                 fill="#52525b"
                 textAnchor="middle"
                 fontWeight="bold"
               >
-                {d.label}
+                {getXLabel(d.label, i)}
               </SvgText>
             )}
           </React.Fragment>
