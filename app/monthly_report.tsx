@@ -3,41 +3,75 @@ import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
-import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Trophy,
+  X
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Dimensions,
+  ActivityIndicator,
+  Image,
+  Modal,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Line, Rect, Text as SvgText } from "react-native-svg";
 import { useUnits } from "./(tabs)/context/units_context";
 
 const RED = "#E31C25";
-const SCREEN_W = Dimensions.get("window").width;
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
-type MetricKey = "Workouts" | "Duration" | "Volume" | "Sets";
-
-type MonthPoint = {
-  monthLabel: string; // "Jan", "Feb", ...
-  year: number;
-  month: number; // 1-12
-  value: number;
+type WorkoutDay = {
+  workoutId: number;
+  date: string; // "YYYY-MM-DD"
+  title: string;
+  duration: string;
+  total_volume: number;
+  notes: string;
+  photo: string | null;
+  muscles: string[];
 };
 
-type Summary = {
-  workouts: number;
-  durationSec: number;
-  volumeKg: number;
-  sets: number;
+type CalendarDay = {
+  day: number;
+  dateStr: string;
+  isToday: boolean;
+  workout: WorkoutDay | null;
+};
+
+type WorkoutExercise = {
+  exercise_name: string;
+  muscle_group: string;
+  weight: number;
+  reps: number;
+  set_type: string;
+  index_order: number;
+  is_personal_record: number;
+  distance: number | null;
+  time: string | null;
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const MONTH_LABELS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const MONTH_SHORT = [
   "Jan",
   "Feb",
   "Mar",
@@ -51,451 +85,333 @@ const MONTH_LABELS = [
   "Nov",
   "Dec",
 ];
+const DAY_LETTERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// Parses "MM:SS" → seconds, "H:MM:SS" → seconds
-function parseTimerToSeconds(s: string): number {
-  if (!s) return 0;
-  const parts = s.split(":").map(Number);
-  if (parts.some(isNaN)) return 0;
-  if (parts.length === 2) {
-    // MM:SS
-    return parts[0] * 60 + parts[1];
-  }
-  if (parts.length === 3) {
-    // H:MM:SS
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  }
-  return 0;
-}
-
-function formatDuration(totalSeconds: number): string {
-  if (totalSeconds <= 0) return "0min";
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  if (h === 0) return `${m}min`;
-  return `${h}h ${m}min`;
-}
-
-function formatVolume(kg: number): string {
-  if (kg >= 1000) return `${(kg / 1000).toFixed(1)}k kg`;
-  return `${Math.round(kg)} kg`;
-}
-
-function getDiffLabel(
-  current: number,
-  previous: number,
-): { text: string; up: boolean } | null {
-  if (previous === 0) return null;
-  const diff = current - previous;
-  if (diff === 0) return null;
-  return {
-    text: diff > 0 ? `↑ ${Math.abs(diff)}` : `↓ ${Math.abs(diff)}`,
-    up: diff > 0,
+function abbrevMuscle(m: string): string {
+  const map: Record<string, string> = {
+    chest: "CHEST",
+    back: "BACK",
+    shoulders: "SHLD",
+    biceps: "BICE",
+    triceps: "TRI",
+    legs: "LEGS",
+    quads: "QUAD",
+    hamstrings: "HAMS",
+    glutes: "GLUT",
+    calves: "CALV",
+    abs: "ABS",
+    core: "CORE",
+    lats: "LATS",
+    traps: "TRAP",
+    forearms: "FORE",
+    "upper back": "U.BACK",
+    "lower back": "L.BACK",
   };
+  return map[m.toLowerCase()] ?? m.slice(0, 4).toUpperCase();
 }
 
-function getDiffLabelFormatted(
-  current: number,
-  previous: number,
-  metric: MetricKey,
-): { text: string; up: boolean } | null {
-  if (previous === 0) return null;
-  const diff = current - previous;
-  if (diff === 0) return null;
-  const up = diff > 0;
-  let text = "";
-  if (metric === "Duration") {
-    text = `${up ? "↑" : "↓"} ${formatDuration(Math.abs(diff))}`;
-  } else if (metric === "Volume") {
-    text = `${up ? "↑" : "↓"} ${formatVolume(Math.abs(diff))}`;
-  } else {
-    text = `${up ? "↑" : "↓"} ${Math.abs(diff)}`;
+function buildCalendarGrid(year: number, month: number): CalendarDay[][] {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const firstDay = new Date(year, month - 1, 1);
+  const startDow = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const cells: CalendarDay[] = [];
+  for (let i = 0; i < startDow; i++)
+    cells.push({ day: 0, dateStr: "", isToday: false, workout: null });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const mm = String(month).padStart(2, "0");
+    const dd = String(d).padStart(2, "0");
+    const dateStr = `${year}-${mm}-${dd}`;
+    cells.push({
+      day: d,
+      dateStr,
+      isToday: dateStr === todayStr,
+      workout: null,
+    });
   }
-  return { text, up };
+  while (cells.length % 7 !== 0)
+    cells.push({ day: 0, dateStr: "", isToday: false, workout: null });
+  const weeks: CalendarDay[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
 }
 
-// ─── BAR CHART ───────────────────────────────────────────────────────────────
-function BarChart({
-  data,
-  currentMonth,
-  currentYear,
-  metric,
-}: {
-  data: MonthPoint[];
-  currentMonth: number;
-  currentYear: number;
-  metric: MetricKey;
-}) {
-  const W = SCREEN_W - 32;
-  const H = 180;
-  const PAD_LEFT = 36;
-  const PAD_RIGHT = 8;
-  const PAD_TOP = 16;
-  const PAD_BOTTOM = 28;
-  const chartW = W - PAD_LEFT - PAD_RIGHT;
-  const chartH = H - PAD_TOP - PAD_BOTTOM;
-
-  if (data.length === 0) {
-    return (
-      <View
-        style={{ height: H, alignItems: "center", justifyContent: "center" }}
-      >
-        <Text style={{ color: "#3f3f46", fontWeight: "bold", fontSize: 12 }}>
-          No data
-        </Text>
-      </View>
-    );
-  }
-
-  const values = data.map((d) => d.value);
-  const maxV = Math.max(...values, 1);
-
-  // Nice Y labels: 0, mid, max
-  const niceMax = (() => {
-    const raw = maxV;
-    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    const candidates = [1, 2, 2.5, 5, 10].map((s) => s * mag);
-    return candidates.find((c) => c >= raw) ?? raw;
-  })();
-  const yLabels = [0, Math.round(niceMax / 2), Math.round(niceMax)];
-
-  const barW = Math.max(4, Math.min(22, (chartW / data.length) * 0.55));
-  const gap = chartW / data.length;
-
-  const toX = (i: number) => PAD_LEFT + gap * i + gap / 2;
-  const toBarH = (v: number) => (v / niceMax) * chartH;
-  const toBarY = (v: number) => PAD_TOP + chartH - toBarH(v);
-
-  return (
-    <Svg width={W} height={H}>
-      {/* Y grid + labels */}
-      {yLabels.map((v, i) => {
-        const y = PAD_TOP + chartH - (v / niceMax) * chartH;
-        return (
-          <React.Fragment key={i}>
-            <Line
-              x1={PAD_LEFT}
-              y1={y}
-              x2={W - PAD_RIGHT}
-              y2={y}
-              stroke="#27272a"
-              strokeWidth={1}
-              strokeDasharray="3,3"
-            />
-            <SvgText
-              x={PAD_LEFT - 4}
-              y={y + 4}
-              fontSize={9}
-              fill="#52525b"
-              textAnchor="end"
-              fontWeight="bold"
-            >
-              {v}
-            </SvgText>
-          </React.Fragment>
-        );
-      })}
-
-      {/* Bars */}
-      {data.map((d, i) => {
-        const isSelected = d.month === currentMonth && d.year === currentYear;
-        const bH = Math.max(2, toBarH(d.value));
-        const bY = toBarY(d.value);
-        const x = toX(i) - barW / 2;
-        return (
-          <React.Fragment key={i}>
-            <Rect
-              x={x}
-              y={bY}
-              width={barW}
-              height={bH}
-              rx={4}
-              fill={isSelected ? RED : "#27272a"}
-            />
-            {/* X label */}
-            <SvgText
-              x={toX(i)}
-              y={H - 4}
-              fontSize={8.5}
-              fill={isSelected ? RED : "#52525b"}
-              textAnchor="middle"
-              fontWeight="bold"
-            >
-              {d.monthLabel[0]}
-            </SvgText>
-          </React.Fragment>
-        );
-      })}
-    </Svg>
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const diff = Math.ceil(
+    (new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    ).getTime() -
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) /
+      86400000,
   );
+  if (diff === 0) return "TODAY";
+  if (diff === 1) return "YESTERDAY";
+  return d
+    .toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    .toUpperCase();
 }
 
-// ─── SUMMARY CARD ─────────────────────────────────────────────────────────────
-function SummaryCard({
-  label,
-  value,
-  diff,
+function getSetTypeStyle(set_type: string) {
+  switch (set_type) {
+    case "W":
+      return { label: "WARMUP", bg: "bg-amber-500/10", text: "text-amber-500" };
+    case "D":
+      return {
+        label: "DROP SET",
+        bg: "bg-purple-500/10",
+        text: "text-purple-500",
+      };
+    case "F":
+      return { label: "FAILURE", bg: "bg-red-500/10", text: "text-red-500" };
+    default:
+      return { label: "NORMAL", bg: "bg-zinc-800", text: "text-zinc-400" };
+  }
+}
+
+const isCardio = (mg: string) => mg?.toLowerCase() === "cardio";
+
+// ─── DAY CELL ─────────────────────────────────────────────────────────────────
+function DayCell({
+  cell,
+  onPress,
 }: {
-  label: string;
-  value: string;
-  diff: { text: string; up: boolean } | null;
+  cell: CalendarDay;
+  onPress: () => void;
 }) {
+  if (cell.day === 0) return <View style={{ flex: 1 }} />;
+  const hasWorkout = cell.workout !== null;
+  const muscles = cell.workout?.muscles ?? [];
+  const muscleLabel = muscles.slice(0, 2).map(abbrevMuscle).join(" | ");
+
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "#111111",
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#27272a",
-        padding: 16,
-        minHeight: 90,
-      }}
+    <TouchableOpacity
+      style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}
+      onPress={hasWorkout ? onPress : undefined}
+      activeOpacity={hasWorkout ? 0.7 : 1}
     >
-      <Text
+      <View
         style={{
-          color: "#71717a",
-          fontSize: 11,
-          fontWeight: "800",
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 6,
+          width: 34,
+          height: 34,
+          borderRadius: 17,
+          backgroundColor: hasWorkout ? RED : "transparent",
+          borderWidth: cell.isToday && !hasWorkout ? 1.5 : 0,
+          borderColor: cell.isToday ? RED : "transparent",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        {label}
-      </Text>
-      <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900" }}>
-        {value}
-      </Text>
-      {diff && (
         <Text
           style={{
-            color: diff.up ? "#22c55e" : "#ef4444",
-            fontSize: 12,
-            fontWeight: "700",
-            marginTop: 4,
+            color: hasWorkout ? "#fff" : cell.isToday ? RED : "#a1a1aa",
+            fontWeight: hasWorkout ? "900" : "600",
+            fontSize: 14,
           }}
         >
-          {diff.text}
+          {cell.day}
         </Text>
+      </View>
+      {hasWorkout && muscleLabel ? (
+        <Text
+          style={{
+            color: "#52525b",
+            fontSize: 7.5,
+            fontWeight: "700",
+            textTransform: "uppercase",
+            marginTop: 3,
+            textAlign: "center",
+            letterSpacing: 0.2,
+          }}
+          numberOfLines={1}
+        >
+          {muscleLabel}
+        </Text>
+      ) : (
+        <View style={{ height: 13 }} />
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function MonthlyReportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const db = useSQLiteContext();
   const { weightUnit } = useUnits();
+  const weightUnitLower = weightUnit.toLowerCase();
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
-  const [activeMetric, setActiveMetric] = useState<MetricKey>("Workouts");
+  const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const [chartData, setChartData] = useState<MonthPoint[]>([]);
-  const [currentSummary, setCurrentSummary] = useState<Summary>({
-    workouts: 0,
-    durationSec: 0,
-    volumeKg: 0,
-    sets: 0,
-  });
-  const [prevSummary, setPrevSummary] = useState<Summary>({
-    workouts: 0,
-    durationSec: 0,
-    volumeKg: 0,
-    sets: 0,
-  });
+  const [workoutDays, setWorkoutDays] = useState<WorkoutDay[]>([]);
+  const [joinYear, setJoinYear] = useState(now.getFullYear());
+  const [joinMonth, setJoinMonth] = useState(1); // default Jan — overwritten on load
 
+  // Workout detail modal
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDay | null>(
+    null,
+  );
+  const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>(
+    [],
+  );
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+
+  const isCurrentMonth =
+    year === now.getFullYear() && month === now.getMonth() + 1;
+  const isJoinMonth = year === joinYear && month === joinMonth;
+
+  // ── Load calendar data ────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
-      const userRow = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM users WHERE email = ?",
-        [email],
-      );
+      const userRow = await db.getFirstAsync<{
+        id: number;
+        created_count: string;
+      }>("SELECT id, created_count FROM users WHERE email = ?", [email]);
       if (!userRow) return;
 
-      // ── Last 12 months of bar chart data ────────────────────────────────
-      const points: MonthPoint[] = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(year, month - 1 - i, 1);
-        const y = d.getFullYear();
-        const m = d.getMonth() + 1;
-        const monthStr = String(m).padStart(2, "0");
-
-        let value = 0;
-        if (activeMetric === "Workouts") {
-          const row = await db.getFirstAsync<{ cnt: number }>(
-            `SELECT COUNT(*) as cnt FROM workouts
-             WHERE user_id = ? AND strftime('%Y-%m', date) = ?`,
-            [userRow.id, `${y}-${monthStr}`],
-          );
-          value = row?.cnt ?? 0;
-        } else if (activeMetric === "Duration") {
-          const rows = await db.getAllAsync<{ duration: string }>(
-            `SELECT duration FROM workouts
-             WHERE user_id = ? AND strftime('%Y-%m', date) = ? AND duration IS NOT NULL`,
-            [userRow.id, `${y}-${monthStr}`],
-          );
-          // duration stored as "MM:SS" (e.g. "45:23") or "H:MM:SS" (e.g. "1:23:45")
-          value = rows.reduce((acc, r) => {
-            return acc + parseTimerToSeconds(r.duration ?? "");
-          }, 0);
-        } else if (activeMetric === "Volume") {
-          const row = await db.getFirstAsync<{ vol: number }>(
-            `SELECT SUM(ws.weight * ws.reps) as vol
-             FROM workout_sets ws
-             JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-             JOIN workouts w ON we.workout_id = w.id
-             WHERE w.user_id = ? AND strftime('%Y-%m', w.date) = ?`,
-            [userRow.id, `${y}-${monthStr}`],
-          );
-          value = Math.round(row?.vol ?? 0);
-        } else if (activeMetric === "Sets") {
-          const row = await db.getFirstAsync<{ cnt: number }>(
-            `SELECT COUNT(*) as cnt
-             FROM workout_sets ws
-             JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-             JOIN workouts w ON we.workout_id = w.id
-             WHERE w.user_id = ? AND strftime('%Y-%m', w.date) = ?`,
-            [userRow.id, `${y}-${monthStr}`],
-          );
-          value = row?.cnt ?? 0;
+      // Parse join date from created_count (DATETIME like "2026-02-01T...")
+      if (userRow.created_count) {
+        const joinDate = new Date(userRow.created_count);
+        if (!isNaN(joinDate.getTime())) {
+          setJoinYear(joinDate.getFullYear());
+          setJoinMonth(joinDate.getMonth() + 1);
         }
-
-        points.push({
-          monthLabel: MONTH_LABELS[m - 1],
-          year: y,
-          month: m,
-          value,
-        });
       }
-      setChartData(points);
 
-      // ── Current month summary ────────────────────────────────────────────
-      const curMonthStr = `${year}-${String(month).padStart(2, "0")}`;
-      const [wRow, volRow, setsRow, durRows] = await Promise.all([
-        db.getFirstAsync<{ cnt: number }>(
-          `SELECT COUNT(*) as cnt FROM workouts WHERE user_id = ? AND strftime('%Y-%m', date) = ?`,
-          [userRow.id, curMonthStr],
-        ),
-        db.getFirstAsync<{ vol: number }>(
-          `SELECT SUM(ws.weight * ws.reps) as vol
-           FROM workout_sets ws JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-           JOIN workouts w ON we.workout_id = w.id
-           WHERE w.user_id = ? AND strftime('%Y-%m', w.date) = ?`,
-          [userRow.id, curMonthStr],
-        ),
-        db.getFirstAsync<{ cnt: number }>(
-          `SELECT COUNT(*) as cnt
-           FROM workout_sets ws JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-           JOIN workouts w ON we.workout_id = w.id
-           WHERE w.user_id = ? AND strftime('%Y-%m', w.date) = ?`,
-          [userRow.id, curMonthStr],
-        ),
-        db.getAllAsync<{ duration: string }>(
-          `SELECT duration FROM workouts WHERE user_id = ? AND strftime('%Y-%m', date) = ? AND duration IS NOT NULL`,
-          [userRow.id, curMonthStr],
-        ),
-      ]);
+      const monthStr = `${year}-${String(month).padStart(2, "0")}`;
 
-      const parseDur = (rows: { duration: string }[]) =>
-        rows.reduce((acc, r) => acc + parseTimerToSeconds(r.duration ?? ""), 0);
+      // Workout basic info for the month
+      const workoutRows = await db.getAllAsync<{
+        id: number;
+        date: string;
+        title: string;
+        duration: string;
+        total_volume: number;
+        notes: string;
+        photo: string | null;
+      }>(
+        `SELECT id, date(date) as date, title, duration, total_volume, notes, photo
+         FROM workouts
+         WHERE user_id = ? AND strftime('%Y-%m', date) = ?
+         ORDER BY date ASC`,
+        [userRow.id, monthStr],
+      );
 
-      setCurrentSummary({
-        workouts: wRow?.cnt ?? 0,
-        durationSec: parseDur(durRows),
-        volumeKg: Math.round(volRow?.vol ?? 0),
-        sets: setsRow?.cnt ?? 0,
-      });
-
-      // ── Previous month summary ────────────────────────────────────────────
-      const prevDate = new Date(year, month - 2, 1);
-      const prevY = prevDate.getFullYear();
-      const prevM = prevDate.getMonth() + 1;
-      const prevMonthStr = `${prevY}-${String(prevM).padStart(2, "0")}`;
-
-      const [pwRow, pvolRow, psetsRow, pdurRows] = await Promise.all([
-        db.getFirstAsync<{ cnt: number }>(
-          `SELECT COUNT(*) as cnt FROM workouts WHERE user_id = ? AND strftime('%Y-%m', date) = ?`,
-          [userRow.id, prevMonthStr],
-        ),
-        db.getFirstAsync<{ vol: number }>(
-          `SELECT SUM(ws.weight * ws.reps) as vol
-           FROM workout_sets ws JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-           JOIN workouts w ON we.workout_id = w.id
-           WHERE w.user_id = ? AND strftime('%Y-%m', w.date) = ?`,
-          [userRow.id, prevMonthStr],
-        ),
-        db.getFirstAsync<{ cnt: number }>(
-          `SELECT COUNT(*) as cnt
-           FROM workout_sets ws JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-           JOIN workouts w ON we.workout_id = w.id
-           WHERE w.user_id = ? AND strftime('%Y-%m', w.date) = ?`,
-          [userRow.id, prevMonthStr],
-        ),
-        db.getAllAsync<{ duration: string }>(
-          `SELECT duration FROM workouts WHERE user_id = ? AND strftime('%Y-%m', date) = ? AND duration IS NOT NULL`,
-          [userRow.id, prevMonthStr],
-        ),
-      ]);
-
-      setPrevSummary({
-        workouts: pwRow?.cnt ?? 0,
-        durationSec: parseDur(pdurRows),
-        volumeKg: Math.round(pvolRow?.vol ?? 0),
-        sets: psetsRow?.cnt ?? 0,
-      });
+      // For each workout, get its muscle groups
+      const wDays: WorkoutDay[] = await Promise.all(
+        workoutRows.map(async (w) => {
+          const muscleRows = await db.getAllAsync<{ muscle_group: string }>(
+            `SELECT DISTINCT e.muscle_group
+             FROM workout_exercises we
+             JOIN exercises e ON e.id = we.exercise_id
+             WHERE we.workout_id = ? AND e.muscle_group != 'Cardio'`,
+            [w.id],
+          );
+          return {
+            workoutId: w.id,
+            date: w.date,
+            title: w.title,
+            duration: w.duration,
+            total_volume: w.total_volume,
+            notes: w.notes,
+            photo: w.photo,
+            muscles: muscleRows.map((r) => r.muscle_group).slice(0, 3),
+          };
+        }),
+      );
+      setWorkoutDays(wDays);
     } catch (e) {
-      console.error("[MonthlyReport] loadData:", e);
+      console.error("[MonthlyReport]", e);
     }
-  }, [db, year, month, activeMetric]);
+  }, [db, year, month]);
 
   useEffect(() => {
     if (isFocused) loadData();
   }, [isFocused, loadData]);
 
+  // ── Open workout detail ───────────────────────────────────────────────────
+  const openWorkout = async (w: WorkoutDay) => {
+    setSelectedWorkout(w);
+    setShowDetail(true);
+    setDetailLoading(true);
+    try {
+      const details = await db.getAllAsync<WorkoutExercise>(
+        `SELECT e.name as exercise_name, e.muscle_group,
+                ws.weight, ws.reps, ws.distance, ws.time,
+                ws.set_type, ws.index_order, ws.is_personal_record
+         FROM workout_sets ws
+         JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+         JOIN exercises e ON ws.exercise_id = e.id
+         WHERE we.workout_id = ?
+         ORDER BY we.index_order ASC, ws.index_order ASC`,
+        [w.workoutId],
+      );
+      setWorkoutExercises(details ?? []);
+    } catch (e) {
+      console.error("[openWorkout]", e);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // ── Calendar ──────────────────────────────────────────────────────────────
+  const workoutMap: Record<string, WorkoutDay> = {};
+  workoutDays.forEach((w) => {
+    workoutMap[w.date] = w;
+  });
+
+  const weeks = buildCalendarGrid(year, month).map((week) =>
+    week.map((cell) => ({
+      ...cell,
+      workout: cell.dateStr ? (workoutMap[cell.dateStr] ?? null) : null,
+    })),
+  );
+
   // ── Navigation ────────────────────────────────────────────────────────────
-  const goToPrevMonth = () => {
+  const goToPrev = () => {
+    if (isJoinMonth) return;
     if (month === 1) {
       setMonth(12);
       setYear((y) => y - 1);
     } else setMonth((m) => m - 1);
   };
-  const goToNextMonth = () => {
-    const nextIsInFuture =
-      year > now.getFullYear() ||
-      (year === now.getFullYear() && month >= now.getMonth() + 1);
-    if (nextIsInFuture) return;
+  const goToNext = () => {
+    if (isCurrentMonth) return;
     if (month === 12) {
       setMonth(1);
       setYear((y) => y + 1);
     } else setMonth((m) => m + 1);
   };
 
-  const isCurrentMonth =
-    year === now.getFullYear() && month === now.getMonth() + 1;
+  // ── Group exercises ───────────────────────────────────────────────────────
+  const exerciseGroups = Object.values(
+    workoutExercises.reduce(
+      (acc, obj) => {
+        const key = obj.exercise_name;
+        if (!acc[key]) acc[key] = { name: key, sets: [] };
+        acc[key].sets.push(obj);
+        return acc;
+      },
+      {} as Record<string, { name: string; sets: WorkoutExercise[] }>,
+    ),
+  );
 
-  // ── Metric chart value ────────────────────────────────────────────────────
-  const chartValue = (() => {
-    const cur = chartData.find((d) => d.month === month && d.year === year);
-    return cur?.value ?? 0;
-  })();
-
-  const metricValueStr = (() => {
-    if (activeMetric === "Workouts") return `${currentSummary.workouts}`;
-    if (activeMetric === "Duration")
-      return formatDuration(currentSummary.durationSec);
-    if (activeMetric === "Volume") return formatVolume(currentSummary.volumeKg);
-    return `${currentSummary.sets}`;
-  })();
-
-  const metrics: MetricKey[] = ["Workouts", "Duration", "Volume", "Sets"];
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  const workoutCount = workoutDays.length;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
@@ -512,9 +428,25 @@ export default function MonthlyReportScreen() {
         >
           <ChevronLeft size={26} color="#fff" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-white text-lg font-bold">
-          Monthly Report
-        </Text>
+        <View className="flex-1 flex-row items-center justify-center gap-x-3">
+          <TouchableOpacity
+            onPress={goToPrev}
+            className="p-1"
+            style={{ opacity: isJoinMonth ? 0.3 : 1 }}
+          >
+            <ChevronLeft size={18} color="#71717a" />
+          </TouchableOpacity>
+          <Text className="text-white text-lg font-black uppercase tracking-wide">
+            {MONTH_SHORT[month - 1]} {year}
+          </Text>
+          <TouchableOpacity
+            onPress={goToNext}
+            className="p-1"
+            style={{ opacity: isCurrentMonth ? 0.3 : 1 }}
+          >
+            <ChevronRight size={18} color="#71717a" />
+          </TouchableOpacity>
+        </View>
         <View className="w-9" />
       </View>
 
@@ -522,123 +454,291 @@ export default function MonthlyReportScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
       >
-        {/* ── MONTH NAVIGATOR ── */}
-        <View className="flex-row items-center justify-between px-6 pt-6 pb-2">
-          <TouchableOpacity onPress={goToPrevMonth} className="p-2">
-            <ChevronLeft size={24} color="white" />
-          </TouchableOpacity>
-          <View className="items-center">
-            <Text className="text-white text-2xl font-black uppercase">
-              {MONTH_LABELS[month - 1]} {year}
-            </Text>
-            {/* Current metric value for selected month */}
-            <Text style={{ color: RED }} className="text-3xl font-black mt-1">
-              {metricValueStr}
-            </Text>
-            <Text className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-0.5">
-              {activeMetric}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={goToNextMonth}
-            className="p-2"
-            style={{ opacity: isCurrentMonth ? 0.3 : 1 }}
-          >
-            <ChevronRight size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        {/* ── BAR CHART ── */}
-        <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-          <BarChart
-            data={chartData}
-            currentMonth={month}
-            currentYear={year}
-            metric={activeMetric}
-          />
-        </View>
-
-        {/* ── METRIC PILLS ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            gap: 8,
-            paddingVertical: 12,
-          }}
-        >
-          {metrics.map((m) => (
-            <TouchableOpacity
-              key={m}
-              onPress={() => setActiveMetric(m)}
+        {/* STATS */}
+        <View className="flex-row mx-4 gap-x-3 mt-5 mb-5">
+          {[
+            { label: "Workouts", value: `${workoutCount}` },
+            {
+              label: "Days trained",
+              value: `${workoutCount} / ${new Date(year, month, 0).getDate()}`,
+            },
+          ].map((s) => (
+            <View
+              key={s.label}
               style={{
-                backgroundColor: activeMetric === m ? RED : "#27272a",
-                borderRadius: 20,
-                paddingHorizontal: 18,
-                paddingVertical: 9,
+                flex: 1,
+                backgroundColor: "#111",
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: "#27272a",
+                padding: 14,
               }}
             >
               <Text
                 style={{
-                  color: activeMetric === m ? "#fff" : "#71717a",
+                  color: "#52525b",
+                  fontSize: 10,
                   fontWeight: "800",
-                  fontSize: 12,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  marginBottom: 4,
+                }}
+              >
+                {s.label}
+              </Text>
+              <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900" }}>
+                {s.value}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* CALENDAR */}
+        <View className="mx-4 bg-zinc-900/20 rounded-[28px] border border-zinc-800 overflow-hidden">
+          <Text
+            style={{
+              color: "#fff",
+              fontWeight: "900",
+              fontSize: 22,
+              textTransform: "uppercase",
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: 8,
+            }}
+          >
+            {MONTH_LABELS[month - 1]} {year}
+          </Text>
+
+          {/* Day headers */}
+          <View
+            style={{
+              flexDirection: "row",
+              paddingHorizontal: 8,
+              paddingBottom: 4,
+            }}
+          >
+            {DAY_LETTERS.map((l) => (
+              <Text
+                key={l}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  color: "#3f3f46",
+                  fontSize: 11,
+                  fontWeight: "800",
                   textTransform: "uppercase",
                 }}
               >
-                {m}
+                {l}
               </Text>
-            </TouchableOpacity>
+            ))}
+          </View>
+          <View
+            style={{
+              height: 1,
+              backgroundColor: "#27272a",
+              marginHorizontal: 12,
+              marginBottom: 4,
+            }}
+          />
+
+          {weeks.map((week, wi) => (
+            <View
+              key={wi}
+              style={{ flexDirection: "row", paddingHorizontal: 8 }}
+            >
+              {week.map((cell, di) => (
+                <DayCell
+                  key={di}
+                  cell={cell}
+                  onPress={() => cell.workout && openWorkout(cell.workout)}
+                />
+              ))}
+            </View>
           ))}
-        </ScrollView>
-
-        {/* ── DIVIDER ── */}
-        <View className="h-px bg-zinc-900 mx-4 mb-5" />
-
-        {/* ── SUMMARY SECTION ── */}
-        <View className="px-4">
-          <Text className="text-zinc-500 text-[11px] font-black uppercase tracking-widest mb-4">
-            Summary
-          </Text>
-
-          {/* Row 1: Workouts + Duration */}
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
-            <SummaryCard
-              label="Workouts"
-              value={`${currentSummary.workouts}`}
-              diff={getDiffLabel(currentSummary.workouts, prevSummary.workouts)}
-            />
-            <SummaryCard
-              label="Duration"
-              value={formatDuration(currentSummary.durationSec)}
-              diff={getDiffLabelFormatted(
-                currentSummary.durationSec,
-                prevSummary.durationSec,
-                "Duration",
-              )}
-            />
-          </View>
-
-          {/* Row 2: Volume + Sets */}
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 24 }}>
-            <SummaryCard
-              label="Volume"
-              value={formatVolume(currentSummary.volumeKg)}
-              diff={getDiffLabelFormatted(
-                currentSummary.volumeKg,
-                prevSummary.volumeKg,
-                "Volume",
-              )}
-            />
-            <SummaryCard
-              label="Sets"
-              value={`${currentSummary.sets}`}
-              diff={getDiffLabel(currentSummary.sets, prevSummary.sets)}
-            />
-          </View>
+          <View style={{ height: 12 }} />
         </View>
       </ScrollView>
+
+      {/* ── WORKOUT DETAIL MODAL ── */}
+      <Modal visible={showDetail} animationType="slide" transparent>
+        <View className="flex-1 bg-black/95 justify-end">
+          <View className="h-[92%] bg-[#050505] rounded-t-[50px] border-t border-[#E31C25]/40">
+            <View className="w-12 h-1.5 bg-zinc-800 rounded-full self-center mt-4" />
+
+            {/* Modal header */}
+            <View className="px-8 pt-8 pb-6">
+              <View className="flex-row items-center justify-between">
+                <TouchableOpacity
+                  onPress={() => setShowDetail(false)}
+                  className="w-12 h-12 bg-zinc-900 rounded-2xl items-center justify-center border border-zinc-800"
+                >
+                  <X size={20} color="white" />
+                </TouchableOpacity>
+                <View className="items-end flex-1 ml-4">
+                  <Text className="text-[#E31C25] text-[9px] font-black uppercase tracking-widest mb-1">
+                    {selectedWorkout ? formatDate(selectedWorkout.date) : ""}
+                  </Text>
+                  <Text
+                    className="text-white text-2xl font-black tracking-tighter"
+                    numberOfLines={1}
+                  >
+                    {selectedWorkout?.title || "Workout"}
+                  </Text>
+                  <View className="flex-row items-center mt-1">
+                    <Clock size={12} color={RED} />
+                    <Text
+                      style={{ color: RED }}
+                      className="text-xs font-black uppercase ml-1"
+                    >
+                      {selectedWorkout?.duration || "—"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Volume + Date row */}
+              <View className="flex-row mt-6 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-900 justify-around">
+                <View className="items-center">
+                  <Text className="text-zinc-500 text-[8px] font-black uppercase mb-1">
+                    Volume Total
+                  </Text>
+                  <Text className="text-white font-black">
+                    {selectedWorkout?.total_volume ?? 0}
+                    {weightUnitLower}
+                  </Text>
+                </View>
+                <View className="w-[1px] bg-zinc-800" />
+                <View className="items-center">
+                  <Text className="text-zinc-500 text-[8px] font-black uppercase mb-1">
+                    Date
+                  </Text>
+                  <Text className="text-white font-black">
+                    {selectedWorkout
+                      ? new Date(selectedWorkout.date).toLocaleDateString(
+                          "en-US",
+                        )
+                      : "--"}
+                  </Text>
+                </View>
+              </View>
+
+              {selectedWorkout?.photo && (
+                <View className="mt-4 rounded-3xl overflow-hidden border border-zinc-800">
+                  <Image
+                    source={{ uri: selectedWorkout.photo }}
+                    style={{ width: "100%", height: 180 }}
+                    resizeMode="cover"
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Exercises */}
+            {detailLoading ? (
+              <View className="flex-1 justify-center items-center">
+                <ActivityIndicator color={RED} size="large" />
+              </View>
+            ) : (
+              <ScrollView
+                className="px-6"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 100 }}
+              >
+                {exerciseGroups.map((group, idx) => (
+                  <View
+                    key={idx}
+                    className="mb-6 bg-zinc-900/20 rounded-[32px] p-6 border border-zinc-900"
+                  >
+                    {/* Exercise name */}
+                    <View className="flex-row items-center justify-between mb-4">
+                      <Text className="text-[#E31C25] text-lg font-black uppercase tracking-tighter flex-1 mr-2">
+                        {group.name}
+                      </Text>
+                    </View>
+
+                    {/* Sets header */}
+                    <View className="flex-row mb-3 px-2">
+                      <Text className="text-zinc-600 text-[8px] font-black uppercase w-8">
+                        Set
+                      </Text>
+                      <Text className="text-zinc-600 text-[8px] font-black uppercase flex-1 text-center">
+                        Type
+                      </Text>
+                      <Text className="text-zinc-600 text-[8px] font-black uppercase w-20 text-center">
+                        {isCardio(group.sets[0]?.muscle_group)
+                          ? "Dist."
+                          : "Weight"}
+                      </Text>
+                      <Text className="text-zinc-600 text-[8px] font-black uppercase w-24 text-right">
+                        {isCardio(group.sets[0]?.muscle_group)
+                          ? "Time"
+                          : "Reps"}
+                      </Text>
+                    </View>
+
+                    {/* Sets rows */}
+                    {group.sets.map((set, sIdx) => {
+                      const { label, bg, text } = getSetTypeStyle(set.set_type);
+                      return (
+                        <View
+                          key={sIdx}
+                          className="flex-row items-center py-3 border-b border-zinc-800/30 px-2"
+                        >
+                          <Text className="text-zinc-500 font-black w-8">
+                            {sIdx + 1}
+                          </Text>
+                          <View className="flex-1 items-center">
+                            <View className={`px-2 py-0.5 rounded-md ${bg}`}>
+                              <Text className={`text-[8px] font-black ${text}`}>
+                                {label}
+                              </Text>
+                            </View>
+                          </View>
+                          <View className="w-20 flex-row items-center justify-center">
+                            <Text
+                              className="text-white font-black text-center"
+                              numberOfLines={1}
+                            >
+                              {isCardio(set.muscle_group)
+                                ? `${parseFloat(String(set.distance ?? set.weight ?? 0).replace(",", "."))}km`
+                                : `${set.weight}${weightUnitLower}`}
+                            </Text>
+                            {set.is_personal_record === 1 && (
+                              <Trophy
+                                size={10}
+                                color="#FFD700"
+                                style={{ marginLeft: 2 }}
+                              />
+                            )}
+                          </View>
+                          <Text
+                            className="text-zinc-200 font-black w-24 text-right"
+                            numberOfLines={1}
+                          >
+                            {isCardio(set.muscle_group)
+                              ? (set.time ?? "00:00:00")
+                              : set.reps}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
+
+                {selectedWorkout?.notes ? (
+                  <View className="mt-2 p-6 bg-zinc-900/10 border border-dashed border-zinc-800 rounded-[32px]">
+                    <Text className="text-zinc-500 text-[10px] font-black uppercase mb-2">
+                      Notes
+                    </Text>
+                    <Text className="text-zinc-300 text-sm">{`"${selectedWorkout.notes}"`}</Text>
+                  </View>
+                ) : null}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

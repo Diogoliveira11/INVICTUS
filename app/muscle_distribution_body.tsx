@@ -8,7 +8,6 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import Body, { Slug } from "react-native-body-highlighter";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// ─── tipos ────────────────────────────────────────────────────────────────────
 interface MuscleSet {
   muscle_group: string;
   sets: number;
@@ -22,7 +21,14 @@ interface WeekDay {
   hasWorkout: boolean;
 }
 
-// ─── helpers semana ───────────────────────────────────────────────────────────
+// Converte Date para "YYYY-MM-DD" usando hora LOCAL (evita desfasamento UTC)
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function getWeekDays(offset: number): {
   days: Omit<WeekDay, "hasWorkout">[];
   label: string;
@@ -30,9 +36,9 @@ function getWeekDays(offset: number): {
   sunday: Date;
 } {
   const now = new Date();
-  const day = now.getDay();
+  const dayOfWeek = now.getDay();
   const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
+  monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7) + offset * 7);
   monday.setHours(0, 0, 0, 0);
 
   const letters = ["M", "T", "W", "T", "F", "S", "S"];
@@ -48,7 +54,10 @@ function getWeekDays(offset: number): {
     });
   }
 
-  const sunday = days[6].date;
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
   const months = [
     "January",
     "February",
@@ -73,7 +82,6 @@ function getWeekDays(offset: number): {
   return { days, label, monday, sunday };
 }
 
-// ─── mapa: muscle_group da BD → Slug do body-highlighter ─────────────────────
 const MUSCLE_SLUG_MAP: Record<string, Slug[]> = {
   chest: ["chest"],
   pectorals: ["chest"],
@@ -104,9 +112,10 @@ const MUSCLE_SLUG_MAP: Record<string, Slug[]> = {
 };
 
 const MUSCLE_LIST = [
-  "Abdominals",
+  "Abs",
   "Abductors",
   "Adductors",
+  "Back",
   "Biceps",
   "Calves",
   "Cardio",
@@ -114,16 +123,11 @@ const MUSCLE_LIST = [
   "Forearms",
   "Glutes",
   "Hamstrings",
-  "Hip Flexors",
   "Lats",
-  "Lower Back",
-  "Neck",
-  "Obliques",
-  "Quads",
+  "Quadriceps",
   "Shoulders",
   "Traps",
   "Triceps",
-  "Upper Back",
 ];
 
 function intensityLevel(intensity: number): 1 | 2 | 3 {
@@ -133,12 +137,11 @@ function intensityLevel(intensity: number): 1 | 2 | 3 {
 }
 
 function intensityToColor(intensity: number): string {
-  if (intensity <= 0.33) return "#8B0010";
-  if (intensity <= 0.66) return "#C41C25";
-  return "#E31C25";
+  if (intensity <= 0.33) return "#520000";
+  if (intensity <= 0.66) return "#960600";
+  return "#FF1C25";
 }
 
-// ─── componente principal ─────────────────────────────────────────────────────
 export default function MuscleDistributionBodyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -154,9 +157,10 @@ export default function MuscleDistributionBodyScreen() {
 
   const { days: rawDays, label, monday, sunday } = getWeekDays(weekOffset);
 
+  // usa toLocalDateStr para comparar com workoutDays (ambos em local)
   const days: WeekDay[] = rawDays.map((d) => ({
     ...d,
-    hasWorkout: workoutDays.has(d.date.toISOString().split("T")[0]),
+    hasWorkout: workoutDays.has(toLocalDateStr(d.date)),
   }));
 
   const selectedDate = days[selectedDayIdx]?.date;
@@ -170,13 +174,24 @@ export default function MuscleDistributionBodyScreen() {
         [email],
       );
       if (!userRow) return;
-      const mondayStr = monday.toISOString().split("T")[0];
-      const sundayStr = sunday.toISOString().split("T")[0];
+
+      // Usa local date string para BETWEEN
+      const mondayStr = toLocalDateStr(monday);
+      const sundayStr = toLocalDateStr(sunday);
+
+      // SQLite: date() extrai YYYY-MM-DD de qualquer formato (ISO ou DATE)
+      // Como os treinos foram gravados com toISOString() (ex: 2026-05-09T22:30Z)
+      // o date() em SQLite usa UTC → pode dar dia errado em GMT+1
+      // Por isso usamos strftime com o offset local
       const rows = await db.getAllAsync<{ date: string }>(
-        `SELECT DISTINCT date(date) as date FROM workouts
-         WHERE user_id = ? AND date(date) BETWEEN ? AND ?`,
+        `SELECT DISTINCT strftime('%Y-%m-%d', date, 'localtime') as date 
+         FROM workouts
+         WHERE user_id = ? 
+         AND strftime('%Y-%m-%d', date, 'localtime') BETWEEN ? AND ?
+         AND title NOT LIKE 'SEED_%'`,
         [userRow.id, mondayStr, sundayStr],
       );
+
       setWorkoutDays(new Set(rows.map((r) => r.date)));
     } catch (e) {
       console.error("[MuscleDistBody] loadWorkoutDays:", e);
@@ -193,18 +208,29 @@ export default function MuscleDistributionBodyScreen() {
         [email],
       );
       if (!userRow) return;
-      const dateStr = selectedDate.toISOString().split("T")[0];
+
+      // Data local do dia selecionado
+      const dateStr = toLocalDateStr(selectedDate);
+
       const rows = await db.getAllAsync<MuscleSet>(
         `SELECT e.muscle_group, COUNT(ws.id) as sets
-         FROM workout_sets ws
-         JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-         JOIN exercises e ON ws.exercise_id = e.id
-         JOIN workouts w ON we.workout_id = w.id
-         WHERE w.user_id = ? AND date(w.date) = ?
-         GROUP BY e.muscle_group
-         ORDER BY sets DESC`,
+        FROM workout_sets ws
+        JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+        JOIN exercises e ON ws.exercise_id = e.id
+        JOIN workouts w ON we.workout_id = w.id
+        WHERE w.user_id = ? 
+        AND strftime('%Y-%m-%d', w.date, 'localtime') = ?
+        AND w.title NOT LIKE 'SEED_%'
+        GROUP BY e.muscle_group
+        ORDER BY sets DESC`,
         [userRow.id, dateStr],
       );
+
+      console.log("[DEBUG] muscleSets raw:", JSON.stringify(rows)); // ← AQUI
+
+      console.log("[DEBUG] muscleSets:", JSON.stringify(rows)); // ← aqui
+      console.log("[DEBUG] dateStr usado:", dateStr); // ← e aqui
+
       setMuscleSets(rows);
       setTotalSets(rows.reduce((acc, r) => acc + r.sets, 0));
     } catch (e) {
@@ -221,7 +247,6 @@ export default function MuscleDistributionBodyScreen() {
 
   const maxSets = Math.max(...muscleSets.map((m) => m.sets), 1);
 
-  // Constrói bodyData com tipo correto: { slug: Slug; intensity: number; color: string }[]
   const bodyData: { slug: Slug; intensity: number; color: string }[] = [];
   const seenSlugs = new Set<Slug>();
 
@@ -235,7 +260,7 @@ export default function MuscleDistributionBodyScreen() {
         bodyData.push({
           slug,
           intensity: level,
-          color: level === 1 ? "#3D0000" : level === 2 ? "#C41C25" : "#FF1C25",
+          color: level === 1 ? "#520000" : level === 2 ? "#960600" : "#FF1C25",
         });
       }
     });
@@ -250,7 +275,6 @@ export default function MuscleDistributionBodyScreen() {
     <View className="flex-1 bg-[#0a0a0a]">
       <StatusBar style="light" />
 
-      {/* HEADER */}
       <View
         style={{ paddingTop: insets.top + 8 }}
         className="flex-row items-center px-4 pb-3 border-b border-[#1f1f1f] bg-[#0a0a0a]"
@@ -337,13 +361,13 @@ export default function MuscleDistributionBodyScreen() {
         </View>
 
         {/* BODY HIGHLIGHTER */}
-        <View className="flex-row justify-center gap-x-4 bg-[#0d0d0d] mx-4 rounded-3xl py-6 mb-2 border border-[#1f1f1f]">
+        <View className="flex-row justify-center gap-x-2 bg-[#0d0d0d] mx-4 rounded-3xl py-4 mb-2 border border-[#1f1f1f]">
           <Body
             data={bodyData}
             gender="male"
             side="front"
-            scale={0.8}
-            colors={["#3D0000", "#C41C25", "#FF1C25"]}
+            scale={0.65}
+            colors={["#520000", "#960600", "#FF1C25"]}
             defaultFill="#1e1e22"
             border="none"
           />
@@ -351,8 +375,8 @@ export default function MuscleDistributionBodyScreen() {
             data={bodyData}
             gender="male"
             side="back"
-            scale={0.8}
-            colors={["#3D0000", "#C41C25", "#FF1C25"]}
+            scale={0.65}
+            colors={["#520000", "#960600", "#FF1C25"]}
             defaultFill="#1e1e22"
             border="none"
           />
@@ -361,7 +385,7 @@ export default function MuscleDistributionBodyScreen() {
         {/* LEGENDA */}
         <View className="flex-row items-center justify-center gap-x-5 mt-3 mb-1">
           {(["Low", "Mid", "Max"] as const).map((lbl, i) => {
-            const colors = ["#8B0010", "#C41C25", "#E31C25"];
+            const colors = ["#520000", "#960600", "#FF1C25"];
             return (
               <View key={lbl} className="flex-row items-center gap-x-1.5">
                 <View
@@ -380,7 +404,6 @@ export default function MuscleDistributionBodyScreen() {
           })}
         </View>
 
-        {/* DIVIDER */}
         <View className="h-[1px] bg-[#1f1f1f] mx-4 mt-4" />
 
         {/* TABELA */}
@@ -395,7 +418,7 @@ export default function MuscleDistributionBodyScreen() {
           </View>
           <View className="flex-row justify-between py-4 border-b border-[#1f1f1f]">
             <Text className="text-white font-bold text-sm">Total</Text>
-            <Text className="text-[#E31C25] font-black text-sm">
+            <Text className="text-[#FF1C25] font-black text-sm">
               {totalSets}
             </Text>
           </View>
@@ -426,7 +449,7 @@ export default function MuscleDistributionBodyScreen() {
                 </View>
                 <Text
                   className="text-sm font-bold"
-                  style={{ color: sets > 0 ? "#E31C25" : "#3f3f46" }}
+                  style={{ color: sets > 0 ? "#FF1C25" : "#3f3f46" }}
                 >
                   {sets}
                 </Text>

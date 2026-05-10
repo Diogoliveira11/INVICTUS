@@ -2,15 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
+import { StatusBar } from "expo-status-bar";
 import { ChevronDown, ChevronLeft, Dumbbell } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IMAGE_MAP } from "../constants/exercise_images";
@@ -101,44 +102,28 @@ export default function MainExercisesScreen() {
   }, [loadExercises]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#000", paddingTop: insets.top }}>
-      {/* Header */}
+    <View className="flex-1 bg-[#0a0a0a]">
+      <StatusBar style="light" />
+
+      {/* HEADER */}
       <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 24,
-          paddingVertical: 16,
-          borderBottomWidth: 1,
-          borderBottomColor: "#18181b",
-        }}
+        style={{ paddingTop: insets.top + 8 }}
+        className="flex-row items-center px-4 pb-3 border-b border-[#1f1f1f] bg-[#0a0a0a]"
       >
         <TouchableOpacity
           onPress={() => router.back()}
-          style={{
-            backgroundColor: "#18181b",
-            padding: 8,
-            borderRadius: 999,
-            marginRight: 16,
-          }}
+          className="w-9 h-9 items-center justify-center"
         >
-          <ChevronLeft color="white" size={24} />
+          <ChevronLeft size={26} color="#fff" />
         </TouchableOpacity>
-        <Text
-          style={{
-            color: "white",
-            fontSize: 20,
-            fontWeight: "900",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-          }}
-        >
+        <Text className="flex-1 text-center text-white text-lg font-bold">
           Main Exercises
         </Text>
+        <View className="w-9" />
       </View>
 
       {/* Filter button */}
-      <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 }}>
+      <View className="px-6 pt-4 pb-2">
         <TouchableOpacity
           onPress={() => setShowFilterModal(true)}
           style={{
@@ -163,20 +148,11 @@ export default function MainExercisesScreen() {
 
       {/* Content */}
       {loading ? (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator color="#E31C25" size="large" />
         </View>
       ) : exercises.length === 0 ? (
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            paddingHorizontal: 40,
-          }}
-        >
+        <View className="flex-1 justify-center items-center px-10">
           <Dumbbell color="#27272a" size={56} />
           <Text
             style={{

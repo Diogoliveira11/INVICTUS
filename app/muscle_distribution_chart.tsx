@@ -15,8 +15,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Polygon, Text as SvgText } from "react-native-svg";
 
-import { clearSeedData, seedOldWorkouts } from "./seedTestData";
-
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 type Period =
   | "Last 7 days"
@@ -465,9 +463,7 @@ export default function MuscleDistributionChartScreen() {
   }, [db, period]);
 
   useEffect(() => {
-    clearSeedData(db)
-      .then(() => seedOldWorkouts(db))
-      .then(() => loadData());
+    loadData();
   }, [loadData]);
 
   const radarSize = Math.min(Dimensions.get("window").width - 40, 320);
@@ -487,8 +483,8 @@ export default function MuscleDistributionChartScreen() {
         >
           <ChevronLeft size={24} color="#fff" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-white text-[17px] font-black uppercase tracking-tight">
-          Muscle Distribution
+        <Text className="flex-1 text-center text-white text-lg font-bold">
+          Muscle distribution
         </Text>
         <View className="w-9" />
       </View>
@@ -511,22 +507,6 @@ export default function MuscleDistributionChartScreen() {
         {/* Radar */}
         <View className="items-center mt-6 mb-4">
           <RadarChart data={muscleData} size={radarSize} />
-        </View>
-
-        {/* Legend */}
-        <View className="flex-row justify-center gap-6 mb-8">
-          <View className="flex-row items-center gap-2">
-            <View className="w-2.5 h-2.5 rounded-full bg-[#E31C25]" />
-            <Text className="text-zinc-400 text-[11px] font-bold uppercase">
-              Current
-            </Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            <View className="w-2.5 h-2.5 rounded-full bg-[#3f3f46]" />
-            <Text className="text-zinc-400 text-[11px] font-bold uppercase">
-              Previous
-            </Text>
-          </View>
         </View>
 
         {/* Stats */}

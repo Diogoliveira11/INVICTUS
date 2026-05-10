@@ -698,11 +698,15 @@ export default function ExerciseDetailScreen() {
   };
 
   const handleBack = () => {
-    if (from === "workout")
+    if (from === "workout") {
       router.replace("/(tabs)/workout/log_workout" as any);
-    else if (from === "new_routine")
+    } else if (from === "new_routine") {
       router.replace("/(tabs)/workout/new_routine" as any);
-    else router.replace("/(tabs)/workout/explore_exercises" as any);
+    } else if (from === "stats") {
+      router.replace("/mainexercises" as any);
+    } else {
+      router.replace("/(tabs)/workout/explore_exercises" as any);
+    }
   };
 
   const handleDeleteConfirm = async () => {

@@ -356,7 +356,7 @@ export default function SaveWorkoutScreen() {
         "INSERT INTO workouts (user_id, date, title, duration, notes, total_volume, photo) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           user.id,
-          new Date().toISOString(),
+          new Date().toLocaleDateString("en-CA"),
           String(routineName).trim(),
           timer,
           description,
@@ -372,6 +372,7 @@ export default function SaveWorkoutScreen() {
       const newWorkoutId = insertedWorkout!.id;
 
       for (const ex of exercises) {
+        // Busca o MAX antes de inserir
         const lastWEx = await db.getFirstAsync<{ id: number }>(
           "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
         );
@@ -404,9 +405,8 @@ export default function SaveWorkoutScreen() {
             const newSetId = lastSet!.id + 1;
 
             await db.runAsync(
-              "INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record, distance, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              "INSERT INTO workout_sets (workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record, distance, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
               [
-                newSetId,
                 workoutExerciseId,
                 ex.id,
                 weightValue,
