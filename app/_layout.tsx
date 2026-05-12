@@ -14,7 +14,6 @@ import { Suspense, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import "../global.css";
 
-import { useNetworkSync } from "../src/useNetworkSync";
 import { UnitsProvider } from "./(tabs)/context/units_context";
 import { WorkoutProvider } from "./(tabs)/context/workoutcontext";
 
@@ -39,11 +38,6 @@ async function loadDatabase(): Promise<void> {
     ).downloadAsync();
     await FileSystem.copyAsync({ from: asset.localUri!, to: dbPath });
   }
-}
-
-function NetworkSyncActivator() {
-  useNetworkSync();
-  return null;
 }
 
 export default function RootLayout() {
@@ -108,7 +102,6 @@ export default function RootLayout() {
             <ThemeProvider
               value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
             >
-              <NetworkSyncActivator />
               <View style={{ flex: 1 }}>
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />

@@ -35,7 +35,6 @@ import {
   View,
 } from "react-native";
 import { clearActiveWorkout } from "../../../src/activeWorkout";
-import { addToSyncQueue } from "../../../src/syncQueue";
 import { useUnits } from "../context/units_context";
 import { useWorkout } from "../context/workoutcontext";
 
@@ -440,16 +439,6 @@ export default function SaveWorkoutScreen() {
           }
         }
       }
-
-      // Adicionar à fila de sincronização
-      await addToSyncQueue(db, "WORKOUT_COMPLETED", {
-        routineId,
-        routineName,
-        totalVolume: stats.totalVolume,
-        totalSets: stats.totalSets,
-        duration: timer,
-        completedAt: new Date().toISOString(),
-      });
 
       // Limpar treino ativo após guardar com sucesso
       await clearActiveWorkout(db);
