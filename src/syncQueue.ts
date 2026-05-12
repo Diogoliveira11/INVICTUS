@@ -1,7 +1,7 @@
 // src/syncQueue.ts
 import { SQLiteDatabase } from "expo-sqlite";
 
-const SERVER_URL = "https://teu-servidor.com/api"; // mudar quando tiveres o servidor
+const SERVER_URL = "https://teu-servidor.com/api";
 
 // Adiciona um item à fila de sincronização
 export const addToSyncQueue = async (
