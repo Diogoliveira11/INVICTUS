@@ -168,7 +168,7 @@ export default function NewRoutineScreen() {
           );
           setSelectedExercises(exes);
         } catch (error) {
-          console.error("Erro ao carregar rotina para edição:", error);
+          console.error("Error loading routine for editing:", error);
         }
       })();
     }
@@ -185,7 +185,7 @@ export default function NewRoutineScreen() {
       );
       setEquipmentOptions(equipment.map((e) => e.equipment));
     } catch (error) {
-      console.error("Erro ao carregar opções:", error);
+      console.error("Error loading options:", error);
     }
   }, [db]);
 
@@ -210,7 +210,7 @@ export default function NewRoutineScreen() {
       const rows = await db.getAllAsync<Exercise>(query, queryParams);
       setDbExercises(rows);
     } catch (error) {
-      console.error("Erro modal:", error);
+      console.error("Modal error:", error);
     }
   }, [search, selectedMuscle, selectedEquipment, db]);
 
@@ -475,7 +475,7 @@ export default function NewRoutineScreen() {
               )}
             />
 
-            {/* MODAL DE FILTROS — DENTRO do modal de seleção */}
+            {/* MODAL DE FILTROS */}
             <Modal
               visible={isFilterModalVisible}
               transparent

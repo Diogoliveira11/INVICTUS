@@ -68,7 +68,7 @@ type WorkoutContextType = {
   startWorkout: (name: string, initialSeconds?: number) => void;
 };
 
-// Fora do componente — configura como as notificações se comportam quando a app está em foreground
+// Configura como as notificações se comportam quando a app está em foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -158,7 +158,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       clearInterval(masterInterval);
       subscription.remove();
     };
-  }, [isActive]);
+  }, [isActive, seconds]);
 
   // Timer de duração do treino
   useEffect(() => {
@@ -177,7 +177,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isActive]);
+  }, [isActive, seconds]);
 
   useEffect(() => {
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
@@ -203,7 +203,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     };
-  }, [restTimer === null, isActive]);
+  }, [restTimer, isActive]);
 
   const scheduleRestNotification = async (secs: number) => {
     const targetTime = Date.now() + secs * 1000;
@@ -213,8 +213,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       await Notifications.cancelAllScheduledNotificationsAsync();
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "Rest period over! 🔔",
-          body: "Time for the next series.",
+          title: "Rest period over!",
+          body: "Time for the next series!",
           sound: true,
         },
         trigger: {
@@ -224,7 +224,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         },
       });
     } catch (e) {
-      console.log("Erro ao agendar notificação:", e);
+      console.log("Error scheduling notification:", e);
     }
   };
 
@@ -277,7 +277,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const setIndex = prev[exIndex].sets.findIndex((s) => s.id === setId);
         if (setIndex === -1) return prev;
 
-        // Se o valor for exatamente igual ao anterior, não atualiza o estado (evita re-render)
+        // Se o valor for exatamente igual ao anterior, não atualiza o estado
         if (prev[exIndex].sets[setIndex][field as keyof WorkoutSet] === value) {
           return prev;
         }

@@ -48,7 +48,7 @@ export default function WorkOutSchedule() {
       const userEmail = await AsyncStorage.getItem("userEmail");
 
       if (!userEmail) {
-        console.error("❌ [Schedule] Erro: userEmail não encontrado!");
+        console.error("[Schedule] Erro: userEmail not found!");
         Alert.alert("Error", "Session expired. Please sign up again.");
         router.replace("/auth/signup");
         return;
@@ -59,7 +59,7 @@ export default function WorkOutSchedule() {
 
       // Mostra os dados do utilizador atual
       const user = await getUserByEmail(db, userEmail);
-      console.log("[FINAL] Dados guardados:", user);
+      console.log("[FINAL] Saved data:", user);
 
       // MOSTRA O TOTAL DE UTILIZADORES NO TERMINAL
       await printDatabaseStats(db);
@@ -68,7 +68,7 @@ export default function WorkOutSchedule() {
       await AsyncStorage.setItem("profileComplete", "true");
       router.replace("/(tabs)/home");
     } catch (e: any) {
-      console.error("❌ [Schedule] Erro:", e.message);
+      console.error("[Schedule] Erro:", e.message);
       Alert.alert("Error", "Failed to save your schedule.");
     }
   };

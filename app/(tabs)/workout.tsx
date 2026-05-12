@@ -46,7 +46,7 @@ export default function WorkoutTabScreen() {
     try {
       await db.execAsync("PRAGMA foreign_keys = ON;");
 
-      // 1. Pegar o email e o ID do utilizador logado
+      // Pegar o email e o ID do utilizador logado
       const email = await AsyncStorage.getItem("userEmail");
       const userRow = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM users WHERE email = ?",
@@ -55,7 +55,7 @@ export default function WorkoutTabScreen() {
 
       if (!userRow) return;
 
-      // 2. Query com o filtro WHERE r.user_id = ?
+      // Query com o filtro WHERE r.user_id = ?
       const query = `
         SELECT 
           r.id, 
@@ -72,7 +72,7 @@ export default function WorkoutTabScreen() {
       const result = await db.getAllAsync<Routine>(query, [userRow.id]);
       setRoutines(result);
     } catch (e) {
-      console.error("Erro ao carregar rotinas:", e);
+      console.error("Error loading routines:", e);
 
       // Fallback filtrado também!
       try {
@@ -83,7 +83,7 @@ export default function WorkoutTabScreen() {
         );
         setRoutines(simpleResult);
       } catch (innerError) {
-        console.error("Erro no fallback:", innerError);
+        console.error("Fallback error:", innerError);
       }
     }
   }, [db]);
@@ -118,7 +118,7 @@ export default function WorkoutTabScreen() {
       setTimeout(() => setShowDeleteSuccessModal(true), 300);
       loadRoutines();
     } catch (e) {
-      console.error("Erro ao apagar:", e);
+      console.error("Error while deleting:", e);
     }
   };
 

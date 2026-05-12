@@ -27,9 +27,7 @@ export default function GenderSelection() {
       const userEmail = await AsyncStorage.getItem("userEmail");
 
       if (!userEmail) {
-        console.error(
-          "❌ [Onboarding] Erro: userEmail não encontrado no Storage!",
-        );
+        console.error("[Onboarding] Erro: userEmail not found in Storage!");
         Alert.alert("Error", "User session not found. Please sign up again.");
         router.replace("/auth/signup");
         return;
@@ -42,7 +40,7 @@ export default function GenderSelection() {
       // 3. Avançar para o próximo ecrã
       router.replace("/birthday");
     } catch (e) {
-      console.error("❌ [Onboarding] Erro ao guardar gender:", e);
+      console.error("[Onboarding] Error saving the gender:", e);
       Alert.alert("Error", "Failed to save your selection. Try again.");
     }
   };
@@ -60,7 +58,6 @@ export default function GenderSelection() {
           </Text>
         </View>
 
-        {/* Selection Cards */}
         <View className="items-center" style={{ gap: 40 }}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -89,9 +86,9 @@ export default function GenderSelection() {
           </TouchableOpacity>
         </View>
 
-        {/* Button */}
+        {/* BOTÃO */}
         <View className="flex-row justify-between items-center mb-2">
-          {/* Back Button */}
+          {/* BOTÃO VOLTAR */}
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
             onPress={() => router.replace("/units")}
@@ -99,7 +96,7 @@ export default function GenderSelection() {
             <ArrowLeft color="white" size={24} />
           </TouchableOpacity>
 
-          {/* Next Button */}
+          {/* PRÓXIMO BOTÃO */}
           <TouchableOpacity
             disabled={!isReady}
             activeOpacity={0.8}

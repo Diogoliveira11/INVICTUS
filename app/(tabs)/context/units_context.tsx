@@ -36,7 +36,7 @@ export function UnitsProvider({ children }: { children: React.ReactNode }) {
           setHeightUnitState(row.height_unit as HeightUnit);
         }
       } catch (e) {
-        console.error("Erro ao carregar unidades da BD:", e);
+        console.error("Error loading database tables:", e);
       }
     }
     loadUnits();

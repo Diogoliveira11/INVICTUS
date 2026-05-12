@@ -67,7 +67,7 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  // Modal states
+  // Estatisticas Modal
   const [showConfirmImport, setShowConfirmImport] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
@@ -96,7 +96,6 @@ export default function SettingsScreen() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
-      // Remove o Alert interno do importUserData
       const user = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM users WHERE email = ?",
         [email],
@@ -285,7 +284,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* CONFIRM IMPORT MODAL */}
+      {/* MODAL confirmação */}
       <Modal visible={showConfirmImport} transparent animationType="fade">
         <View
           style={{
@@ -382,7 +381,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* SUCCESS MODAL */}
+      {/* MODAL SUCESSO */}
       <Modal visible={showSuccess} transparent animationType="fade">
         <View
           style={{
@@ -464,7 +463,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* ERROR MODAL */}
+      {/* MODAL ERRO */}
       <Modal visible={showError} transparent animationType="fade">
         <View
           style={{

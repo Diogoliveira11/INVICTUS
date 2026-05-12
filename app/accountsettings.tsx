@@ -99,8 +99,6 @@ export default function AccountSettingsScreen() {
         require("@react-native-async-storage/async-storage").default;
       const email = await AsyncStorage.getItem("userEmail");
 
-      console.log("DEBUG delete - email:", email, "pass:", deletePassword);
-
       if (!email) {
         setDeleteError("Session expired. Please login again.");
         return;
@@ -110,8 +108,6 @@ export default function AccountSettingsScreen() {
         "SELECT id FROM users WHERE email = ? AND pass = ?",
         [email, deletePassword],
       );
-
-      console.log("DEBUG delete - user encontrado:", user);
 
       if (!user) {
         setDeleteError("Incorrect password.");
@@ -189,7 +185,6 @@ export default function AccountSettingsScreen() {
   };
 
   const handleUpdatePass = async () => {
-    console.log("DEBUG: Tentando atualizar para o email:", userEmail);
     if (!password || !newVal) {
       setErrorMessage("Please fill in all fields.");
       return;
@@ -464,7 +459,7 @@ export default function AccountSettingsScreen() {
         </View>
       </Modal>
 
-      {/* MODAL: CHANGE EMAIL */}
+      {/* MODAL: TROCAR EMAIL */}
       <Modal animationType="slide" transparent visible={isEmailModalVisible}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -536,7 +531,7 @@ export default function AccountSettingsScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODAL: UPDATE PASSWORD */}
+      {/* MODAL: ATUALIZAR PASSWORD */}
       <Modal animationType="slide" transparent visible={isPassModalVisible}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -598,7 +593,7 @@ export default function AccountSettingsScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODAL: SUCCESS CUSTOMIZADO */}
+      {/* MODAL: SUCESSO CUSTOMIZADO */}
       <Modal transparent visible={isSuccessModalVisible} animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/90 px-8">
           <View className="bg-[#18181B] border border-zinc-800 p-8 rounded-[40px] items-center w-full">

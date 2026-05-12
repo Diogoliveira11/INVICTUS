@@ -1,4 +1,3 @@
-// src/activeWorkout.ts
 import { SQLiteDatabase } from "expo-sqlite";
 
 export const saveActiveWorkoutExercises = async (
@@ -24,11 +23,11 @@ export const createActiveWorkout = async (
      VALUES (?, ?, ?, ?)`,
     [routineId, routineName, now, now],
   );
-  console.log("✅ [DB] Treino ativo criado, id:", result.lastInsertRowId);
+  console.log("[DB] Active workout created, id:", result.lastInsertRowId);
   return result.lastInsertRowId;
 };
 
-// Guarda ou atualiza uma série no SQLite (chamado a cada série completada)
+// Guarda ou atualiza uma série no SQLite
 export const upsertActiveWorkoutSet = async (
   db: SQLiteDatabase,
   workoutId: number,
@@ -70,9 +69,6 @@ export const upsertActiveWorkoutSet = async (
     now,
     workoutId,
   ]);
-  console.log(
-    `✅ [DB] Série ${setData.id} guardada (completed: ${setData.completed})`,
-  );
 };
 
 // Lê o treino ativo da BD (para recuperação após crash)
@@ -83,7 +79,7 @@ export const getActiveWorkout = async (db: SQLiteDatabase) => {
     routine_name: string;
     started_at: string;
     updated_at: string;
-    exercises_json: string | null; // ← adiciona esta linha
+    exercises_json: string | null;
   }>("SELECT * FROM active_workout ORDER BY id DESC LIMIT 1");
 
   if (!workout) return null;
@@ -111,5 +107,4 @@ export const getActiveWorkout = async (db: SQLiteDatabase) => {
 export const clearActiveWorkout = async (db: SQLiteDatabase): Promise<void> => {
   await db.runAsync("DELETE FROM active_workout_sets");
   await db.runAsync("DELETE FROM active_workout");
-  console.log("🗑️ [DB] Treino ativo limpo");
 };

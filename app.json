@@ -14,7 +14,7 @@
         "NSCameraUsageDescription": "We need camera access to add exercise photos.",
         "NSPhotoLibraryUsageDescription": "We need gallery access to choose exercise photos.",
         "NSPhotoLibraryAddUsageDescription": "We need gallery access to save exercise photos.",
-        "NSFaceIDUsageDescription": "Permitir que o INVICTUS utilize FaceID para acesso rápido."
+        "NSFaceIDUsageDescription": "Allow INVICTUS to use Face ID for quick access."
       }
     },
     "android": {
@@ -73,7 +73,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermissionText": "Permitir que o INVICTUS utilize FaceID para acesso rápido."
+          "faceIDPermissionText": "Allow INVICTUS to use Face ID for quick access."
         }
       ]
     ],

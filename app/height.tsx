@@ -66,8 +66,6 @@ export default function HeightSelection() {
         numericValue = parseFloat(cmValue);
       } else {
         heightToSave = `${ftValue}.${inValue}`;
-        // Alteração aqui: Convertemos para decimal simples (ex: 5 + 7/10 = 5.7)
-        // Isso garante que 5'7 se torne 5.7 e não 5.07
         numericValue = parseFloat(ftValue) + parseFloat(inValue) / 10;
       }
 
@@ -75,7 +73,7 @@ export default function HeightSelection() {
       await updateUserHeight(db, userEmail, heightToSave);
       await AsyncStorage.setItem("userHeightUnit", unit);
 
-      // 2. Garante que a tabela de medições existe (mesmo schema do weight)
+      // 2. Garante que a tabela de medições existe
       await db.runAsync(`
         CREATE TABLE IF NOT EXISTS body_measurements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,7 +92,7 @@ export default function HeightSelection() {
 
       router.replace("/workoutschedule");
     } catch (e) {
-      console.error("❌ Erro ao guardar height:", e);
+      console.error("Error saving height:", e);
       Alert.alert("Error", "Could not save height.");
     }
   };

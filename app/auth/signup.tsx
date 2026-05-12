@@ -49,7 +49,7 @@ export default function SignupScreen() {
 
       router.replace("/units");
     } catch (e) {
-      console.error("❌ [Signup] Erro fatal:", e);
+      console.error("[Signup] Erro fatal:", e);
       setError("An error occurred during signup.");
       Alert.alert("Error", "Could not create account. Please try again.");
     }

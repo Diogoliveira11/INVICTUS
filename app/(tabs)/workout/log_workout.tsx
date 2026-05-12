@@ -50,8 +50,6 @@ import { ActiveExercise, SetType, useWorkout } from "../context/workoutcontext";
 import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";
 import { FILTER_ICONS } from "../../../constants/exercise_filters";
 
-// NOTA: Adiciona `sessionBestVolume?: number` ao tipo ActiveExercise no workoutcontext.tsx
-
 const TimeInput = React.memo(
   ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
     const parts = (value || "00:00:00").split(":");
@@ -367,15 +365,8 @@ export default function LogWorkoutScreen() {
 
     if (recover && !hasRecovered.current) {
       hasRecovered.current = true;
-      console.log("🔄 A tentar recuperar treino...");
       try {
         const saved = await getActiveWorkout(db);
-        console.log("📦 saved:", JSON.stringify(saved?.workout));
-        console.log(
-          "📦 exercises_json:",
-          saved?.workout?.exercises_json?.slice(0, 100),
-        );
-        console.log("📦 sets count:", saved?.sets?.length);
         if (saved && saved.workout.exercises_json) {
           let recoveredExercises: ActiveExercise[] = JSON.parse(
             saved.workout.exercises_json,
@@ -500,9 +491,7 @@ export default function LogWorkoutScreen() {
           }),
         );
         setExercises(prepared as ActiveExercise[]);
-        console.log("💾 A guardar exercises_json, count:", prepared.length);
         await saveActiveWorkoutExercises(db, workoutDbId, prepared);
-        console.log("✅ exercises_json guardado!");
         setIsActive(true);
       }
     } catch (e) {
@@ -517,7 +506,6 @@ export default function LogWorkoutScreen() {
     initWorkout();
   }, [initWorkout]);
 
-  // ─── Toggle set — tudo numa única mutação de estado ───────────────────────
   const handleToggleSet = async (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);
     if (!exercise) return;
@@ -526,7 +514,6 @@ export default function LogWorkoutScreen() {
 
     const isCompleting = !currentSet.completed;
 
-    // Resolve os valores finais (usa sugeridos se o campo estiver vazio)
     const finalWeight =
       currentSet.weight !== ""
         ? currentSet.weight
@@ -556,7 +543,7 @@ export default function LogWorkoutScreen() {
           restTime: exercise.rest_time,
         });
       } catch (e) {
-        console.error("❌ Erro ao guardar série:", e);
+        console.error("Error saving the series:", e);
       }
     }
 
@@ -596,7 +583,6 @@ export default function LogWorkoutScreen() {
 
         const newSets = ex.sets.map((s) => {
           if (s.id === setId) {
-            // Set que está a ser toggled: auto-preenche se completar
             return {
               ...s,
               completed: !s.completed,

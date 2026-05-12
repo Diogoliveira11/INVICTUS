@@ -20,7 +20,6 @@ import {
 } from "react-native";
 import { getUserData, login, resetPassword } from "../../src/database";
 
-// NOVOS IMPORTS PARA BIOMETRIA
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
@@ -33,26 +32,22 @@ export default function LoginScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
 
-  // Login states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Forgot Password states
   const [showModal, setShowModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotName, setForgotName] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [forgotError, setForgotError] = useState("");
 
-  // Status Feedback states
   const [statusVisible, setStatusVisible] = useState(false);
   const [statusType, setStatusType] = useState<StatusType>("success");
   const [statusMessage, setStatusMessage] = useState("");
 
-  // Lógica para carregar biometria automaticamente se desejar ou verificar hardware
   useEffect(() => {
     checkBiometrics();
   }, []);
@@ -60,7 +55,6 @@ export default function LoginScreen() {
   const checkBiometrics = async () => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-    // Podes usar isto para esconder o ícone se o telemóvel não tiver biometria
   };
 
   const showStatus = (type: StatusType, message: string) => {
@@ -320,7 +314,7 @@ export default function LoginScreen() {
         </View>
       </View>
 
-      {/* ── FORGOT PASSWORD MODAL ── */}
+      {/* ── ESQUERCER PASS - MODAL ── */}
       <Modal
         visible={showModal}
         animationType="slide"

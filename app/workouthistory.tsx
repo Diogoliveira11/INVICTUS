@@ -8,7 +8,7 @@ import {
   ChevronRight,
   Clock,
   Trophy,
-  X
+  X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -25,10 +25,10 @@ import { useUnits } from "./(tabs)/context/units_context";
 
 const RED = "#E31C25";
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
+// ─── tipos ───────
 type WorkoutDay = {
   workoutId: number;
-  date: string; // "YYYY-MM-DD"
+  date: string;
   title: string;
   duration: string;
   total_volume: number;
@@ -56,7 +56,6 @@ type WorkoutExercise = {
   time: string | null;
 };
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
 const MONTH_LABELS = [
   "January",
   "February",
@@ -178,7 +177,6 @@ function getSetTypeStyle(set_type: string) {
 
 const isCardio = (mg: string) => mg?.toLowerCase() === "cardio";
 
-// ─── DAY CELL ─────────────────────────────────────────────────────────────────
 function DayCell({
   cell,
   onPress,
@@ -241,7 +239,6 @@ function DayCell({
   );
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function MonthlyReportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -269,7 +266,6 @@ export default function MonthlyReportScreen() {
   const isCurrentMonth =
     year === now.getFullYear() && month === now.getMonth() + 1;
 
-  // ── Load calendar data ────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
@@ -282,7 +278,6 @@ export default function MonthlyReportScreen() {
 
       const monthStr = `${year}-${String(month).padStart(2, "0")}`;
 
-      // Workout basic info for the month
       const workoutRows = await db.getAllAsync<{
         id: number;
         date: string;
@@ -299,7 +294,6 @@ export default function MonthlyReportScreen() {
         [userRow.id, monthStr],
       );
 
-      // For each workout, get its muscle groups
       const wDays: WorkoutDay[] = await Promise.all(
         workoutRows.map(async (w) => {
           const muscleRows = await db.getAllAsync<{ muscle_group: string }>(
@@ -331,7 +325,6 @@ export default function MonthlyReportScreen() {
     if (isFocused) loadData();
   }, [isFocused, loadData]);
 
-  // ── Open workout detail ───────────────────────────────────────────────────
   const openWorkout = async (w: WorkoutDay) => {
     setSelectedWorkout(w);
     setShowDetail(true);
@@ -356,7 +349,7 @@ export default function MonthlyReportScreen() {
     }
   };
 
-  // ── Calendar ──────────────────────────────────────────────────────────────
+  // ── Calendario ────
   const workoutMap: Record<string, WorkoutDay> = {};
   workoutDays.forEach((w) => {
     workoutMap[w.date] = w;
@@ -369,7 +362,7 @@ export default function MonthlyReportScreen() {
     })),
   );
 
-  // ── Navigation ────────────────────────────────────────────────────────────
+  // ── Navegação ───────
   const goToPrev = () => {
     if (month === 1) {
       setMonth(12);
@@ -384,7 +377,7 @@ export default function MonthlyReportScreen() {
     } else setMonth((m) => m + 1);
   };
 
-  // ── Group exercises ───────────────────────────────────────────────────────
+  // ── Group exercises ─────
   const exerciseGroups = Object.values(
     workoutExercises.reduce(
       (acc, obj) => {
@@ -397,7 +390,7 @@ export default function MonthlyReportScreen() {
     ),
   );
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
+  // ── Estatísticas ─────
   const workoutCount = workoutDays.length;
 
   return (
@@ -437,7 +430,7 @@ export default function MonthlyReportScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
       >
-        {/* STATS */}
+        {/* Estatisticas */}
         <View className="flex-row mx-4 gap-x-3 mt-5 mb-5">
           {[
             { label: "Workouts", value: `${workoutCount}` },
@@ -476,7 +469,7 @@ export default function MonthlyReportScreen() {
           ))}
         </View>
 
-        {/* CALENDAR */}
+        {/* CALENDARIO */}
         <View className="mx-4 bg-zinc-900/20 rounded-[28px] border border-zinc-800 overflow-hidden">
           <Text
             style={{
@@ -492,7 +485,7 @@ export default function MonthlyReportScreen() {
             {MONTH_LABELS[month - 1]} {year}
           </Text>
 
-          {/* Day headers */}
+          {/* dia headers */}
           <View
             style={{
               flexDirection: "row",
@@ -543,7 +536,7 @@ export default function MonthlyReportScreen() {
         </View>
       </ScrollView>
 
-      {/* ── WORKOUT DETAIL MODAL ── */}
+      {/* ── MODAL detalhes treino ── */}
       <Modal visible={showDetail} animationType="slide" transparent>
         <View className="flex-1 bg-black/95 justify-end">
           <View className="h-[92%] bg-[#050505] rounded-t-[50px] border-t border-[#E31C25]/40">
@@ -617,7 +610,7 @@ export default function MonthlyReportScreen() {
               )}
             </View>
 
-            {/* Exercises */}
+            {/* Exercisios */}
             {detailLoading ? (
               <View className="flex-1 justify-center items-center">
                 <ActivityIndicator color={RED} size="large" />
@@ -633,7 +626,7 @@ export default function MonthlyReportScreen() {
                     key={idx}
                     className="mb-6 bg-zinc-900/20 rounded-[32px] p-6 border border-zinc-900"
                   >
-                    {/* Exercise name */}
+                    {/* Nome exercicios */}
                     <View className="flex-row items-center justify-between mb-4">
                       <Text className="text-[#E31C25] text-lg font-black uppercase tracking-tighter flex-1 mr-2">
                         {group.name}

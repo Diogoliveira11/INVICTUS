@@ -107,7 +107,7 @@ export default function ProgressResult() {
         setWeeklyGoal(userRow.weekly_goal || 0);
       }
     } catch (e) {
-      console.error("Erro perfil:", e);
+      console.error("Profile error:", e);
     }
   }, [db]);
 
@@ -191,7 +191,7 @@ export default function ProgressResult() {
       const result = await db.getAllAsync<any>(query, [userRow.id]);
       setVolumeByExercise(result);
     } catch (e) {
-      console.error("Erro ao carregar volume por exercício:", e);
+      console.error("Error loading volume by exercise:", e);
     }
   }, [db]);
 
@@ -331,7 +331,7 @@ export default function ProgressResult() {
         </View>
       </ScrollView>
 
-      {/* ── RECOVERY MODAL ── */}
+      {/* ── MODAL ── */}
       {recoveryModal?.visible && (
         <Modal transparent animationType="fade">
           <View

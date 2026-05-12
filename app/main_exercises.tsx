@@ -91,7 +91,7 @@ export default function MainExercisesScreen() {
 
       setExercises(rows);
     } catch (e) {
-      console.error("Erro ao carregar exercícios:", e);
+      console.error("Error loading exercises:", e);
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export default function MainExercisesScreen() {
         <View className="w-9" />
       </View>
 
-      {/* Filter button */}
+      {/* Filtros botões */}
       <View className="px-6 pt-4 pb-2">
         <TouchableOpacity
           onPress={() => setShowFilterModal(true)}
@@ -146,7 +146,7 @@ export default function MainExercisesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
+      {/* Conteúdo */}
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator color="#E31C25" size="large" />
@@ -224,7 +224,7 @@ export default function MainExercisesScreen() {
                   {index + 1}
                 </Text>
 
-                {/* Image */}
+                {/* Imagem */}
                 <View
                   style={{
                     width: 52,
@@ -248,7 +248,7 @@ export default function MainExercisesScreen() {
                   />
                 </View>
 
-                {/* Info */}
+                {/* Informação */}
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
@@ -264,7 +264,7 @@ export default function MainExercisesScreen() {
                     {item.name}
                   </Text>
 
-                  {/* Progress bar */}
+                  {/* Barra de progresso */}
                   <View
                     style={{
                       height: 4,
@@ -324,7 +324,7 @@ export default function MainExercisesScreen() {
         </ScrollView>
       )}
 
-      {/* Filter Modal */}
+      {/* Modal Filtro */}
       <Modal
         visible={showFilterModal}
         transparent

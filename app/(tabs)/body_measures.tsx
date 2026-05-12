@@ -36,7 +36,6 @@ type Measurement = {
   recorded_at: string;
 };
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
 function formatHistoryDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("en-US", {
@@ -51,7 +50,6 @@ function formatAxisDate(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// ─── NICE Y LABELS ────────────────────────────────────────────────────────────
 function niceYLabels(minV: number, maxV: number): number[] {
   if (minV === maxV) {
     const base = Math.round(minV);
@@ -69,7 +67,6 @@ function niceYLabels(minV: number, maxV: number): number[] {
   return [top, mid, bottom];
 }
 
-// ─── CHART — all time, single X row for ≤6 pts, alternating for >6 ──────────
 function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
   const W = SCREEN_WIDTH - 48;
   const needsDoubleRow = data.length > 6;
@@ -108,7 +105,6 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
   const maxV = rawMax + padding;
   const rangeV = maxV - minV;
 
-  // X positions: proportional to real elapsed time
   const timestamps = data.map((d) => new Date(d.recorded_at).getTime());
   const minTime = Math.min(...timestamps);
   const maxTime = Math.max(...timestamps);
@@ -134,7 +130,6 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
       .join(" ") +
     ` L${lastX},${baseY} Z`;
 
-  // Y axis: always 3 clean round labels
   const yLabelValues = niceYLabels(rawMin, rawMax);
   const yLabels = yLabelValues.map((v) => ({
     text: `${Math.round(v * 10) / 10}`,
@@ -146,7 +141,6 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  // X labels: ≤6 → all same row; >6 → even indices same row, last odd on row below
   const xIndices: { idx: number; y: number }[] = [];
   if (data.length <= 6) {
     data.forEach((_, i) => xIndices.push({ idx: i, y: baseY + 20 }));
@@ -160,7 +154,6 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
 
   return (
     <Svg width={W} height={H}>
-      {/* Y grid + labels */}
       {yLabels.map((yl, i) => (
         <React.Fragment key={i}>
           <Line
@@ -185,10 +178,10 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         </React.Fragment>
       ))}
 
-      {/* Area */}
+      {/* Área */}
       <Path d={areaPath} fill={RED} fillOpacity={0.1} />
 
-      {/* Line */}
+      {/* Linha */}
       {data.length > 1 && (
         <Polyline
           points={polyPoints}
@@ -200,7 +193,7 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         />
       )}
 
-      {/* Dots */}
+      {/* PONTOS */}
       {data.map((d, i) => (
         <Circle
           key={i}
@@ -211,7 +204,6 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
         />
       ))}
 
-      {/* X date labels — same row for ≤6 pts */}
       {xIndices.map(({ idx, y }) => {
         const x = toX(new Date(data[idx].recorded_at).getTime());
         const anchor =
@@ -234,7 +226,7 @@ function LineChartFull({ data, unit }: { data: Measurement[]; unit: string }) {
   );
 }
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── ECRÃ PRINCIPAL ────────
 
 export default function BodyMeasuresScreen() {
   const router = useRouter();
@@ -251,7 +243,6 @@ export default function BodyMeasuresScreen() {
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // ── DB setup & load ───────────────────────────────────────────────────────
   const ensureTable = useCallback(async () => {
     await db.runAsync(`
       CREATE TABLE IF NOT EXISTS body_measurements (
@@ -288,7 +279,7 @@ export default function BodyMeasuresScreen() {
     if (isFocused) loadData();
   }, [isFocused, loadData]);
 
-  // ── Add measurement ───────────────────────────────────────────────────────
+  // ── Adicionar medida ─────
   const handleAdd = async () => {
     const parsed = parseFloat(newValue.replace(",", "."));
     if (isNaN(parsed) || parsed <= 0) return;
@@ -297,8 +288,8 @@ export default function BodyMeasuresScreen() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
-      // Check if there is already a measurement of this type for today
-      const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      // Verifique se já existe uma medição deste tipo para hoje
+      const today = new Date().toISOString().slice(0, 10);
       const existing = await db.getFirstAsync<{ id: number }>(
         `SELECT id FROM body_measurements
          WHERE user_email = ? AND type = ? AND date(recorded_at) = ?`,
@@ -306,7 +297,7 @@ export default function BodyMeasuresScreen() {
       );
 
       if (existing) {
-        // Update the existing record for today instead of inserting a new one
+        // Atualizar o registo existente para hoje, em vez de inserir um novo
         await db.runAsync(
           `UPDATE body_measurements
            SET value = ?, recorded_at = datetime('now')
@@ -314,7 +305,7 @@ export default function BodyMeasuresScreen() {
           [parsed, existing.id],
         );
       } else {
-        // No entry yet for today — insert normally
+        // Ainda não há nenhuma entrada para hoje
         await db.runAsync(
           `INSERT INTO body_measurements (user_email, value, type, recorded_at)
            VALUES (?, ?, ?, datetime('now'))`,
@@ -322,7 +313,7 @@ export default function BodyMeasuresScreen() {
         );
       }
 
-      // Always keep the users table in sync with the latest value
+      // Mantenha sempre a tabela de utilizadores sincronizada com o valor mais recente
       if (activeTab === "weight") {
         await db.runAsync(`UPDATE users SET weight = ? WHERE email = ?`, [
           String(parsed),
@@ -345,7 +336,6 @@ export default function BodyMeasuresScreen() {
     }
   };
 
-  // ── Derived ───────────────────────────────────────────────────────────────
   const latest = allData.length > 0 ? allData[allData.length - 1] : null;
 
   if (loading) {
@@ -402,7 +392,7 @@ export default function BodyMeasuresScreen() {
           ))}
         </View>
 
-        {/* Latest value */}
+        {/* Valor mais recente */}
         <View className="flex-row items-baseline gap-2 px-6 mt-5 mb-2">
           <Text className="text-white text-2xl font-black uppercase">
             {latest ? `${latest.value}${currentUnit}` : "—"}
@@ -417,12 +407,12 @@ export default function BodyMeasuresScreen() {
           )}
         </View>
 
-        {/* Chart — all time, no filter */}
+        {/* Gráfico */}
         <View className="px-6 mt-2">
           <LineChartFull data={allData} unit={currentUnit} />
         </View>
 
-        {/* History */}
+        {/* Historico */}
         <View className="px-6 mt-8">
           <Text className="text-zinc-500 text-[11px] font-black uppercase tracking-widest mb-4">
             {activeTab} History
@@ -450,7 +440,7 @@ export default function BodyMeasuresScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL — Add Measurement */}
+      {/* MODAL — Adicionar Measurement */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}

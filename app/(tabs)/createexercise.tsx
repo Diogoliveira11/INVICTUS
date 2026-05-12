@@ -604,7 +604,7 @@ export default function CreateExerciseScreen() {
                 marginBottom: 32,
               }}
             >
-              Your exercise was added to the library successfully.
+              Your exercise was added to the library successfully!
             </Text>
             <TouchableOpacity
               onPress={() => {

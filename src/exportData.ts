@@ -139,7 +139,6 @@ export const importUserData = async (db: SQLiteDatabase, email: string) => {
                 const newWorkoutId = insertedWorkout!.id;
 
                 for (const exercise of workout.exercises ?? []) {
-                  // Gerar ID manualmente igual ao save_workout.tsx
                   const lastWEx = await db.getFirstAsync<{ id: number }>(
                     "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
                   );

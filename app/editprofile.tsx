@@ -40,7 +40,7 @@ export default function EditProfile() {
 
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
-  const [weight, setWeight] = useState(""); // read-only, updated via Body Measures
+  const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [gender, setGender] = useState("");
   const [birthday, setBirthday] = useState("");
@@ -290,7 +290,7 @@ export default function EditProfile() {
         </View>
       </ScrollView>
 
-      {/* MODAL CHOOSE SOURCE */}
+      {/* MODAL ESCOLHER FONTE */}
       <Modal
         visible={showImageModal}
         transparent
@@ -436,7 +436,7 @@ export default function EditProfile() {
               </View>
             </TouchableOpacity>
 
-            {/* Gallery */}
+            {/* Galeria */}
             <TouchableOpacity
               onPress={() => handleImageOption(false)}
               activeOpacity={0.7}

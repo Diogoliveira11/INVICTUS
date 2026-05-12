@@ -40,7 +40,7 @@ import { useWorkout } from "../context/workoutcontext";
 
 const RED = "#E31C25";
 
-// ─── UPDATE ROUTINE BOTTOM SHEET ─────────────────────────────────────────────
+// ─── UPDATE ROUTINE BOTTOM SHEET ────────
 function UpdateRoutineSheet({
   visible,
   routineName,
@@ -121,7 +121,6 @@ function UpdateRoutineSheet({
         }}
         {...panResponder.panHandlers}
       >
-        {/* Drag handle */}
         <View
           style={{
             width: 40,
@@ -133,7 +132,6 @@ function UpdateRoutineSheet({
           }}
         />
 
-        {/* Icon */}
         <View style={{ alignItems: "center", marginBottom: 24 }}>
           <View
             style={{
@@ -178,7 +176,7 @@ function UpdateRoutineSheet({
           </Text>
         </View>
 
-        {/* Update button — RED */}
+        {/* Botão Atualizar */}
         <TouchableOpacity
           onPress={onUpdate}
           style={{
@@ -216,7 +214,7 @@ function UpdateRoutineSheet({
   );
 }
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── ECRÃ PRINCIPAL ────────
 export default function SaveWorkoutScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
@@ -245,7 +243,7 @@ export default function SaveWorkoutScreen() {
   const [showUpdateSheet, setShowUpdateSheet] = useState(false);
   const [addedExerciseCount, setAddedExerciseCount] = useState(0);
 
-  // ── Photo picker (same as create_exercise) ──
+  // ── Selecionar fotos  ──
   const launchPicker = async (useCamera: boolean) => {
     if (useCamera) {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -290,7 +288,7 @@ export default function SaveWorkoutScreen() {
     }
   };
 
-  // Reset local state every time this screen comes into focus
+  // Redefinir o estado local sempre que este ecrã ficar em foco
   useFocusEffect(
     useCallback(() => {
       setDescription("");
@@ -323,8 +321,7 @@ export default function SaveWorkoutScreen() {
     return { totalVolume, totalSets };
   }, [exercises]);
 
-  // ── PR check ──
-  // ── PR check com Carga Máxima Teórica (Regra das < 12 reps) ──
+  // ── Regra das < 12 reps) ──
   const checkPersonalRecord = async (
     exerciseId: number,
     weight: number,
@@ -353,12 +350,11 @@ export default function SaveWorkoutScreen() {
       // 4. Se a nova estimativa for maior, é um novo Personal Record
       return currentTheoreticalMax > previousTheoreticalMax ? 1 : 0;
     } catch (e) {
-      console.error("Erro ao verificar PR:", e);
+      console.error("Error checking the PR:", e);
       return 0;
     }
   };
 
-  // ── Core save ──
   const executeSave = async () => {
     try {
       const userEmail = await AsyncStorage.getItem("userEmail");
@@ -389,7 +385,7 @@ export default function SaveWorkoutScreen() {
       const newWorkoutId = insertedWorkout!.id;
 
       for (const ex of exercises) {
-        // Busca o MAX antes de inserir
+        // Procura o MAX antes de inserir
         const lastWEx = await db.getFirstAsync<{ id: number }>(
           "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
         );
@@ -448,12 +444,12 @@ export default function SaveWorkoutScreen() {
       setWorkoutImage(null);
       setShowSuccessModal(true);
     } catch (e) {
-      console.error("[save_workout] erro DETALHADO:", JSON.stringify(e));
-      console.error("[save_workout] erro:", e);
+      console.error("[save_workout] Detailed error:", JSON.stringify(e));
+      console.error("[save_workout] error:", e);
     }
   };
 
-  // ── Update routine in DB ──
+  // ── Atualizar routina na BD ──
   const updateRoutineExercises = async () => {
     if (!routineId || routineId === "undefined" || routineId === "") return;
     try {
@@ -478,11 +474,10 @@ export default function SaveWorkoutScreen() {
         nextOrder++;
       }
     } catch (e) {
-      console.error("[save_workout] erro ao atualizar rotina:", e);
+      console.error("[save_workout] error updating routine:", e);
     }
   };
 
-  // ── Main save handler ──
   const handleSave = async () => {
     if (
       !routineName ||
@@ -521,7 +516,7 @@ export default function SaveWorkoutScreen() {
           return;
         }
       } catch (e) {
-        console.error("[save_workout] erro ao verificar rotina:", e);
+        console.error("[save_workout] error checking the routine:", e);
       }
     }
 
@@ -539,7 +534,6 @@ export default function SaveWorkoutScreen() {
     await executeSave();
   };
 
-  // ── Render ──
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar barStyle="light-content" />
@@ -599,7 +593,7 @@ export default function SaveWorkoutScreen() {
       </View>
 
       <ScrollView style={{ paddingHorizontal: 24, paddingTop: 24 }}>
-        {/* Title */}
+        {/* Título */}
         <Text
           style={{
             color: "white",
@@ -612,7 +606,7 @@ export default function SaveWorkoutScreen() {
           {String(routineName ?? "").trim() || "Workout"}
         </Text>
 
-        {/* Stats */}
+        {/* Estatísticas */}
         <View
           style={{
             flexDirection: "row",
@@ -653,7 +647,6 @@ export default function SaveWorkoutScreen() {
           ))}
         </View>
 
-        {/* When */}
         <View
           style={{
             marginBottom: 20,
@@ -684,7 +677,6 @@ export default function SaveWorkoutScreen() {
           </Text>
         </View>
 
-        {/* Photo row — same style as create_exercise rows */}
         <TouchableOpacity
           onPress={() => setShowImageModal(true)}
           style={{
@@ -733,7 +725,6 @@ export default function SaveWorkoutScreen() {
           <ChevronRight color="#27272a" size={20} />
         </TouchableOpacity>
 
-        {/* Description */}
         <View style={{ marginBottom: 20 }}>
           <Text
             style={{
@@ -760,7 +751,7 @@ export default function SaveWorkoutScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* ── UPDATE ROUTINE BOTTOM SHEET ── */}
+      {/* ── ATUALIZAR BASE DA ROTINA ── */}
       <UpdateRoutineSheet
         visible={showUpdateSheet}
         routineName={String(routineName ?? "")}
@@ -769,7 +760,7 @@ export default function SaveWorkoutScreen() {
         onKeep={handleKeepOriginal}
       />
 
-      {/* ── IMAGE PICKER MODAL (same as create_exercise) ── */}
+      {/* ── selecionar imagem */}
       <Modal
         visible={showImageModal}
         transparent
@@ -979,7 +970,7 @@ export default function SaveWorkoutScreen() {
         </View>
       </Modal>
 
-      {/* ── ATTENTION MODAL ── */}
+      {/* ── MODAL DE ATENÇÃO ── */}
       <Modal visible={showAttentionModal} transparent animationType="fade">
         <View
           style={{
@@ -1061,7 +1052,7 @@ export default function SaveWorkoutScreen() {
         </View>
       </Modal>
 
-      {/* ── SUCCESS MODAL ── */}
+      {/* ── MODAL de sucesso ── */}
       <Modal visible={showSuccessModal} transparent animationType="fade">
         <View
           style={{
@@ -1146,7 +1137,7 @@ export default function SaveWorkoutScreen() {
         </View>
       </Modal>
 
-      {/* ── PERMISSION MODAL ── */}
+      {/* ── MODAL DE PERMISSÃO ── */}
       <Modal visible={permissionModalVisible} transparent animationType="fade">
         <View
           style={{

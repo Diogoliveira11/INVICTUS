@@ -59,7 +59,7 @@ export default function TabsLayout() {
         setProfilePicture(user.profile_picture);
       }
     } catch (e) {
-      console.error("Erro ao carregar foto de perfil:", e);
+      console.error("Error uploading profile photo:", e);
     }
   }, [db]);
 
@@ -76,7 +76,7 @@ export default function TabsLayout() {
           await NavigationBar.setVisibilityAsync("hidden");
           await NavigationBar.setBehaviorAsync("overlay-swipe");
         } catch (error) {
-          console.log("Erro barras sistema:", error);
+          console.log("System bar error:", error);
         }
       }
 

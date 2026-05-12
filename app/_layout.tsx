@@ -53,7 +53,6 @@ export default function RootLayout() {
           "Notificação clicada:",
           response.notification.request.content.title,
         );
-        // Opcional: router.push("/workout/log_workout");
       },
     );
     return () => subscription.remove();

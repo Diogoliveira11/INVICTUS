@@ -2,10 +2,7 @@ import { SQLiteDatabase } from "expo-sqlite";
 
 const logDB = (operation: string, params: any[], success: boolean) => {
   if (success) {
-    // USE CRASE ` EM VEZ DE '
-    console.log(`✅ [DB SUCCESS] ${operation}`);
   } else {
-    console.log(`⚠️ [DB INFO] ${operation} - Nenhuma alteração.`);
   }
 };
 
@@ -35,12 +32,11 @@ export const updateUsername = async (
       return { success: false, message: "Username or pass are incorrect" };
     }
   } catch (e) {
-    console.log("❌ Erro SQL:", e);
     return { success: false, message: "This username is already taken." };
   }
 };
-// --- FUNÇÃO PARA ALTERAR EMAIL ---
 
+// --- FUNÇÃO PARA ALTERAR EMAIL ---
 export const resetPassword = async (
   db: any,
   email: string,
@@ -48,8 +44,6 @@ export const resetPassword = async (
   newPassword: string,
 ) => {
   try {
-    // Primeiro verificamos se o utilizador existe com esse nome e email
-    // Ajusta o nome da tabela e colunas (ex: 'users', 'email', 'name', 'password')
     const result = await db.runAsync(
       "UPDATE users SET pass = ? WHERE LOWER(email) = ? AND username = ?",
       [newPassword, email.toLowerCase(), name],
@@ -82,13 +76,12 @@ export const updateEmail = async (
   pass: string,
   newEmail: string,
 ) => {
-  // 1. Validar se o novo é igual ao antigo introduzido no formulário
+  // Validar se o novo é igual ao antigo introduzido no formulário
   if (currentEmail.toLowerCase() === newEmail.toLowerCase()) {
     return { success: false, message: "You must insert a different email" };
   }
 
   try {
-    // 2. VERIFICAÇÃO CRÍTICA: O novo email já existe na BD?
     const emailExists = await db.getFirstAsync(
       "SELECT id FROM users WHERE email = ? AND email != ?",
       [newEmail.toLowerCase(), currentEmail.toLowerCase()],
@@ -98,7 +91,7 @@ export const updateEmail = async (
       return { success: false, message: "This email is already registered" };
     }
 
-    // 3. Tentar o update validando email atual e password
+    // Tentar o update validando email atual e password
     const result = await db.runAsync(
       "UPDATE users SET email = ? WHERE email = ? AND pass = ?",
       [newEmail.toLowerCase(), currentEmail.toLowerCase(), pass],
@@ -112,13 +105,11 @@ export const updateEmail = async (
       return { success: false, message: "Current email or password incorrect" };
     }
   } catch (e) {
-    console.log("❌ Erro SQL:", e);
     return { success: false, message: "A database error occurred." };
   }
 };
 
 // --- FUNÇÃO PARA ALTERAR PASSWORD ---
-
 export const updatePassword = async (
   db: SQLiteDatabase,
   email: string,
@@ -140,20 +131,15 @@ export const updatePassword = async (
       return { success: true };
     } else {
       // Se chegou aqui, ou o email não existe ou a pass atual está errada
-      console.log(
-        `⚠️ Falha no Update: Email ${email} não encontrado ou senha incorreta.`,
-      );
       logDB("UPDATE (Password)", [email], false);
       return { success: false, message: "Current password is incorrect" };
     }
   } catch (e) {
-    console.log("❌ Erro SQL Password:", e);
     return { success: false, message: "A database error occurred." };
   }
 };
 
 // --- FUNÇÕES DE AUTENTICAÇÃO ---
-
 export const login = async (
   db: SQLiteDatabase,
   email: string,
@@ -194,7 +180,6 @@ export const checkEmailExists = async (db: SQLiteDatabase, email: string) => {
 };
 
 // --- FUNÇÕES DE UPDATE (ONBOARDING) ---
-
 export const updateUserGender = async (
   db: SQLiteDatabase,
   email: string,
@@ -256,12 +241,10 @@ export const updateUserWeeklyGoal = async (
 };
 
 // --- FUNÇÕES DE CONSULTA E ESTATÍSTICAS ---
-
 export const getUserByEmail = async (db: SQLiteDatabase, email: string) => {
   const user = await db.getFirstAsync("SELECT * FROM users WHERE email = ?", [
     email,
   ]);
-  console.log("🔍 [DB SELECT] Utilizador atual:", user);
   return user;
 };
 
@@ -276,14 +259,6 @@ export const printDatabaseStats = async (db: SQLiteDatabase) => {
       "SELECT username, email FROM users",
     );
 
-    console.log("\n--- 📊 ESTATÍSTICAS DA BASE DE DADOS ---");
-    console.log(`| Total de utilizadores registados: ${total}`);
-    console.log("| Lista de utilizadores:");
-    users.forEach((u, i) => {
-      console.log(`|   ${i + 1}. ${u.username} (${u.email})`);
-    });
-    console.log("----------------------------------------\n");
-  } catch (e) {
-    console.error("❌ Erro ao ler estatísticas:", e);
-  }
+    users.forEach((u, i) => {});
+  } catch (e) {}
 };

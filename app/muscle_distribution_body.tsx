@@ -21,7 +21,6 @@ interface WeekDay {
   hasWorkout: boolean;
 }
 
-// Converte Date para "YYYY-MM-DD" usando hora LOCAL (evita desfasamento UTC)
 function toLocalDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -157,7 +156,6 @@ export default function MuscleDistributionBodyScreen() {
 
   const { days: rawDays, label, monday, sunday } = getWeekDays(weekOffset);
 
-  // usa toLocalDateStr para comparar com workoutDays (ambos em local)
   const days: WeekDay[] = rawDays.map((d) => ({
     ...d,
     hasWorkout: workoutDays.has(toLocalDateStr(d.date)),
@@ -175,14 +173,9 @@ export default function MuscleDistributionBodyScreen() {
       );
       if (!userRow) return;
 
-      // Usa local date string para BETWEEN
       const mondayStr = toLocalDateStr(monday);
       const sundayStr = toLocalDateStr(sunday);
 
-      // SQLite: date() extrai YYYY-MM-DD de qualquer formato (ISO ou DATE)
-      // Como os treinos foram gravados com toISOString() (ex: 2026-05-09T22:30Z)
-      // o date() em SQLite usa UTC → pode dar dia errado em GMT+1
-      // Por isso usamos strftime com o offset local
       const rows = await db.getAllAsync<{ date: string }>(
         `SELECT DISTINCT strftime('%Y-%m-%d', date, 'localtime') as date 
          FROM workouts
@@ -209,7 +202,6 @@ export default function MuscleDistributionBodyScreen() {
       );
       if (!userRow) return;
 
-      // Data local do dia selecionado
       const dateStr = toLocalDateStr(selectedDate);
 
       const rows = await db.getAllAsync<MuscleSet>(
@@ -226,10 +218,10 @@ export default function MuscleDistributionBodyScreen() {
         [userRow.id, dateStr],
       );
 
-      console.log("[DEBUG] muscleSets raw:", JSON.stringify(rows)); // ← AQUI
+      console.log("[DEBUG] muscleSets raw:", JSON.stringify(rows));
 
-      console.log("[DEBUG] muscleSets:", JSON.stringify(rows)); // ← aqui
-      console.log("[DEBUG] dateStr usado:", dateStr); // ← e aqui
+      console.log("[DEBUG] muscleSets:", JSON.stringify(rows));
+      console.log("[DEBUG] dateStr usado:", dateStr);
 
       setMuscleSets(rows);
       setTotalSets(rows.reduce((acc, r) => acc + r.sets, 0));
@@ -295,7 +287,7 @@ export default function MuscleDistributionBodyScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
       >
-        {/* WEEK NAVIGATOR */}
+        {/* Navegação semana */}
         <View className="flex-row items-center justify-between px-4 py-4">
           <TouchableOpacity
             onPress={() => setWeekOffset((o) => o - 1)}
@@ -315,7 +307,7 @@ export default function MuscleDistributionBodyScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* DAY SELECTOR */}
+        {/* SELECIONAR DIA */}
         <View className="flex-row justify-between px-4 mb-4">
           {days.map((d, idx) => {
             const isSelected = selectedDayIdx === idx;
@@ -360,7 +352,7 @@ export default function MuscleDistributionBodyScreen() {
           })}
         </View>
 
-        {/* BODY HIGHLIGHTER */}
+        {/* BODY */}
         <View className="flex-row justify-center gap-x-2 bg-[#0d0d0d] mx-4 rounded-3xl py-4 mb-2 border border-[#1f1f1f]">
           <Body
             data={bodyData}

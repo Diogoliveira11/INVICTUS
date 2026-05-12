@@ -64,7 +64,7 @@ export default function BirthdaySelection() {
       const userEmail = await AsyncStorage.getItem("userEmail");
 
       if (!userEmail) {
-        console.error("❌ [Onboarding] Erro: userEmail não encontrado!");
+        console.error("[Onboarding] Erro: userEmail not found!");
         Alert.alert("Error", "User session lost. Please sign up again.");
         router.replace("/auth/signup");
         return;
@@ -80,7 +80,7 @@ export default function BirthdaySelection() {
       // 4. Navegar para o próximo passo
       router.replace("/weight");
     } catch (e) {
-      console.error("❌ [Onboarding] Erro ao guardar birthday:", e);
+      console.error("[Onboarding] Error saving birthday:", e);
       Alert.alert("Error", "Could not save your birthday.");
     }
   };

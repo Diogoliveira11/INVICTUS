@@ -268,12 +268,10 @@ export default function ExploreExercisesPage() {
                     onPress={() => selectFilterOption(null)}
                     className="flex-row items-center py-4 border-b border-zinc-900"
                   >
-                    {/* Tamanho aumentado para w-16 h-16 e margem ajustada */}
                     <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
                       <Image
                         source={FILTER_ICONS["ALL"]}
                         style={{ width: "100%", height: "100%" }}
-                        // ALTERADO PARA COVER: Preenche totalmente o círculo
                         contentFit="cover"
                       />
                     </View>
@@ -296,13 +294,11 @@ export default function ExploreExercisesPage() {
                       onPress={() => selectFilterOption(opt)}
                       className="flex-row items-center py-4 border-b border-zinc-900"
                     >
-                      {/* Tamanho aumentado para w-16 h-16 e margem ajustada */}
                       <View className="w-16 h-16 mr-6 bg-white rounded-full items-center justify-center overflow-hidden border border-zinc-800">
                         {FILTER_ICONS[opt.toUpperCase()] ? (
                           <Image
                             source={FILTER_ICONS[opt.toUpperCase()]}
                             style={{ width: "100%", height: "100%" }}
-                            // ALTERADO PARA COVER: Preenche totalmente o círculo
                             contentFit="cover"
                           />
                         ) : (

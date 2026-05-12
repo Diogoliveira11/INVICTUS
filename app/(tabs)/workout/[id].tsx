@@ -158,7 +158,7 @@ const GIF_MAP: { [key: string]: any } = {
   "assets/exercises_gifs/wrist_roller.gif": require("../../../assets/exercises_gifs/wrist_roller.gif"),
 };
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
+// ─── TYPES ────────
 type ExerciseDetails = {
   id: number;
   name: string;
@@ -192,7 +192,7 @@ type PersonalRecords = {
   setRecords: { reps: number; weight: number }[];
 };
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
+// ─── HELPERS ────────
 function epley1RM(weight: number, reps: number): number {
   if (reps === 1) return weight;
   if (reps >= 12) return weight;
@@ -242,7 +242,7 @@ function calcPersonalRecords(
 
   const heaviestWeight = Math.max(...sets.map((s) => s.weight));
 
-  // Aqui o best1RM agora respeita a regra das < 12 reps definida acima
+  // Aqui o best1RM respeita a regra das < 12 reps definida acima
   const best1RM = Math.max(...sets.map((s) => epley1RM(s.weight, s.reps)));
 
   let bestSetVolume = { weight: 0, reps: 0 };
@@ -279,15 +279,12 @@ function calcPersonalRecords(
   };
 }
 
-// ─── NICE Y LABELS ────────────────────────────────────────────────────────────
-// Always returns exactly [top, mid, bottom] — 3 clean round numbers
-// covering the data range with a nice step (never floating junk)
 function niceYLabels(minV: number, maxV: number): number[] {
   if (minV === maxV) {
     const base = Math.round(minV);
     return [base + 1, base, base - 1];
   }
-  // We want exactly 2 intervals (3 labels): step ≈ range/2
+
   const range = maxV - minV;
   const rawStep = range / 2;
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
@@ -300,8 +297,7 @@ function niceYLabels(minV: number, maxV: number): number[] {
   return [top, mid, bottom];
 }
 
-// ─── SPARK CHART ─────────────────────────────────────────────────────────────
-// Y: 3 clean round labels   X: single row always — alternating only for >6 pts
+// ─── GRÁFICO ──────────
 function SparkChart({
   points,
   metric,
@@ -357,7 +353,6 @@ function SparkChart({
     points.map((p, i) => `L${toX(i)},${toY(p.value)}`).join(" ") +
     ` L${lastX},${baseY} Z`;
 
-  // Y axis: always 3 labels
   const yLabelValues = niceYLabels(rawMin, rawMax);
   const yLabels = yLabelValues.map((v) => ({
     text:
@@ -377,10 +372,6 @@ function SparkChart({
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  // X labels logic:
-  // ≤6 points  → ALL labels on the SAME single row (baseY + 20)
-  // >6 points  → alternating rows: even=baseY+20, odd=baseY+36
-  //              but only show even indices (skip odds) to avoid clutter
   const xLabels: {
     i: number;
     x: number;
@@ -400,7 +391,7 @@ function SparkChart({
     });
   } else {
     points.forEach((p, i) => {
-      if (i % 2 !== 0) return; // skip odd
+      if (i % 2 !== 0) return;
       xLabels.push({
         i,
         x: toX(i),
@@ -409,7 +400,7 @@ function SparkChart({
         text: formatDate(p.date),
       });
     });
-    // Also show last point if it was skipped (odd)
+    // Mostrar também o último ponto, caso tenha sido ignorado (ímpar)
     const last = points.length - 1;
     if (last % 2 !== 0) {
       xLabels.push({
@@ -424,7 +415,6 @@ function SparkChart({
 
   return (
     <Svg width={W} height={H}>
-      {/* Y grid + labels */}
       {yLabels.map((yl, i) => (
         <React.Fragment key={i}>
           <Line
@@ -449,10 +439,10 @@ function SparkChart({
         </React.Fragment>
       ))}
 
-      {/* Area fill */}
+      {/* Preenchimento de área */}
       <Path d={areaPath} fill="#E31C25" fillOpacity={0.1} />
 
-      {/* Line */}
+      {/* Linha */}
       <Polyline
         points={polyPoints}
         fill="none"
@@ -462,12 +452,11 @@ function SparkChart({
         strokeLinecap="round"
       />
 
-      {/* Dots */}
+      {/* Pontos */}
       {points.map((p, i) => (
         <Circle key={i} cx={toX(i)} cy={toY(p.value)} r={3.5} fill="#E31C25" />
       ))}
 
-      {/* X date labels */}
       {xLabels.map((lbl) => (
         <SvgText
           key={lbl.i}
@@ -485,7 +474,7 @@ function SparkChart({
   );
 }
 
-// ─── DELETE MODAL ────────────────────────────────────────────────────────────
+// ─── MODAL ELIMINAR ──────────
 function DeleteModal({
   visible,
   exerciseName,
@@ -629,7 +618,7 @@ function DeleteModal({
   );
 }
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── ECRÃ PRINCIPAL ─────────
 export default function ExerciseDetailScreen() {
   const router = useRouter();
   const { id, from } = useLocalSearchParams<{ id: string; from: string }>();
@@ -685,7 +674,6 @@ export default function ExerciseDetailScreen() {
     loadData();
   }, [id, db, isFocused]);
 
-  // All time — no filter
   const chartPoints = useMemo(
     () => buildChartPoints(allSets, activeMetric),
     [allSets, activeMetric],
@@ -795,7 +783,7 @@ export default function ExerciseDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* ══ SUMMARY ══ */}
+        {/* ══ RESUMO ══ */}
         {activeTab === "Summary" && (
           <View>
             {/* GIF */}
@@ -828,7 +816,7 @@ export default function ExerciseDetailScreen() {
               </Text>
             </View>
 
-            {/* Chart card — no time filter button */}
+            {/* GRÁFICO*/}
             <View className="mx-5 mt-4 bg-zinc-900/40 rounded-[28px] border border-zinc-800 overflow-hidden pb-4">
               <View className="px-5 pt-5 pb-2">
                 <Text className="text-[#E31C25] text-2xl font-black">
@@ -864,7 +852,6 @@ export default function ExerciseDetailScreen() {
                 />
               </View>
 
-              {/* Metric pills */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -901,7 +888,6 @@ export default function ExerciseDetailScreen() {
               </ScrollView>
             </View>
 
-            {/* Personal Records */}
             <View className="mx-5 mt-4 mb-8 bg-zinc-900/40 rounded-[28px] border border-zinc-800 overflow-hidden">
               <TouchableOpacity
                 onPress={() => setShowPR(!showPR)}
@@ -989,7 +975,7 @@ export default function ExerciseDetailScreen() {
           </View>
         )}
 
-        {/* ══ HISTORY ══ */}
+        {/* HISTÓRICO */}
         {activeTab === "History" && (
           <View className="p-6">
             <Text className="text-white font-black uppercase text-lg mb-6">
@@ -1045,7 +1031,6 @@ export default function ExerciseDetailScreen() {
           </View>
         )}
 
-        {/* ══ HOW TO ══ */}
         {activeTab === "How to" && (
           <View className="p-6">
             <View className="flex-row items-center mb-4">

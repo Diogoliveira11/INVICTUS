@@ -26,17 +26,15 @@ import { useUnits } from "./context/units_context";
 const SCREEN_W = Dimensions.get("window").width;
 const RED = "#E31C25";
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
+// ─── tipos ───────
 type MetricFilter = "Duration" | "Volume" | "Reps";
 type TimeFilter = "3 Months" | "Year" | "All time";
 
 type BarPoint = {
-  label: string; // e.g. "Jan 25", "Feb 1"
-  value: number; // seconds / kg / reps
+  label: string;
+  value: number;
 };
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-// Parses "MM:SS" or "H:MM:SS" → total seconds
 function parseTimerToSeconds(s: string): number {
   if (!s) return 0;
   const parts = s.split(":").map(Number);
@@ -67,13 +65,13 @@ function formatMetricValue(
   return `${value} reps`;
 }
 
-// Generate weekly buckets for a given number of past weeks
+// Gerar intervalos semanais para um número específico de semanas anteriores
 function getWeekBuckets(
   weeks: number,
 ): { label: string; monday: string; sunday: string }[] {
   const buckets = [];
   const now = new Date();
-  // Find this week's Monday
+  // Veja a segunda-feira desta semana
   const day = now.getDay();
   const thisMonday = new Date(now);
   thisMonday.setDate(now.getDate() - ((day + 6) % 7));
@@ -98,7 +96,7 @@ function getWeekBuckets(
   return buckets;
 }
 
-// ─── BAR CHART ───────────────────────────────────────────────────────────────
+// ─── GRÁFICO DE BARRAS ─────────
 function ProfileBarChart({
   data,
   metric,
@@ -108,7 +106,7 @@ function ProfileBarChart({
   metric: MetricFilter;
   weightUnit: string;
 }) {
-  const W = SCREEN_W - 64; // mx-4 + p-5 * 2
+  const W = SCREEN_W - 64;
   const H = 130;
   const PAD_LEFT = 36;
   const PAD_RIGHT = 4;
@@ -151,7 +149,6 @@ function ProfileBarChart({
     return candidates.find((c) => c >= maxV) ?? maxV;
   })();
 
-  // Y grid lines: 0, mid, max
   const yLines = [0, niceMax / 2, niceMax];
 
   const barW = Math.max(6, Math.min(18, (chartW / data.length) * 0.6));
@@ -160,10 +157,6 @@ function ProfileBarChart({
   const toBarH = (v: number) => Math.max(2, (v / niceMax) * chartH);
   const toBarY = (v: number) => PAD_TOP + chartH - toBarH(v);
 
-  // X labels: adapt density based on total number of bars
-  // ≤13 (3M): every month change
-  // ≤52 (Year): every month change
-  // >52 (All time): every 3rd month change only
   const monthChangeIndices: number[] = [];
   data.forEach((d, i) => {
     if (i === 0) {
@@ -178,19 +171,16 @@ function ProfileBarChart({
   const showLabel = (i: number) => {
     const pos = monthChangeIndices.indexOf(i);
     if (pos === -1) return false;
-    if (data.length <= 52) return true; // Year: every month
-    return pos % 3 === 0; // All time: every 3rd month
+    if (data.length <= 52) return true;
+    return pos % 3 === 0;
   };
 
-  // For All time show "May'25" style, otherwise just "May"
   const getXLabel = (label: string, i: number): string => {
     if (data.length <= 52) return label.split(" ")[0];
-    // Include year: label is "May 1" → find year from position
-    // We can infer year from bucket count backwards from now
     const weeksBack = data.length - 1 - i;
     const d = new Date();
     d.setDate(d.getDate() - weeksBack * 7);
-    const yr = String(d.getFullYear()).slice(2); // "25"
+    const yr = String(d.getFullYear()).slice(2);
     return `${label.split(" ")[0]}'${yr}`;
   };
 
@@ -212,7 +202,6 @@ function ProfileBarChart({
   return (
     <View style={{ marginTop: 12 }}>
       <Svg width={W} height={H}>
-        {/* Y grid lines + labels */}
         {yLines.map((v, i) => {
           const y = PAD_TOP + chartH - (v / niceMax) * chartH;
           return (
@@ -270,7 +259,7 @@ function ProfileBarChart({
   );
 }
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── ECRÃ PRINCIPAL ───────
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -295,7 +284,6 @@ export default function ProfileScreen() {
 
   const timeFilters: TimeFilter[] = ["3 Months", "Year", "All time"];
 
-  // ── Load profile ──────────────────────────────────────────────────────────
   const loadProfileData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
@@ -313,11 +301,10 @@ export default function ProfileScreen() {
         setWorkoutCount(countResult?.count ?? 0);
       }
     } catch (e) {
-      console.error("Erro ao carregar perfil:", e);
+      console.error("Error loading profile:", e);
     }
   }, [db]);
 
-  // ── Load chart data ───────────────────────────────────────────────────────
   const loadChartData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
@@ -328,7 +315,7 @@ export default function ProfileScreen() {
       );
       if (!userRow) return;
 
-      // Decide how many weeks to show
+      // Decida quantas semanas mostrar
       const weeks =
         activeTime === "3 Months" ? 13 : activeTime === "Year" ? 52 : 104;
       const buckets = getWeekBuckets(weeks);
@@ -377,7 +364,7 @@ export default function ProfileScreen() {
       setChartData(points);
       setSummaryValue(points.reduce((acc, p) => acc + p.value, 0));
     } catch (e) {
-      console.error("Erro ao carregar chart:", e);
+      console.error("Error loading chart:", e);
     }
   }, [db, activeMetric, activeTime]);
 
@@ -482,7 +469,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* PROFILE INFO */}
+        {/* INFORMAÇÃO PERFIL */}
         <View className="px-6 mt-6 flex-row items-center">
           <View className="w-[105px] h-[105px] rounded-full border-[3px] border-[#E31C25] items-center justify-center">
             <View className="w-[92px] h-[92px] rounded-full border-2 border-black overflow-hidden bg-zinc-900">
@@ -527,7 +514,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* CHART CARD */}
+        {/* FICHA DE GRÁFICO */}
         <View className="bg-zinc-900/30 mx-4 p-5 rounded-[35px] mt-10 border border-zinc-800/60 shadow-2xl">
           <View className="flex-row justify-between items-center mb-2">
             <View>
@@ -545,7 +532,7 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
-            {/* Time filter button */}
+            {/* botão de filtro de tempo */}
             <TouchableOpacity
               onPress={() => setShowTimeModal(true)}
               className="flex-row items-center gap-1 bg-zinc-800/50 px-4 py-1.5 rounded-full border border-zinc-700/50"
@@ -570,7 +557,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* MAIN ACTIONS */}
+        {/* PRINCIPAIS AÇÕES */}
         <View className="px-6 mt-10 mb-20">
           <ActionButton
             label="Statistics"
@@ -587,7 +574,7 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* TIME FILTER MODAL */}
+      {/* MODAL DE FILTRO DE TEMPO */}
       <Modal
         visible={showTimeModal}
         transparent

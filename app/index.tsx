@@ -8,8 +8,6 @@ export default function SplashScreen() {
 
   useEffect(() => {
     const checkSession = async () => {
-      // REMOVER DEPOIS DE TESTAR await AsyncStorage.clear();
-
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       try {

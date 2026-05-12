@@ -76,7 +76,7 @@ export default function WeightSelection() {
       // 1. Atualiza a tabela de utilizadores
       await updateUserWeight(db, userEmail, weightToSave);
 
-      // 2. CRITICAL: Cria a tabela de medições se ela não existir (evita erro de 'no such table')
+      // 2. CRITICAL: Cria a tabela de medições se ela não existir
       await db.runAsync(`
         CREATE TABLE IF NOT EXISTS body_measurements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,7 +95,7 @@ export default function WeightSelection() {
 
       router.replace("/height");
     } catch (e) {
-      console.error("❌ Erro ao guardar weight:", e);
+      console.error("Error saving weight:", e);
       Alert.alert("Error", "Could not save weight.");
     }
   };

@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// 1. Componente para itens com seta e valor (ex: Default Rest Timer)
+// Componente para itens com seta e valor
 const SettingLink = ({
   label,
   value,
@@ -27,7 +27,7 @@ const SettingLink = ({
   </TouchableOpacity>
 );
 
-// 2. Componente para itens com Switch (Interruptor)
+// Componente para itens com Switch
 const SettingSwitch = ({
   label,
   description,

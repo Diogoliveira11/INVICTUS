@@ -41,7 +41,7 @@ export default function WorkoutSummaryScreen() {
         setData({ ...lastWorkout, setsCount: setsResult?.count || 0 });
       }
     } catch (e) {
-      console.error("Erro ao carregar resumo:", e);
+      console.error("Error loading summary:", e);
     }
   };
 
@@ -53,8 +53,8 @@ export default function WorkoutSummaryScreen() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(
-        "Permissão necessária",
-        "Precisamos de acesso à galeria para guardar fotos do treino.",
+        "Required permission",
+        "We need access to the gallery to save photos from practice.",
       );
       return;
     }
@@ -100,7 +100,7 @@ export default function WorkoutSummaryScreen() {
           </View>
           <Text className="text-white text-3xl font-black mb-1">Good job!</Text>
           <Text className="text-zinc-500 text-base">
-            Training session completed successfully
+            Training session completed successfully!
           </Text>
         </View>
 
@@ -138,10 +138,10 @@ export default function WorkoutSummaryScreen() {
         {/* ── SECÇÃO DE FOTOS ── */}
         <View className="mb-8">
           <Text className="text-white text-lg font-black uppercase tracking-tighter mb-1">
-            Fotos do Treino
+            Training Photos
           </Text>
           <Text className="text-zinc-500 text-xs mb-4">
-            Guarda uma memória deste treino
+            Keep a record of this training session
           </Text>
 
           {/* Botões câmara / galeria */}
@@ -152,7 +152,7 @@ export default function WorkoutSummaryScreen() {
             >
               <Camera size={18} color="#E31C25" />
               <Text className="text-white font-black text-xs uppercase">
-                Câmara
+                Chamber
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -161,7 +161,7 @@ export default function WorkoutSummaryScreen() {
             >
               <ImagePlus size={18} color="#E31C25" />
               <Text className="text-white font-black text-xs uppercase">
-                Galeria
+                Gallery
               </Text>
             </TouchableOpacity>
           </View>
@@ -191,7 +191,7 @@ export default function WorkoutSummaryScreen() {
             <View className="border border-dashed border-zinc-800 rounded-2xl py-8 items-center">
               <ImagePlus size={28} color="#3f3f46" />
               <Text className="text-zinc-600 text-xs font-bold uppercase mt-2">
-                Nenhuma foto adicionada
+                No photos added
               </Text>
             </View>
           )}
@@ -201,7 +201,7 @@ export default function WorkoutSummaryScreen() {
         {/* Mensagem motivacional */}
         <View className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800 items-center">
           <Text className="text-zinc-400 text-center">
-            Consistency is what turns the ordinary into the extraordinary.
+            ´Consistency is what turns the ordinary into the extraordinary´
           </Text>
         </View>
       </ScrollView>

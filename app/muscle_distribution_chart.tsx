@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Polygon, Text as SvgText } from "react-native-svg";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// ─── Tipos ─────
 type Period =
   | "Last 7 days"
   | "Last 30 days"
@@ -37,7 +37,7 @@ interface StatsData {
   sets: { current: number; previous: number };
 }
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+// ─── Constantes ───────
 const PERIODS: Period[] = [
   "Last 7 days",
   "Last 30 days",
@@ -77,7 +77,7 @@ const MUSCLE_GROUP_MAP: Record<string, string> = {
   adductors: "legs",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ───────
 function periodToDays(period: Period): number | null {
   switch (period) {
     case "Last 7 days":
@@ -93,20 +93,14 @@ function periodToDays(period: Period): number | null {
   }
 }
 
-/**
- * Formato na BD: "M:SS" (ex: "0:56" = 0min 56seg, "45:30" = 45min 30seg)
- * Devolve total em minutos (float).
- */
 function parseDurationRows(rows: { duration: string | null }[]): number {
   return rows.reduce((acc, r) => {
     if (!r.duration) return acc;
     const parts = r.duration.split(":").map(Number);
     if (parts.length === 2) {
-      // "M:SS" → minutos + segundos/60
       return acc + parts[0] + parts[1] / 60;
     }
     if (parts.length === 3) {
-      // "H:MM:SS"
       return acc + parts[0] * 60 + parts[1] + parts[2] / 60;
     }
     return acc + Number(r.duration) / 60;
@@ -138,7 +132,6 @@ function diffLabel(
   return diff > 0 ? `↑ ${f(Math.abs(diff))}` : `↓ ${f(Math.abs(diff))}`;
 }
 
-// ─── Radar Chart ──────────────────────────────────────────────────────────────
 function RadarChart({
   data,
   size = 280,
@@ -237,7 +230,6 @@ function RadarChart({
   );
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({
   label,
   value,
@@ -266,7 +258,7 @@ function StatCard({
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+// ─── Ecrã ────────
 export default function MuscleDistributionChartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -306,24 +298,22 @@ export default function MuscleDistributionChartScreen() {
        GROUP BY e.muscle_group`,
         [userRow.id],
       );
-      console.log("[DEBUG all sets by muscle]", JSON.stringify(allSets));
 
       const durCheck = await db.getAllAsync<{ duration: string | null }>(
         "SELECT duration FROM workouts WHERE duration IS NOT NULL LIMIT 5",
       );
-      console.log("[DEBUG duration raw]", JSON.stringify(durCheck));
 
       const uid = userRow.id;
 
       const days = periodToDays(period);
 
-      // Filtros JOIN (com alias w)
+      // Filtros JOIN
       const dJoin = days ? `AND w.date >= date('now', '-${days} days')` : "";
       const pJoin = days
         ? `AND w.date >= date('now', '-${days * 2} days') AND w.date < date('now', '-${days} days')`
         : "AND 1=0";
 
-      // Filtros diretos (sem alias)
+      // Filtros diretos
       const dDir = days ? `AND date >= date('now', '-${days} days')` : "";
       const pDir = days
         ? `AND date >= date('now', '-${days * 2} days') AND date < date('now', '-${days} days')`
@@ -373,8 +363,6 @@ export default function MuscleDistributionChartScreen() {
         if (group) grouped[group].previous += r.total_sets;
       });
 
-      console.log("[DEBUG grouped]", JSON.stringify(grouped));
-
       setMuscleData(
         MUSCLES_ORDER.map((m) => ({
           muscle: m,
@@ -396,7 +384,7 @@ export default function MuscleDistributionChartScreen() {
         ),
       ]);
 
-      // ── Duration (formato "M:SS") ──
+      // ── Duration ──
       const [durCurRows, durPrevRows] = await Promise.all([
         db.getAllAsync<{ duration: string | null }>(
           `SELECT duration FROM workouts WHERE user_id = ? ${dDir}`,

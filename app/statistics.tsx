@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// ─── tipos ────────────────────────────────────────────────────────────────────
+// ─── tipos ──────
 interface MuscleVolume {
   muscle_group: string;
   total_volume: number;
@@ -27,7 +27,6 @@ interface DayWorkout {
   isToday: boolean;
 }
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
 function getLast7Days(): DayWorkout[] {
   const days = [];
   const now = new Date();
@@ -45,7 +44,7 @@ function getLast7Days(): DayWorkout[] {
   return days;
 }
 
-// ─── componente principal ─────────────────────────────────────────────────────
+// ─── componente principal ──────
 export default function StatisticsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -55,7 +54,7 @@ export default function StatisticsScreen() {
   const [muscleVolume, setMuscleVolume] = useState<MuscleVolume[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
 
-  // ── carregar dados ────────────────────────────────────────────────────────
+  // ── carregar dados ────────────
   const loadData = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
@@ -107,7 +106,7 @@ export default function StatisticsScreen() {
     loadData();
   }, [loadData]);
 
-  // ── advanced statistics items ─────────────────────────────────────────────
+  // ── Itens de estatística ─────
   const advancedItems = [
     {
       icon: <Pentagon size={22} color="#9ca3af" />,
@@ -135,7 +134,6 @@ export default function StatisticsScreen() {
     },
   ];
 
-  // ── render ────────────────────────────────────────────────────────────────
   return (
     <View className="flex-1 bg-black">
       <StatusBar style="light" />
@@ -161,13 +159,13 @@ export default function StatisticsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
       >
-        {/* ── LAST 7 DAYS ── */}
+        {/* ── ULTIMOS 7 DIAS ── */}
         <View className="px-4 pt-5">
           <Text className="text-white text-[17px] font-bold mb-4">
             Last 7 days
           </Text>
 
-          {/* Day selector */}
+          {/* SELECIONAR DIA */}
           <View className="flex-row justify-between mb-6">
             {days.map((d, idx) => (
               <TouchableOpacity
@@ -191,11 +189,11 @@ export default function StatisticsScreen() {
                 >
                   {d.dayNum}
                 </Text>
-                {/* dot for today */}
+                {/* ponto de hoje */}
                 {d.isToday && selectedDay !== d.dayNum && (
                   <View className="w-[5px] h-[5px] rounded-full bg-[#E31C25] absolute bottom-1.5" />
                 )}
-                {/* dot for workout */}
+                {/* ponto do treino */}
                 {d.hasWorkout && selectedDay !== d.dayNum && (
                   <View className="w-[5px] h-[5px] rounded-full bg-red-400 absolute bottom-1.5" />
                 )}
@@ -210,10 +208,10 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* ── DIVIDER ── */}
+        {/* ── SEPARADOR ── */}
         <View className="h-2 bg-zinc-900/50 mt-4" />
 
-        {/* ── ADVANCED STATISTICS ── */}
+        {/* ── ESTATÍSTICA AVANÇADA ── */}
         <View className="pt-1">
           <Text className="text-gray-500 text-[13px] px-5 py-3.5 font-medium">
             Advanced statistics
