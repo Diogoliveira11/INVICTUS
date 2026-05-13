@@ -1,3 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
+import { StatusBar } from "expo-status-bar";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -8,10 +12,6 @@ import {
   User,
   X,
 } from "lucide-react-native";
-
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite";
-import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -95,8 +95,6 @@ export default function AccountSettingsScreen() {
     }
     try {
       // Buscar email do AsyncStorage em vez de depender dos params
-      const AsyncStorage =
-        require("@react-native-async-storage/async-storage").default;
       const email = await AsyncStorage.getItem("userEmail");
 
       if (!email) {
@@ -155,7 +153,7 @@ export default function AccountSettingsScreen() {
       } else {
         setErrorMessage(result.message ?? "An error occurred.");
       }
-    } catch (error) {
+    } catch {
       setErrorMessage("This username is already taken.");
     }
   };
@@ -179,7 +177,7 @@ export default function AccountSettingsScreen() {
       } else {
         setErrorMessage(result.message ?? "An error occurred.");
       }
-    } catch (error) {
+    } catch {
       setErrorMessage("This email is already registered.");
     }
   };
@@ -199,7 +197,7 @@ export default function AccountSettingsScreen() {
       } else {
         setErrorMessage(result.message ?? "An error occurred.");
       }
-    } catch (error) {
+    } catch {
       setErrorMessage("Could not update password.");
     }
   };

@@ -87,7 +87,7 @@ export default function ProgressResult() {
             routineId: data.workout.routine_id || "",
           });
         }
-      } catch (e) {
+      } catch {
         console.log("No unfinished workout found");
       }
     };

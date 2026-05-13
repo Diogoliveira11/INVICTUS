@@ -219,11 +219,6 @@ export default function LogWorkoutScreen() {
     workoutId: number;
     elapsed: number;
   } | null>(null);
-  const [recoveryModal, setRecoveryModal] = useState<{
-    visible: boolean;
-    workoutName: string;
-    routineId: string;
-  } | null>(null);
 
   const {
     timer,
@@ -232,15 +227,12 @@ export default function LogWorkoutScreen() {
     exercises,
     setExercises,
     updateSet,
-    toggleSetCompleted,
     startRestTimer,
     cancelRestTimer,
     setIsMinimized,
     setIsActive,
     isActive,
-    stopWorkout,
     startWorkout,
-    resumeWorkout,
   } = useWorkout();
 
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
@@ -294,7 +286,7 @@ export default function LogWorkoutScreen() {
       setActiveRoutineName(data.routineName);
       setActiveWorkoutId(data.workoutId);
     }
-  }, [isActive]);
+  }, [isActive, setExercises, startWorkout]);
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -498,14 +490,27 @@ export default function LogWorkoutScreen() {
     } catch (e) {
       console.error(e);
     }
-  }, [params.routineId, params.reset, db, weightUnit, startWorkout]);
+  }, [
+    params.routineId,
+    params.recover,
+    params.reset,
+    db,
+    weightUnit,
+    startWorkout,
+    isActive,
+    exercises.length,
+    setExercises,
+    activeRoutineName,
+    router,
+    setIsActive,
+  ]);
 
   useEffect(() => {
     db.getAllAsync<any>("SELECT * FROM exercises ORDER BY name ASC").then(
       setDbExercises,
     );
     initWorkout();
-  }, [initWorkout]);
+  }, [db, initWorkout]);
 
   const handleToggleSet = async (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);

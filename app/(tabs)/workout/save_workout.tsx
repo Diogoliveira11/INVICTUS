@@ -71,7 +71,7 @@ function UpdateRoutineSheet({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible]);
+  }, [visible, translateY]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -412,10 +412,9 @@ export default function SaveWorkoutScreen() {
             const weightValue = isCardio ? 0 : Number(set.weight) || 0;
             const repsValue = isCardio ? 0 : Number(set.reps) || 0;
 
-            const lastSet = await db.getFirstAsync<{ id: number }>(
+            await db.getFirstAsync<{ id: number }>(
               "SELECT COALESCE(MAX(id), 0) as id FROM workout_sets",
             );
-            const newSetId = lastSet!.id + 1;
 
             await db.runAsync(
               "INSERT INTO workout_sets (workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record, distance, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",

@@ -7,7 +7,7 @@ import {
 import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Notifications from "expo-notifications";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { Suspense, useEffect, useState } from "react";
@@ -33,9 +33,9 @@ async function loadDatabase(): Promise<void> {
 
   const fileInfo = await FileSystem.getInfoAsync(dbPath);
   if (!fileInfo.exists) {
-    const asset = await Asset.fromModule(
-      require("../src/inicializedatabase.sqlite"),
-    ).downloadAsync();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const dbModule = require("../src/inicializedatabase.sqlite");
+    const asset = await Asset.fromModule(dbModule).downloadAsync();
     await FileSystem.copyAsync({ from: asset.localUri!, to: dbPath });
   }
 }
@@ -43,7 +43,6 @@ async function loadDatabase(): Promise<void> {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [dbReady, setDbReady] = useState(false);
-  const router = useRouter();
 
   // Listener para notificações
   useEffect(() => {

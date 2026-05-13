@@ -10,7 +10,7 @@ import {
   X,
   Zap,
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -28,7 +28,8 @@ export default function WorkoutSummaryScreen() {
   const [data, setData] = useState<any>(null);
   const [photos, setPhotos] = useState<string[]>([]);
 
-  const fetchSummary = async () => {
+  // 1. Altera a declaração da função (por volta da linha 28)
+  const fetchSummary = useCallback(async () => {
     try {
       const lastWorkout = await db.getFirstAsync<any>(
         "SELECT * FROM workouts ORDER BY id DESC LIMIT 1",
@@ -43,11 +44,12 @@ export default function WorkoutSummaryScreen() {
     } catch (e) {
       console.error("Error loading summary:", e);
     }
-  };
+  }, [db]); // A função só muda se o 'db' mudar
 
+  // 2. Atualiza o useEffect (por volta da linha 48)
   useEffect(() => {
     fetchSummary();
-  }, [db]);
+  }, [fetchSummary]);
 
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

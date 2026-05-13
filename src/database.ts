@@ -31,7 +31,7 @@ export const updateUsername = async (
       logDB("UPDATE (Username)", params, false);
       return { success: false, message: "Username or pass are incorrect" };
     }
-  } catch (e) {
+  } catch {
     return { success: false, message: "This username is already taken." };
   }
 };
@@ -104,7 +104,7 @@ export const updateEmail = async (
       logDB("UPDATE (Email)", [currentEmail], false);
       return { success: false, message: "Current email or password incorrect" };
     }
-  } catch (e) {
+  } catch {
     return { success: false, message: "A database error occurred." };
   }
 };
@@ -134,7 +134,7 @@ export const updatePassword = async (
       logDB("UPDATE (Password)", [email], false);
       return { success: false, message: "Current password is incorrect" };
     }
-  } catch (e) {
+  } catch {
     return { success: false, message: "A database error occurred." };
   }
 };
@@ -250,15 +250,14 @@ export const getUserByEmail = async (db: SQLiteDatabase, email: string) => {
 
 export const printDatabaseStats = async (db: SQLiteDatabase) => {
   try {
-    const result = await db.getFirstAsync<{ total: number }>(
+    await db.getFirstAsync<{ total: number }>(
       "SELECT COUNT(*) as total FROM users",
     );
-    const total = result?.total ?? 0;
 
     const users = await db.getAllAsync<{ username: string; email: string }>(
       "SELECT username, email FROM users",
     );
 
     users.forEach((u, i) => {});
-  } catch (e) {}
+  } catch {}
 };

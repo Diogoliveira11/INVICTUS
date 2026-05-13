@@ -53,8 +53,8 @@ export default function LoginScreen() {
   }, []);
 
   const checkBiometrics = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    await LocalAuthentication.hasHardwareAsync();
+    await LocalAuthentication.isEnrolledAsync();
   };
 
   const showStatus = (type: StatusType, message: string) => {
@@ -104,7 +104,7 @@ export default function LoginScreen() {
           );
         }
       }
-    } catch (e) {
+    } catch {
       setError("Biometric authentication failed.");
     }
   };
@@ -132,7 +132,7 @@ export default function LoginScreen() {
       } else {
         setError("Invalid email or password.");
       }
-    } catch (e) {
+    } catch {
       setError("An error occurred during login.");
     } finally {
       setLoading(false);
@@ -186,7 +186,7 @@ export default function LoginScreen() {
       } else {
         setForgotError("Something went wrong. Please try again.");
       }
-    } catch (e) {
+    } catch {
       setForgotError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);

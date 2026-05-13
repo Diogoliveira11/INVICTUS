@@ -162,13 +162,17 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isActive]);
 
-  // Timer de duração do treino
   useEffect(() => {
     let interval: any;
     if (isActive) {
+      // Usamos uma função de atualização para evitar a dependência direta de 'seconds'
       if (startTimeRef.current === null) {
-        startTimeRef.current = Date.now() - seconds * 1000;
+        setSeconds((prevSeconds) => {
+          startTimeRef.current = Date.now() - prevSeconds * 1000;
+          return prevSeconds;
+        });
       }
+
       interval = setInterval(() => {
         if (startTimeRef.current) {
           const elapsed = Math.floor(

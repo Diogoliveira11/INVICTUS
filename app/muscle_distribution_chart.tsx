@@ -285,24 +285,6 @@ export default function MuscleDistributionChartScreen() {
       );
       if (!userRow) return;
 
-      const allSets = await db.getAllAsync<{
-        muscle_group: string;
-        cnt: number;
-      }>(
-        `SELECT e.muscle_group, COUNT(*) as cnt
-       FROM workout_sets ws
-       JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-       JOIN exercises e ON ws.exercise_id = e.id
-       JOIN workouts w ON we.workout_id = w.id
-       WHERE w.user_id = ?
-       GROUP BY e.muscle_group`,
-        [userRow.id],
-      );
-
-      const durCheck = await db.getAllAsync<{ duration: string | null }>(
-        "SELECT duration FROM workouts WHERE duration IS NOT NULL LIMIT 5",
-      );
-
       const uid = userRow.id;
 
       const days = periodToDays(period);

@@ -21,13 +21,13 @@ export default function SplashScreen() {
         } else {
           router.replace("/auth/login");
         }
-      } catch (e) {
+      } catch {
         router.replace("/onboarding");
       }
     };
 
     checkSession();
-  }, []);
+  }, [router]);
 
   return (
     <View style={styles.container}>

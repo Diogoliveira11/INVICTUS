@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
@@ -80,7 +82,7 @@ export default function SettingsScreen() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
       await exportUserData(db, email);
-    } catch (e) {
+    } catch {
       setErrorMessage("Failed to import data. Make sure the file is valid.");
       setShowError(true);
     } finally {
@@ -101,9 +103,6 @@ export default function SettingsScreen() {
         [email],
       );
       if (!user) return;
-
-      const DocumentPicker = require("expo-document-picker");
-      const FileSystem = require("expo-file-system/legacy");
 
       const result = await DocumentPicker.getDocumentAsync({
         type: "application/json",
