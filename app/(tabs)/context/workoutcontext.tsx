@@ -61,6 +61,8 @@ type WorkoutContextType = {
     value: string,
   ) => void;
   toggleSetCompleted: (exLogId: string, setId: string) => void;
+  startRestTimer: (restTime: number, setId: string) => void;
+  cancelRestTimer: () => void;
   setIsActive: (val: boolean) => void;
   setIsMinimized: (val: boolean) => void;
   setLastExercise: (val: string) => void;
@@ -158,7 +160,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       clearInterval(masterInterval);
       subscription.remove();
     };
-  }, [isActive, seconds]);
+  }, [isActive]);
 
   // Timer de duração do treino
   useEffect(() => {
@@ -177,38 +179,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isActive, seconds]);
-
-  useEffect(() => {
-    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-
-    if (restTimer !== null && restTimer > 0) {
-      restIntervalRef.current = setInterval(() => {
-        if (endTimeRef.current) {
-          const now = Date.now();
-          const remaining = Math.round((endTimeRef.current - now) / 1000);
-          if (remaining <= 0) {
-            setRestTimer(null);
-            setActiveRestSetId(null);
-            endTimeRef.current = null;
-            clearInterval(restIntervalRef.current);
-            Vibration.vibrate([0, 400, 100, 400]);
-          } else {
-            setRestTimer(remaining);
-          }
-        }
-      }, 1000);
-    }
-
-    return () => {
-      if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-    };
-  }, [restTimer, isActive]);
+  }, [isActive]);
 
   const scheduleRestNotification = async (secs: number) => {
-    const targetTime = Date.now() + secs * 1000;
-    endTimeRef.current = targetTime;
-
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
       await Notifications.scheduleNotificationAsync({
@@ -228,6 +201,42 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // FIX: startRestTimer exposto para o screen usar diretamente
+  const startRestTimer = useCallback((restTime: number, setId: string) => {
+    if (restTime <= 0) return;
+
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+
+    const targetTime = Date.now() + restTime * 1000;
+    endTimeRef.current = targetTime;
+    setRestTimer(restTime);
+    setActiveRestSetId(setId);
+    scheduleRestNotification(restTime);
+
+    restIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.round((targetTime - now) / 1000);
+      if (remaining <= 0) {
+        setRestTimer(null);
+        setActiveRestSetId(null);
+        endTimeRef.current = null;
+        clearInterval(restIntervalRef.current);
+        Vibration.vibrate([0, 400, 100, 400]);
+      } else {
+        setRestTimer(remaining);
+      }
+    }, 1000);
+  }, []);
+
+  // FIX: cancelRestTimer exposto para o screen usar diretamente
+  const cancelRestTimer = useCallback(() => {
+    setRestTimer(null);
+    setActiveRestSetId(null);
+    endTimeRef.current = null;
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    Notifications.cancelAllScheduledNotificationsAsync();
+  }, []);
+
   const toggleSetCompleted = (exLogId: string, setId: string) => {
     setExercises((prev) =>
       prev.map((ex) => {
@@ -238,16 +247,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
               if (s.id === setId) {
                 const newState = !s.completed;
                 if (newState && ex.rest_time > 0) {
-                  setRestTimer(ex.rest_time);
-                  setActiveRestSetId(setId);
-                  scheduleRestNotification(ex.rest_time);
+                  startRestTimer(ex.rest_time, setId);
                 } else if (!newState) {
-                  setRestTimer(null);
-                  setActiveRestSetId(null);
-                  endTimeRef.current = null;
-                  if (restIntervalRef.current)
-                    clearInterval(restIntervalRef.current);
-                  Notifications.cancelAllScheduledNotificationsAsync();
+                  cancelRestTimer();
                 }
                 return { ...s, completed: newState };
               }
@@ -270,14 +272,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const updateSet = useCallback(
     (logId: string, setId: string, field: any, value: string) => {
       setExercises((prev) => {
-        // Encontrar o exercício e o set alvo primeiro
         const exIndex = prev.findIndex((e) => e.logId === logId);
         if (exIndex === -1) return prev;
 
         const setIndex = prev[exIndex].sets.findIndex((s) => s.id === setId);
         if (setIndex === -1) return prev;
 
-        // Se o valor for exatamente igual ao anterior, não atualiza o estado
         if (prev[exIndex].sets[setIndex][field as keyof WorkoutSet] === value) {
           return prev;
         }
@@ -338,6 +338,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         setExercises,
         updateSet,
         toggleSetCompleted,
+        startRestTimer,
+        cancelRestTimer,
         startWorkout,
         stopWorkout,
         setIsMinimized,

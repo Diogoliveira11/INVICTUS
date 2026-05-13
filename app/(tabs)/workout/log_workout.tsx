@@ -233,6 +233,8 @@ export default function LogWorkoutScreen() {
     setExercises,
     updateSet,
     toggleSetCompleted,
+    startRestTimer,
+    cancelRestTimer,
     setIsMinimized,
     setIsActive,
     isActive,
@@ -419,14 +421,12 @@ export default function LogWorkoutScreen() {
       if (!isActive) {
         startWorkout("");
         setActiveRoutineName("");
-        // Criar treino ativo para treino livre (sem rotina)
         const workoutDbId = await createActiveWorkout(db, null, "");
         setActiveWorkoutId(workoutDbId);
       }
       return;
     }
 
-    // Criar treino ativo para treino com rotina
     const workoutDbId = await createActiveWorkout(
       db,
       routineId || null,
@@ -469,6 +469,7 @@ export default function LogWorkoutScreen() {
               image_url: ex.image,
               notes: "",
               rest_time: 0,
+              // FIX: guardar o PR histórico original separado (não será substituído por PR de sessão)
               personalRecords: prRes
                 ? [{ weight: prRes.weight, reps: prRes.reps }]
                 : [],
@@ -547,6 +548,13 @@ export default function LogWorkoutScreen() {
       }
     }
 
+    // FIX: Rest timer — usar startRestTimer/cancelRestTimer do context
+    if (isCompleting && exercise.rest_time > 0) {
+      startRestTimer(exercise.rest_time, setId);
+    } else if (!isCompleting) {
+      cancelRestTimer();
+    }
+
     setExercises((prev) =>
       prev.map((ex) => {
         if (ex.logId !== exLogId) return ex;
@@ -555,27 +563,28 @@ export default function LogWorkoutScreen() {
         const r = parseInt(finalReps);
         const currentVolume = w > 0 && r > 0 ? w * r : 0;
 
-        // ── Atualiza PR histórico e sessionBestVolume ──
+        // FIX: PR — comparar com o melhor volume histórico (personalRecords[0])
+        // e separar do sessionBestVolume (melhor desta sessão)
         let newPersonalRecords = ex.personalRecords;
         let newSessionBestVolume = ex.sessionBestVolume ?? 0;
 
         if (isCompleting && currentVolume > 0) {
+          // sessionBestVolume: melhor desta sessão (para badge de troféu)
+          if (currentVolume > newSessionBestVolume) {
+            newSessionBestVolume = currentVolume;
+          }
+
+          // personalRecords: só atualiza se bater o PR histórico
           const historicalPR = ex.personalRecords[0];
           const historicalVolume = historicalPR
             ? historicalPR.weight * historicalPR.reps
             : 0;
 
-          // PR se bater o histórico OU se não houver histórico
           if (currentVolume > historicalVolume) {
             newPersonalRecords = [{ weight: w, reps: r }];
           }
-
-          if (currentVolume > newSessionBestVolume) {
-            newSessionBestVolume = currentVolume;
-          }
         }
 
-        // ── Constrói o "previous" para sets ainda não completados ──
         const newPrevious =
           finalWeight !== "0" || finalReps !== "0"
             ? `${finalWeight}${weightUnit} x ${finalReps}`
@@ -596,7 +605,6 @@ export default function LogWorkoutScreen() {
                   : s.reps,
             };
           }
-          // Atualiza previous/suggested nos sets ainda não completados
           if (!s.completed && isCompleting) {
             return {
               ...s,
@@ -620,10 +628,12 @@ export default function LogWorkoutScreen() {
 
   const handleSetRestTime = (exLogId: string) => {
     const currentEx = exercises.find((e) => e.logId === exLogId);
+    // FIX: não forçar para 60 quando rest_time === 0
+    // Usar String(rest_time) diretamente, e deixar placeholder sugerir 60
     setRestModal({
       visible: true,
       exLogId,
-      value: String(currentEx?.rest_time || "60"),
+      value: currentEx?.rest_time ? String(currentEx.rest_time) : "",
     });
   };
 
@@ -816,12 +826,13 @@ export default function LogWorkoutScreen() {
                     <Text className="text-[#E31C25] text-xl font-black uppercase tracking-tighter">
                       {ex.name}
                     </Text>
+                    {/* FIX: PR badge — mostrar peso E reps do PR histórico */}
                     {ex.personalRecords && ex.personalRecords.length > 0 && (
                       <View className="flex-row items-center bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 self-start mt-1">
                         <Target size={12} color="#EAB308" />
                         <Text className="text-[#EAB308] text-[10px] font-bold ml-1 uppercase">
                           PR: {ex.personalRecords[0].weight}
-                          {weightUnit}
+                          {weightUnit} × {ex.personalRecords[0].reps} reps
                         </Text>
                       </View>
                     )}
@@ -886,12 +897,12 @@ export default function LogWorkoutScreen() {
               </View>
 
               {ex.sets.map((set, idx) => {
-                // ── Calcula se este set é PR de sessão ──
                 const setWeight = set.weight || set.suggestedWeight || "0";
                 const setReps = set.reps || set.suggestedReps || "0";
                 const setVolume =
                   (parseFloat(setWeight) || 0) * (parseInt(setReps) || 0);
                 const sessionBest = ex.sessionBestVolume ?? 0;
+                // FIX: isPR — set completado com volume igual ao melhor da sessão
                 const isPR =
                   set.completed &&
                   setVolume > 0 &&
@@ -981,7 +992,6 @@ export default function LogWorkoutScreen() {
                         />
                       )}
 
-                      {/* ── Botão de completar set ── */}
                       <TouchableOpacity
                         onPress={() => handleToggleSet(ex.logId, set.id)}
                         className={`w-9 h-9 rounded-xl items-center justify-center ml-2 ${
@@ -1025,7 +1035,6 @@ export default function LogWorkoutScreen() {
                 );
               })}
 
-              {/* ── Botões: Add Set / Mover exercício ── */}
               <View className="flex-row items-center mt-3 gap-x-2">
                 <TouchableOpacity
                   onPress={() =>
@@ -1417,6 +1426,8 @@ export default function LogWorkoutScreen() {
                 keyboardType="numeric"
                 autoFocus
                 value={restModal.value}
+                placeholder="60"
+                placeholderTextColor="#52525b"
                 onChangeText={(v) =>
                   setRestModal((prev) => ({ ...prev, value: v }))
                 }
@@ -1437,11 +1448,12 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
-                    const seconds = parseInt(restModal.value || "0");
+                    // FIX: parseInt de string vazia dá NaN, tratar como 0
+                    const secs = parseInt(restModal.value || "0") || 0;
                     setExercises((prev: ActiveExercise[]) =>
                       prev.map((e) =>
                         e.logId === restModal.exLogId
-                          ? { ...e, rest_time: seconds }
+                          ? { ...e, rest_time: secs }
                           : e,
                       ),
                     );
