@@ -21,7 +21,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line, Rect, Text as SvgText } from "react-native-svg";
-import { useUnits } from "./context/units_context";
+import { useUnits } from "../../context/units_context";
 
 const SCREEN_W = Dimensions.get("window").width;
 const RED = "#E31C25";

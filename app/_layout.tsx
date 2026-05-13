@@ -14,9 +14,8 @@ import { Suspense, useEffect, useState } from "react";
 import { ActivityIndicator, LogBox, View } from "react-native";
 import "../global.css";
 
-// Importações dos Contextos - Verifica se os ficheiros existem nestes caminhos
-import { UnitsProvider } from "./(tabs)/context/units_context";
-import { WorkoutProvider } from "./(tabs)/context/workoutcontext";
+import { UnitsProvider } from "../context/units_context";
+import { WorkoutProvider } from "../context/workoutcontext";
 
 // Silenciar avisos desnecessários apenas uma vez
 LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
@@ -67,6 +66,12 @@ export default function RootLayout() {
       .then(() => setDbReady(true))
       .catch((e) => console.error("❌ Erro ao inicializar a App:", e));
   }, []);
+
+  LogBox.ignoreLogs([
+    "SafeAreaView has been deprecated",
+    "expo-notifications: Android Push notifications",
+    "expo-notifications functionality is not fully supported",
+  ]);
 
   if (!dbReady) {
     return (

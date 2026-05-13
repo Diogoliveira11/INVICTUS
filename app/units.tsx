@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import React from "react";
 import { SafeAreaView, Text, TouchableOpacity, View } from "react-native";
-import { useUnits } from "./(tabs)/context/units_context";
+import { useUnits } from "../context/units_context";
 
 export default function UnitsSelection() {
   const router = useRouter();

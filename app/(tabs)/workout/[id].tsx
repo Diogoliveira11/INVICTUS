@@ -31,7 +31,7 @@ import Svg, {
   Polyline,
   Text as SvgText,
 } from "react-native-svg";
-import { useUnits } from "../context/units_context";
+import { useUnits } from "../../../context/units_context";
 
 // ─── GIF MAP ────────────────────────────────────────────────────────────────
 const GIF_MAP: { [key: string]: any } = {

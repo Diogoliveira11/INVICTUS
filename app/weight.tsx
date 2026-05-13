@@ -14,8 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useUnits } from "../context/units_context";
 import { updateUserWeight } from "../src/database";
-import { useUnits } from "./(tabs)/context/units_context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 

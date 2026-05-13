@@ -34,9 +34,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useUnits } from "../../../context/units_context";
+import { useWorkout } from "../../../context/workoutcontext";
 import { clearActiveWorkout } from "../../../src/activeWorkout";
-import { useUnits } from "../context/units_context";
-import { useWorkout } from "../context/workoutcontext";
 
 const RED = "#E31C25";
 

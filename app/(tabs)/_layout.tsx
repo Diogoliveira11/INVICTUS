@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useWorkout } from "./context/workoutcontext";
+import { useWorkout } from "../../context/workoutcontext";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => {

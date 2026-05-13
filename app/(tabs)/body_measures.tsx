@@ -25,7 +25,7 @@ import Svg, {
   Polyline,
   Text as SvgText,
 } from "react-native-svg";
-import { useUnits } from "./context/units_context";
+import { useUnits } from "../../context/units_context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const RED = "#E31C25";

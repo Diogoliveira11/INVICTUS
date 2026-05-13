@@ -21,7 +21,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useUnits } from "./(tabs)/context/units_context";
+import { useUnits } from "../context/units_context";
 
 const RED = "#E31C25";
 
