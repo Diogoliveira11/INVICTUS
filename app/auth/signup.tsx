@@ -28,8 +28,16 @@ export default function SignupScreen() {
   const [error, setError] = useState("");
 
   const handleSignup = async () => {
+    // 1. Verificar se os campos estão vazios
     if (!username || !email || !password) {
       setError("Please fill in all fields.");
+      return;
+    }
+
+    // 2. Validar se existem pelo menos dois nomes (ex: Nome Apelido)
+    const nameParts = username.trim().split(/\s+/);
+    if (nameParts.length < 2) {
+      setError("Please enter your full name (at least two names).");
       return;
     }
 
@@ -48,8 +56,7 @@ export default function SignupScreen() {
       await AsyncStorage.setItem("hasOnboarded", "false");
 
       router.replace("/units");
-    } catch (e) {
-      console.error("[Signup] Erro fatal:", e);
+    } catch {
       setError("An error occurred during signup.");
       Alert.alert("Error", "Could not create account. Please try again.");
     }

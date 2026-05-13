@@ -11,11 +11,15 @@ import { Stack } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { Suspense, useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, LogBox, View } from "react-native";
 import "../global.css";
 
+// Importações dos Contextos - Verifica se os ficheiros existem nestes caminhos
 import { UnitsProvider } from "./(tabs)/context/units_context";
 import { WorkoutProvider } from "./(tabs)/context/workoutcontext";
+
+// Silenciar avisos desnecessários apenas uma vez
+LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
 
 async function loadDatabase(): Promise<void> {
   const dbName = "inicializedatabase.sqlite";
