@@ -246,7 +246,9 @@ export default function LoginScreen() {
             <Text className="text-white text-xs">Password</Text>
             <TextInput
               className="text-white h-11 text-lg"
-              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={true}
               placeholderTextColor="#666"
               value={password}
               onChangeText={setPassword}

@@ -119,8 +119,10 @@ export default function SignupScreen() {
               <Text className="text-white text-xs mb-[-2px]">Password</Text>
               <TextInput
                 className="text-white h-11 text-lg"
-                secureTextEntry
-                placeholderTextColor="#888"
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry={true}
+                placeholderTextColor="#666"
                 value={password}
                 onChangeText={setPassword}
               />
