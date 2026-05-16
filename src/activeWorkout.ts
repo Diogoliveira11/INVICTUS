@@ -23,7 +23,6 @@ export const createActiveWorkout = async (
      VALUES (?, ?, ?, ?)`,
     [routineId, routineName, now, now],
   );
-  console.log("[DB] Active workout created, id:", result.lastInsertRowId);
   return result.lastInsertRowId;
 };
 
