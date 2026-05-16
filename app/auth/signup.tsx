@@ -65,14 +65,14 @@ export default function SignupScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <Image
-        source={require("../../assets/images/onboarding1.jpg")}
+        source={require("../../assets/images/imagesignup.jpg")}
         style={{ width, height, position: "absolute" }}
         resizeMode="cover"
       />
 
       <LinearGradient
         colors={["rgba(0,0,0,0.3)", "transparent", "rgba(0,0,0,0.6)", "#000"]}
-        locations={[0, 0.5, 0.6, 1]}
+        locations={[0, 0.5, 0.4, 1]}
         style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}
       />
 

@@ -320,46 +320,46 @@ export default function ProfileScreen() {
         activeTime === "3 Months" ? 13 : activeTime === "Year" ? 52 : 104;
       const buckets = getWeekBuckets(weeks);
 
-      const points: BarPoint[] = await Promise.all(
-        buckets.map(async (b) => {
-          let value = 0;
+      // ✅ DEPOIS — queries sequenciais
+      const points: BarPoint[] = [];
 
-          if (activeMetric === "Duration") {
-            const rows = await db.getAllAsync<{ duration: string }>(
-              `SELECT duration FROM workouts
-               WHERE user_id = ? AND date(date) BETWEEN ? AND ? AND duration IS NOT NULL`,
-              [userRow.id, b.monday, b.sunday],
-            );
-            value = rows.reduce(
-              (acc, r) => acc + parseTimerToSeconds(r.duration ?? ""),
-              0,
-            );
-          } else if (activeMetric === "Volume") {
-            const row = await db.getFirstAsync<{ vol: number }>(
-              `SELECT SUM(ws.weight * ws.reps) as vol
-               FROM workout_sets ws
-               JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-               JOIN workouts w ON we.workout_id = w.id
-               WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
-              [userRow.id, b.monday, b.sunday],
-            );
-            value = Math.round(row?.vol ?? 0);
-          } else {
-            // Reps
-            const row = await db.getFirstAsync<{ cnt: number }>(
-              `SELECT SUM(ws.reps) as cnt
-               FROM workout_sets ws
-               JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-               JOIN workouts w ON we.workout_id = w.id
-               WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
-              [userRow.id, b.monday, b.sunday],
-            );
-            value = row?.cnt ?? 0;
-          }
+      for (const b of buckets) {
+        let value = 0;
 
-          return { label: b.label, value };
-        }),
-      );
+        if (activeMetric === "Duration") {
+          const rows = await db.getAllAsync<{ duration: string }>(
+            `SELECT duration FROM workouts
+       WHERE user_id = ? AND date(date) BETWEEN ? AND ? AND duration IS NOT NULL`,
+            [userRow.id, b.monday, b.sunday],
+          );
+          value = rows.reduce(
+            (acc, r) => acc + parseTimerToSeconds(r.duration ?? ""),
+            0,
+          );
+        } else if (activeMetric === "Volume") {
+          const row = await db.getFirstAsync<{ vol: number }>(
+            `SELECT SUM(ws.weight * ws.reps) as vol
+       FROM workout_sets ws
+       JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+       JOIN workouts w ON we.workout_id = w.id
+       WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
+            [userRow.id, b.monday, b.sunday],
+          );
+          value = Math.round(row?.vol ?? 0);
+        } else {
+          const row = await db.getFirstAsync<{ cnt: number }>(
+            `SELECT SUM(ws.reps) as cnt
+       FROM workout_sets ws
+       JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+       JOIN workouts w ON we.workout_id = w.id
+       WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
+            [userRow.id, b.monday, b.sunday],
+          );
+          value = row?.cnt ?? 0;
+        }
+
+        points.push({ label: b.label, value });
+      }
 
       setChartData(points);
       setSummaryValue(points.reduce((acc, p) => acc + p.value, 0));

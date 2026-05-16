@@ -1,83 +1,110 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { ArrowLeft, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
-  FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   SafeAreaView,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { updateUserBirthday } from "../src/database";
 
-const ITEM_HEIGHT = 60;
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-interface ScrollColumnProps {
-  data: string[];
-  selectedValue: string;
-  onValueChange: (value: string) => void;
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function getDaysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
+}
+function getFirstDayOfWeek(year: number, month: number) {
+  return new Date(year, month, 1).getDay();
 }
 
 export default function BirthdaySelection() {
   const router = useRouter();
+  const [showYearPicker, setShowYearPicker] = useState(false);
   const db = useSQLiteContext();
 
   const today = new Date();
-  const monthsNames = [
-    "Jan.",
-    "Feb.",
-    "Mar.",
-    "Apr.",
-    "May.",
-    "Jun.",
-    "Jul.",
-    "Aug.",
-    "Sep.",
-    "Oct.",
-    "Nov.",
-    "Dec.",
+  const maxYear = today.getFullYear() - 12;
+  const minYear = maxYear - 90;
+
+  const [viewYear, setViewYear] = useState(maxYear);
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDay = getFirstDayOfWeek(viewYear, viewMonth);
+
+  const cells: (number | null)[] = [
+    ...Array(firstDay).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
+  while (cells.length % 7 !== 0) cells.push(null);
 
-  const currentDay = today.getDate().toString();
-  const currentMonth = monthsNames[today.getMonth()];
-  const maxAllowedYear = today.getFullYear() - 12;
-  const startingYear = maxAllowedYear.toString();
+  const rows: (number | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
 
-  const [day, setDay] = useState(currentDay);
-  const [month, setMonth] = useState(currentMonth);
-  const [year, setYear] = useState(startingYear);
+  const goBack = () => {
+    if (viewMonth === 0) {
+      if (viewYear <= minYear) return;
+      setViewYear(viewYear - 1);
+      setViewMonth(11);
+    } else {
+      setViewMonth(viewMonth - 1);
+    }
+    setSelectedDay(null);
+  };
 
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
-  const months = monthsNames;
-  const years = Array.from({ length: 90 }, (_, i) =>
-    (maxAllowedYear - i).toString(),
-  );
+  const goForward = () => {
+    const nextMonth = viewMonth === 11 ? 0 : viewMonth + 1;
+    const nextYear = viewMonth === 11 ? viewYear + 1 : viewYear;
+    if (nextYear > maxYear) return;
+    if (nextYear === maxYear && nextMonth > today.getMonth()) return;
+    setViewMonth(nextMonth);
+    setViewYear(nextYear);
+    setSelectedDay(null);
+  };
+
+  const canGoForward =
+    viewYear < maxYear ||
+    (viewYear === maxYear && viewMonth < today.getMonth());
+
+  const canGoBack =
+    viewYear > minYear || (viewYear === minYear && viewMonth > 0);
 
   const handleNext = async () => {
+    if (!selectedDay) {
+      Alert.alert("Select a date", "Please pick your birth date.");
+      return;
+    }
     try {
-      // 1. Recuperar o email do utilizador logado
       const userEmail = await AsyncStorage.getItem("userEmail");
-
       if (!userEmail) {
-        console.error("[Onboarding] Erro: userEmail not found!");
         Alert.alert("Error", "User session lost. Please sign up again.");
         router.replace("/auth/signup");
         return;
       }
-
-      // 2. Formatar a data (YYYY-MM-DD)
-      const monthIndex = monthsNames.indexOf(month) + 1;
-      const birthday = `${year}-${String(monthIndex).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-      // 3. Gravar na SQLite (O log aparecerá no teu terminal)
+      const birthday = `${viewYear}-${pad(viewMonth + 1)}-${pad(selectedDay)}`;
       await updateUserBirthday(db, userEmail, birthday);
-
-      // 4. Navegar para o próximo passo
       router.replace("/weight");
     } catch (e) {
       console.error("[Onboarding] Error saving birthday:", e);
@@ -85,76 +112,9 @@ export default function BirthdaySelection() {
     }
   };
 
-  const ScrollColumn = ({
-    data,
-    selectedValue,
-    onValueChange,
-  }: ScrollColumnProps) => {
-    const initialIndex =
-      data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0;
-
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            height: ITEM_HEIGHT - 12,
-            width: "80%",
-            backgroundColor: "#2D2F33",
-            borderRadius: 12,
-            top: "50%",
-            marginTop: -(ITEM_HEIGHT - 12) / 2,
-            zIndex: 0,
-          }}
-        />
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={ITEM_HEIGHT}
-          snapToAlignment="center"
-          decelerationRate="fast"
-          scrollEventThrottle={16}
-          contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-          onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
-            const y = e.nativeEvent.contentOffset.y;
-            const index = Math.round(y / ITEM_HEIGHT);
-            if (data[index]) {
-              onValueChange(data[index]);
-            }
-          }}
-          initialScrollIndex={initialIndex}
-          getItemLayout={(_, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
-            index,
-          })}
-          renderItem={({ item }) => (
-            <View
-              style={{
-                height: ITEM_HEIGHT,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  color: selectedValue === item ? "#fff" : "#6b7280",
-                  fontSize: selectedValue === item ? 22 : 18,
-                  fontWeight: selectedValue === item ? "700" : "400",
-                  opacity: selectedValue === item ? 1 : 0.4,
-                  textAlign: "center",
-                }}
-              >
-                {item}
-              </Text>
-            </View>
-          )}
-        />
-      </View>
-    );
-  };
+  const formattedDate = selectedDay
+    ? `${selectedDay} ${MONTH_NAMES[viewMonth]} ${viewYear}`
+    : "Select your birth date";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#121417" }}>
@@ -166,6 +126,7 @@ export default function BirthdaySelection() {
           justifyContent: "space-between",
         }}
       >
+        {/* Header */}
         <View style={{ alignItems: "center", marginTop: 20 }}>
           <Text
             style={{
@@ -175,7 +136,7 @@ export default function BirthdaySelection() {
               textAlign: "center",
             }}
           >
-            Insert your birth date!
+            When were you born?
           </Text>
           <Text
             style={{
@@ -190,70 +151,173 @@ export default function BirthdaySelection() {
           </Text>
         </View>
 
-        <View style={{ flex: 1, justifyContent: "center", marginVertical: 32 }}>
-          <View
-            style={{ flexDirection: "row", width: "100%", marginBottom: 16 }}
-          >
-            {["Day", "Month", "Year"].map((label) => (
-              <Text
-                key={label}
-                style={{
-                  flex: 1,
-                  color: "#fff",
-                  fontSize: 18,
-                  fontWeight: "500",
-                  textAlign: "center",
-                }}
-              >
-                {label}
-              </Text>
-            ))}
-          </View>
-
+        {/* Selected date pill */}
+        <View style={{ alignItems: "center", marginTop: 24 }}>
           <View
             style={{
-              height: ITEM_HEIGHT * 5,
-              justifyContent: "center",
-              alignItems: "center",
-              width: "100%",
+              backgroundColor: selectedDay ? "#E31C25" : "#2D2F33",
+              borderRadius: 999,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
             }}
           >
-            <View
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                width: "100%",
-                height: ITEM_HEIGHT,
-                top: "50%",
-                marginTop: -ITEM_HEIGHT / 2,
-                borderTopWidth: 2,
-                borderBottomWidth: 2,
-                borderColor: "#E31C25",
-                zIndex: 10,
-              }}
-            />
-            <View
-              style={{ flexDirection: "row", width: "100%", height: "100%" }}
-            >
-              <ScrollColumn
-                data={days}
-                selectedValue={day}
-                onValueChange={setDay}
-              />
-              <ScrollColumn
-                data={months}
-                selectedValue={month}
-                onValueChange={setMonth}
-              />
-              <ScrollColumn
-                data={years}
-                selectedValue={year}
-                onValueChange={setYear}
-              />
-            </View>
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
+              {formattedDate}
+            </Text>
           </View>
         </View>
 
+        {/* Calendar */}
+        <View
+          style={{
+            backgroundColor: "#1A1D22",
+            borderRadius: 24,
+            padding: 20,
+            marginTop: 24,
+          }}
+        >
+          {/* Month nav */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 20,
+            }}
+          >
+            <TouchableOpacity
+              onPress={goBack}
+              disabled={!canGoBack}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                backgroundColor: canGoBack ? "#2D2F33" : "transparent",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: canGoBack ? 1 : 0.2,
+              }}
+            >
+              <ChevronLeft color="#fff" size={20} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowYearPicker(!showYearPicker)}
+            >
+              <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>
+                {MONTH_NAMES[viewMonth]} {viewYear} ▾
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={goForward}
+              disabled={!canGoForward}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                backgroundColor: canGoForward ? "#2D2F33" : "transparent",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: canGoForward ? 1 : 0.2,
+              }}
+            >
+              <ChevronRight color="#fff" size={20} />
+            </TouchableOpacity>
+          </View>
+
+          {showYearPicker && (
+            <ScrollView
+              style={{ maxHeight: 200, marginBottom: 12 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {Array.from(
+                { length: maxYear - minYear + 1 },
+                (_, i) => maxYear - i,
+              ).map((year) => (
+                <TouchableOpacity
+                  key={year}
+                  onPress={() => {
+                    setViewYear(year);
+                    setSelectedDay(null);
+                    setShowYearPicker(false);
+                  }}
+                  style={{
+                    paddingVertical: 10,
+                    alignItems: "center",
+                    borderRadius: 8,
+                    backgroundColor:
+                      year === viewYear ? "#E31C25" : "transparent",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontWeight: year === viewYear ? "700" : "400",
+                      fontSize: 15,
+                    }}
+                  >
+                    {year}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* Day labels */}
+          <View style={{ flexDirection: "row", marginBottom: 8 }}>
+            {DAY_LABELS.map((d) => (
+              <View key={d} style={{ flex: 1, alignItems: "center" }}>
+                <Text
+                  style={{ color: "#6B7280", fontSize: 12, fontWeight: "600" }}
+                >
+                  {d}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Grid */}
+          {rows.map((row, ri) => (
+            <View key={ri} style={{ flexDirection: "row", marginBottom: 6 }}>
+              {row.map((day, ci) => {
+                const isSelected = day === selectedDay;
+                return (
+                  <TouchableOpacity
+                    key={ci}
+                    onPress={() => day && setSelectedDay(day)}
+                    disabled={!day}
+                    style={{
+                      flex: 1,
+                      height: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 12,
+                      backgroundColor:
+                        isSelected && day ? "#E31C25" : "transparent",
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontSize: 15,
+                        fontWeight: isSelected ? "700" : "400",
+                        opacity: day ? 1 : 0,
+                      }}
+                    >
+                      {day ?? "·"}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+
+        <View style={{ flex: 1 }} />
+
+        {/* Navigation */}
         <View
           style={{
             flexDirection: "row",
@@ -278,26 +342,17 @@ export default function BirthdaySelection() {
 
           <TouchableOpacity
             style={{
-              backgroundColor: "#E31C25",
-              flexDirection: "row",
-              alignItems: "center",
+              backgroundColor: selectedDay ? "#E31C25" : "#2D2F33",
               paddingVertical: 16,
-              paddingHorizontal: 32,
+              paddingHorizontal: 40,
               borderRadius: 999,
+              opacity: selectedDay ? 1 : 0.5,
             }}
             onPress={handleNext}
           >
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 18,
-                fontWeight: "700",
-                marginRight: 8,
-              }}
-            >
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>
               Next
             </Text>
-            <ChevronRight color="white" size={20} />
           </TouchableOpacity>
         </View>
       </View>

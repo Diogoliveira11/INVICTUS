@@ -38,8 +38,10 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
-      ]
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.diogo1111.INVICTUS"
     },
     "web": {
       "output": "static",
@@ -80,6 +82,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4f84bb3b-693a-4311-bef6-e67b8f51d96a"
+      }
     }
   }
 }

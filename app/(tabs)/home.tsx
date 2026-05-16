@@ -253,9 +253,7 @@ export default function ProgressResult() {
           className="relative rounded-[45px] overflow-hidden"
         >
           <Image
-            source={{
-              uri: "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
-            }}
+            source={require("../../assets/images/ManHome.jpg")}
             className="absolute inset-0 w-full h-full"
             resizeMode="cover"
           />

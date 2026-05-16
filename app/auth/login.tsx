@@ -196,18 +196,18 @@ export default function LoginScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <Image
-        source={require("../../assets/images/onboarding3.png")}
+        source={require("../../assets/images/imagelogin.jpg")}
         style={{ width, height, position: "absolute" }}
         resizeMode="cover"
       />
       <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.7)", "#000"]}
+        colors={["transparent", "rgba(0,0,0,0.3)", "#000"]}
         style={{
           position: "absolute",
           left: 0,
           right: 0,
           bottom: 0,
-          height: height * 0.6,
+          height: height * 0.7,
         }}
       />
 

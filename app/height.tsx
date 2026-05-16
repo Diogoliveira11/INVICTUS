@@ -1,14 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { ArrowLeft, ChevronRight } from "lucide-react-native";
-import React, { useMemo } from "react";
+import { ArrowLeft, ChevronRight, Minus, Plus } from "lucide-react-native";
+import React, { useCallback, useMemo, useRef } from "react";
 import {
   Alert,
-  Dimensions,
-  FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
+  PanResponder,
   SafeAreaView,
   Text,
   TouchableOpacity,
@@ -17,36 +14,38 @@ import {
 import { useUnits } from "../context/units_context";
 import { updateUserHeight } from "../src/database";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ITEM_HEIGHT = 70;
+const CM_MIN = 120;
+const CM_MAX = 220;
+const FT_MIN = 4;
+const FT_MAX = 8;
+const IN_MIN = 0;
+const IN_MAX = 11;
 
-interface ScrollColumnProps {
-  data: string[];
-  selectedValue: string;
-  onValueChange: (value: string) => void;
-  unitLabel?: string;
-}
+const HOLD_DELAY = 350;
+const HOLD_INTERVAL = 80;
+const TURBO_THRESHOLD = 10;
+const TURBO_INTERVAL = 30;
 
 export default function HeightSelection() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { heightUnit: unit } = useUnits();
 
-  const [cmValue, setCmValue] = React.useState("170");
-  const [ftValue, setFtValue] = React.useState("5");
-  const [inValue, setInValue] = React.useState("7");
+  const [cmValue, setCmValue] = React.useState(170);
+  const [ftValue, setFtValue] = React.useState(5);
+  const [inValue, setInValue] = React.useState(7);
 
-  const cmData = useMemo(
-    () => Array.from({ length: 101 }, (_, i) => (120 + i).toString()),
-    [],
+  const cmProgress = useMemo(
+    () => (cmValue - CM_MIN) / (CM_MAX - CM_MIN),
+    [cmValue],
   );
-  const ftData = useMemo(
-    () => Array.from({ length: 5 }, (_, i) => (4 + i).toString()),
-    [],
+  const ftProgress = useMemo(
+    () => (ftValue - FT_MIN) / (FT_MAX - FT_MIN),
+    [ftValue],
   );
-  const inData = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => i.toString()),
-    [],
+  const inProgress = useMemo(
+    () => (inValue - IN_MIN) / (IN_MAX - IN_MIN),
+    [inValue],
   );
 
   const handleNext = async () => {
@@ -62,18 +61,16 @@ export default function HeightSelection() {
       let numericValue: number;
 
       if (unit === "CM") {
-        heightToSave = cmValue;
-        numericValue = parseFloat(cmValue);
+        heightToSave = cmValue.toString();
+        numericValue = cmValue;
       } else {
         heightToSave = `${ftValue}.${inValue}`;
-        numericValue = parseFloat(ftValue) + parseFloat(inValue) / 10;
+        numericValue = ftValue + inValue / 10;
       }
 
-      // 1. Atualiza o peso na tabela principal de utilizadores
       await updateUserHeight(db, userEmail, heightToSave);
       await AsyncStorage.setItem("userHeightUnit", unit);
 
-      // 2. Garante que a tabela de medições existe
       await db.runAsync(`
         CREATE TABLE IF NOT EXISTS body_measurements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,7 +81,6 @@ export default function HeightSelection() {
         )
       `);
 
-      // 3. Regista a altura inicial no histórico com o tipo 'height'
       await db.runAsync(
         "INSERT INTO body_measurements (user_email, value, type, recorded_at) VALUES (?, ?, 'height', datetime('now'))",
         [userEmail, numericValue],
@@ -97,83 +93,10 @@ export default function HeightSelection() {
     }
   };
 
-  const ScrollColumn = ({
-    data,
-    selectedValue,
-    onValueChange,
-    unitLabel,
-  }: ScrollColumnProps) => {
-    const initialIndex =
-      data.indexOf(selectedValue) !== -1 ? data.indexOf(selectedValue) : 0;
-
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            height: ITEM_HEIGHT - 10,
-            width: "92%",
-            backgroundColor: "#2D2F33",
-            borderRadius: 16,
-            top: "50%",
-            marginTop: -(ITEM_HEIGHT - 10) / 2,
-            zIndex: 0,
-          }}
-        />
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={ITEM_HEIGHT}
-          snapToAlignment="center"
-          decelerationRate="fast"
-          scrollEventThrottle={16}
-          contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-          onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
-            const y = e.nativeEvent.contentOffset.y;
-            const index = Math.round(y / ITEM_HEIGHT);
-            if (data[index]) onValueChange(data[index]);
-          }}
-          initialScrollIndex={initialIndex}
-          getItemLayout={(_, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
-            index,
-          })}
-          renderItem={({ item }) => (
-            <View
-              style={{
-                height: ITEM_HEIGHT,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  color: selectedValue === item ? "#fff" : "#6b7280",
-                  fontSize: selectedValue === item ? 36 : 20,
-                  fontWeight: selectedValue === item ? "700" : "400",
-                  opacity: selectedValue === item ? 1 : 0.3,
-                  textAlign: "center",
-                }}
-              >
-                {item}
-                <Text style={{ fontSize: 18, fontWeight: "400" }}>
-                  {unitLabel || ""}
-                </Text>
-              </Text>
-            </View>
-          )}
-        />
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-[#121417]">
       <View className="flex-1 px-6 py-8 justify-between">
-        {/* Título */}
+        {/* Title */}
         <View className="items-center mt-5">
           <Text className="text-3xl font-bold text-white text-center">
             What´s your height?
@@ -183,76 +106,53 @@ export default function HeightSelection() {
           </Text>
         </View>
 
-        {/* Picker */}
-        <View className="flex-1 justify-center my-2">
-          <View className="flex-row w-full mb-4 justify-center">
-            {unit === "CM" ? (
-              <Text className="text-white text-lg font-semibold">
-                Centimeters
-              </Text>
-            ) : (
-              <>
-                <Text className="flex-1 text-white text-lg font-semibold text-center">
-                  Feet
-                </Text>
-                <Text className="flex-1 text-white text-lg font-semibold text-center">
-                  Inches
-                </Text>
-              </>
-            )}
-          </View>
-
-          <View
-            style={{ height: ITEM_HEIGHT * 5 }}
-            className="justify-center items-center w-full"
-          >
-            <View
-              pointerEvents="none"
-              className="absolute border-t-2 border-b-2 border-[#E31C25] z-10"
-              style={{
-                height: ITEM_HEIGHT,
-                top: "50%",
-                marginTop: -ITEM_HEIGHT / 2,
-                width: unit === "CM" ? "45%" : "100%",
-              }}
+        {/* Controls */}
+        <View className="flex-1 justify-center gap-6 my-6">
+          {unit === "CM" ? (
+            <StepperCard
+              label="Centimeters"
+              value={cmValue}
+              unit="cm"
+              onIncrement={() => setCmValue((v) => Math.min(v + 1, CM_MAX))}
+              onDecrement={() => setCmValue((v) => Math.max(v - 1, CM_MIN))}
+              progress={cmProgress}
+              canDecrement={cmValue > CM_MIN}
+              canIncrement={cmValue < CM_MAX}
             />
-            <View className="flex-row w-full h-full justify-center">
-              {unit === "CM" ? (
-                <View style={{ width: SCREEN_WIDTH * 0.45 }}>
-                  <ScrollColumn
-                    data={cmData}
-                    selectedValue={cmValue}
-                    onValueChange={setCmValue}
-                  />
-                </View>
-              ) : (
-                <>
-                  <ScrollColumn
-                    data={ftData}
-                    selectedValue={ftValue}
-                    onValueChange={setFtValue}
-                    unitLabel="'"
-                  />
-                  <ScrollColumn
-                    data={inData}
-                    selectedValue={inValue}
-                    onValueChange={setInValue}
-                    unitLabel="''"
-                  />
-                </>
-              )}
-            </View>
-          </View>
+          ) : (
+            <>
+              <StepperCard
+                label="Feet"
+                value={ftValue}
+                unit="ft"
+                onIncrement={() => setFtValue((v) => Math.min(v + 1, FT_MAX))}
+                onDecrement={() => setFtValue((v) => Math.max(v - 1, FT_MIN))}
+                progress={ftProgress}
+                canDecrement={ftValue > FT_MIN}
+                canIncrement={ftValue < FT_MAX}
+              />
+              <StepperCard
+                label="Inches"
+                value={inValue}
+                unit="in"
+                onIncrement={() => setInValue((v) => Math.min(v + 1, IN_MAX))}
+                onDecrement={() => setInValue((v) => Math.max(v - 1, IN_MIN))}
+                progress={inProgress}
+                canDecrement={inValue > IN_MIN}
+                canIncrement={inValue < IN_MAX}
+              />
+            </>
+          )}
         </View>
 
-        {/* Unidade selecionada */}
+        {/* Unit badge */}
         <View className="items-center mb-6">
           <View className="bg-[#2D2F33] rounded-full px-8 py-3">
             <Text className="text-white font-bold text-base">{unit}</Text>
           </View>
         </View>
 
-        {/* Botões de Navegação */}
+        {/* Navigation */}
         <View className="flex-row justify-between items-center mb-2">
           <TouchableOpacity
             className="bg-[#2D2F33] w-14 h-14 rounded-full justify-center items-center"
@@ -271,5 +171,191 @@ export default function HeightSelection() {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+// ─── Hold Button ─────────────────────────────────────────────────────────────
+
+interface HoldButtonProps {
+  onAction: () => void;
+  disabled: boolean;
+  children: React.ReactNode;
+  baseColor: string;
+  pressedColor: string;
+}
+
+function HoldButton({
+  onAction,
+  disabled,
+  children,
+  baseColor,
+  pressedColor,
+}: HoldButtonProps) {
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stepsRef = useRef(0);
+  const activeRef = useRef(false);
+  const [pressed, setPressed] = React.useState(false);
+
+  const stop = useCallback(() => {
+    activeRef.current = false;
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    stepsRef.current = 0;
+    setPressed(false);
+  }, []);
+
+  const start = useCallback(() => {
+    if (disabled) return;
+    // Guard: don't start if already running
+    if (activeRef.current) return;
+
+    activeRef.current = true;
+    setPressed(true);
+
+    // Fire once immediately on touch down
+    onAction();
+
+    // After hold delay, start repeating
+    timeoutRef.current = setTimeout(() => {
+      if (!activeRef.current) return;
+      stepsRef.current = 0;
+
+      intervalRef.current = setInterval(() => {
+        if (!activeRef.current) {
+          stop();
+          return;
+        }
+        onAction();
+        stepsRef.current += 1;
+
+        // Turbo: switch to faster interval after threshold
+        if (stepsRef.current === TURBO_THRESHOLD) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          if (!activeRef.current) return;
+          intervalRef.current = setInterval(() => {
+            if (!activeRef.current) {
+              stop();
+              return;
+            }
+            onAction();
+          }, TURBO_INTERVAL);
+        }
+      }, HOLD_INTERVAL);
+    }, HOLD_DELAY);
+  }, [disabled, onAction, stop]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        // Claim the touch immediately
+        onStartShouldSetPanResponder: () => !disabled,
+        onStartShouldSetPanResponderCapture: () => !disabled,
+        onMoveShouldSetPanResponder: () => false,
+        onPanResponderGrant: () => {
+          start();
+        },
+        onPanResponderRelease: () => {
+          stop();
+        },
+        onPanResponderTerminate: () => {
+          stop();
+        },
+        onPanResponderTerminationRequest: () => true,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [disabled],
+  );
+
+  return (
+    <View
+      {...panResponder.panHandlers}
+      style={{
+        width: 56,
+        height: 56,
+        borderRadius: 16,
+        backgroundColor: pressed ? pressedColor : baseColor,
+        justifyContent: "center",
+        alignItems: "center",
+        opacity: disabled ? 0.3 : 1,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+// ─── Stepper Card ─────────────────────────────────────────────────────────────
+
+interface StepperCardProps {
+  label: string;
+  value: number;
+  unit: string;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  progress: number;
+  canIncrement: boolean;
+  canDecrement: boolean;
+}
+
+function StepperCard({
+  label,
+  value,
+  unit,
+  onIncrement,
+  onDecrement,
+  progress,
+  canIncrement,
+  canDecrement,
+}: StepperCardProps) {
+  return (
+    <View className="bg-[#1E2025] rounded-3xl px-6 py-5">
+      <Text className="text-gray-400 text-sm font-medium mb-4">{label}</Text>
+
+      <View className="flex-row items-center justify-between mb-5">
+        <HoldButton
+          onAction={onDecrement}
+          disabled={!canDecrement}
+          baseColor="#2D2F33"
+          pressedColor="#3a3d42"
+        >
+          <Minus color="white" size={22} />
+        </HoldButton>
+
+        <View className="items-center">
+          <Text
+            className="text-white font-bold"
+            style={{ fontSize: 56, lineHeight: 64 }}
+          >
+            {value}
+          </Text>
+          <Text className="text-gray-500 text-base font-medium -mt-1">
+            {unit}
+          </Text>
+        </View>
+
+        <HoldButton
+          onAction={onIncrement}
+          disabled={!canIncrement}
+          baseColor="#E31C25"
+          pressedColor="#ff2f38"
+        >
+          <Plus color="white" size={22} />
+        </HoldButton>
+      </View>
+
+      <View className="h-1.5 bg-[#2D2F33] rounded-full overflow-hidden">
+        <View
+          className="h-full bg-[#E31C25] rounded-full"
+          style={{ width: `${Math.round(progress * 100)}%` }}
+        />
+      </View>
+    </View>
   );
 }
