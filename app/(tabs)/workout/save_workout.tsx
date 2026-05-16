@@ -23,6 +23,7 @@ import React, {
 import {
   Animated,
   Image,
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
@@ -591,164 +592,172 @@ export default function SaveWorkoutScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ paddingHorizontal: 24, paddingTop: 24 }}>
-        {/* Título */}
-        <Text
-          style={{
-            color: "white",
-            fontSize: 28,
-            fontWeight: "900",
-            textTransform: "uppercase",
-            marginBottom: 16,
-          }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          style={{ paddingHorizontal: 24, paddingTop: 24 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {String(routineName ?? "").trim() || "Workout"}
-        </Text>
-
-        {/* Estatísticas */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginBottom: 20,
-            borderBottomWidth: 1,
-            borderBottomColor: "#18181b",
-            paddingBottom: 20,
-          }}
-        >
-          {[
-            { label: "Duration", value: timer, color: RED },
-            {
-              label: "Volume",
-              value: `${stats.totalVolume} ${weightUnit}`,
-              color: "white",
-            },
-            { label: "Sets", value: String(stats.totalSets), color: "white" },
-          ].map((item) => (
-            <View key={item.label}>
-              <Text
-                style={{
-                  color: "#52525b",
-                  fontSize: 11,
-                  fontWeight: "700",
-                  textTransform: "uppercase",
-                  marginBottom: 4,
-                }}
-              >
-                {item.label}
-              </Text>
-              <Text
-                style={{ color: item.color, fontSize: 18, fontWeight: "900" }}
-              >
-                {item.value}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <View
-          style={{
-            marginBottom: 20,
-            borderBottomWidth: 1,
-            borderBottomColor: "#18181b",
-            paddingBottom: 20,
-          }}
-        >
+          {/* Título */}
           <Text
             style={{
-              color: "#52525b",
-              fontSize: 11,
-              fontWeight: "700",
+              color: "white",
+              fontSize: 28,
+              fontWeight: "900",
               textTransform: "uppercase",
-              marginBottom: 4,
+              marginBottom: 16,
             }}
           >
-            When
+            {String(routineName ?? "").trim() || "Workout"}
           </Text>
-          <Text style={{ color: RED, fontSize: 15, fontWeight: "700" }}>
-            {new Date().toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={() => setShowImageModal(true)}
-          style={{
-            marginBottom: 20,
-            borderBottomWidth: 1,
-            borderBottomColor: "#18181b",
-            paddingBottom: 20,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          {workoutImage ? (
-            <Image
-              source={{ uri: workoutImage }}
+          {/* Estatísticas */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: "#18181b",
+              paddingBottom: 20,
+            }}
+          >
+            {[
+              { label: "Duration", value: timer, color: RED },
+              {
+                label: "Volume",
+                value: `${stats.totalVolume} ${weightUnit}`,
+                color: "white",
+              },
+              { label: "Sets", value: String(stats.totalSets), color: "white" },
+            ].map((item) => (
+              <View key={item.label}>
+                <Text
+                  style={{
+                    color: "#52525b",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    marginBottom: 4,
+                  }}
+                >
+                  {item.label}
+                </Text>
+                <Text
+                  style={{ color: item.color, fontSize: 18, fontWeight: "900" }}
+                >
+                  {item.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <View
+            style={{
+              marginBottom: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: "#18181b",
+              paddingBottom: 20,
+            }}
+          >
+            <Text
               style={{
-                width: 80,
-                height: 80,
-                borderRadius: 16,
-                marginRight: 16,
-              }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 16,
-                backgroundColor: "#18181b",
-                borderWidth: 1,
-                borderColor: "#27272a",
-                borderStyle: "dashed",
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 16,
+                color: "#52525b",
+                fontSize: 11,
+                fontWeight: "700",
+                textTransform: "uppercase",
+                marginBottom: 4,
               }}
             >
-              <CameraIcon color="#52525b" size={24} />
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#71717a", fontSize: 13, fontWeight: "600" }}>
-              {workoutImage ? "Change photo / video" : "Add a photo / video"}
+              When
+            </Text>
+            <Text style={{ color: RED, fontSize: 15, fontWeight: "700" }}>
+              {new Date().toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </Text>
           </View>
-          <ChevronRight color="#27272a" size={20} />
-        </TouchableOpacity>
-
-        <View style={{ marginBottom: 20 }}>
-          <Text
+          <TouchableOpacity
+            onPress={() => setShowImageModal(true)}
             style={{
-              color: "#52525b",
-              fontSize: 11,
-              fontWeight: "700",
-              textTransform: "uppercase",
-              marginBottom: 8,
+              marginBottom: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: "#18181b",
+              paddingBottom: 20,
+              flexDirection: "row",
+              alignItems: "center",
             }}
           >
-            Description
-          </Text>
-          <TextInput
-            placeholder="How did your workout go? Leave some notes here..."
-            placeholderTextColor="#3f3f46"
-            multiline
-            value={description}
-            onChangeText={setDescription}
-            style={{ color: "white", fontSize: 15, minHeight: 80 }}
-            textAlignVertical="top"
-          />
-        </View>
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
+            {workoutImage ? (
+              <Image
+                source={{ uri: workoutImage }}
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 16,
+                  marginRight: 16,
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 16,
+                  backgroundColor: "#18181b",
+                  borderWidth: 1,
+                  borderColor: "#27272a",
+                  borderStyle: "dashed",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 16,
+                }}
+              >
+                <CameraIcon color="#52525b" size={24} />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{ color: "#71717a", fontSize: 13, fontWeight: "600" }}
+              >
+                {workoutImage ? "Change photo / video" : "Add a photo / video"}
+              </Text>
+            </View>
+            <ChevronRight color="#27272a" size={20} />
+          </TouchableOpacity>
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                color: "#52525b",
+                fontSize: 11,
+                fontWeight: "700",
+                textTransform: "uppercase",
+                marginBottom: 8,
+              }}
+            >
+              Description
+            </Text>
+            <TextInput
+              placeholder="How did your workout go? Leave some notes here..."
+              placeholderTextColor="#3f3f46"
+              multiline
+              value={description}
+              onChangeText={setDescription}
+              style={{ color: "white", fontSize: 15, minHeight: 80 }}
+              textAlignVertical="top"
+              scrollEnabled={false}
+            />
+          </View>
+          <View style={{ height: 100 }} />
+          <View style={{ height: 200 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* ── ATUALIZAR BASE DA ROTINA ── */}
       <UpdateRoutineSheet
