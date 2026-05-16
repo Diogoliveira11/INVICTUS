@@ -1,18 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import {
+  ArrowLeft,
   ChevronLeft,
-  ChevronRight,
   Clock,
+  TrendingUp,
   Trophy,
   X,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   ScrollView,
@@ -23,28 +24,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../context/units_context";
 
-const RED = "#E31C25";
-
-// ─── tipos ───────
-type WorkoutDay = {
-  workoutId: number;
-  date: string;
+type WorkoutEntry = {
+  id: number;
   title: string;
+  date: string;
   duration: string;
   total_volume: number;
   notes: string;
   photo: string | null;
-  muscles: string[];
 };
 
-type CalendarDay = {
-  day: number;
-  dateStr: string;
-  isToday: boolean;
-  workout: WorkoutDay | null;
-};
-
-type WorkoutExercise = {
+interface WorkoutExercise {
   exercise_name: string;
   muscle_group: string;
   weight: number;
@@ -54,344 +44,206 @@ type WorkoutExercise = {
   is_personal_record: number;
   distance: number | null;
   time: string | null;
-};
-
-const MONTH_LABELS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const MONTH_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-const DAY_LETTERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function abbrevMuscle(m: string): string {
-  const map: Record<string, string> = {
-    chest: "CHEST",
-    back: "BACK",
-    shoulders: "SHLD",
-    biceps: "BICE",
-    triceps: "TRI",
-    legs: "LEGS",
-    quads: "QUAD",
-    hamstrings: "HAMS",
-    glutes: "GLUT",
-    calves: "CALV",
-    abs: "ABS",
-    core: "CORE",
-    lats: "LATS",
-    traps: "TRAP",
-    forearms: "FORE",
-    "upper back": "U.BACK",
-    "lower back": "L.BACK",
-  };
-  return map[m.toLowerCase()] ?? m.slice(0, 4).toUpperCase();
 }
 
-function buildCalendarGrid(year: number, month: number): CalendarDay[][] {
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const firstDay = new Date(year, month - 1, 1);
-  const startDow = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const cells: CalendarDay[] = [];
-  for (let i = 0; i < startDow; i++)
-    cells.push({ day: 0, dateStr: "", isToday: false, workout: null });
-  for (let d = 1; d <= daysInMonth; d++) {
-    const mm = String(month).padStart(2, "0");
-    const dd = String(d).padStart(2, "0");
-    const dateStr = `${year}-${mm}-${dd}`;
-    cells.push({
-      day: d,
-      dateStr,
-      isToday: dateStr === todayStr,
-      workout: null,
-    });
-  }
-  while (cells.length % 7 !== 0)
-    cells.push({ day: 0, dateStr: "", isToday: false, workout: null });
-  const weeks: CalendarDay[][] = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
-  return weeks;
+interface ExerciseHistory {
+  workout_title: string;
+  date: string;
+  sets: WorkoutExercise[];
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  const today = new Date();
-  const diff = Math.ceil(
-    (new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-    ).getTime() -
-      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) /
-      86400000,
-  );
-  if (diff === 0) return "TODAY";
-  if (diff === 1) return "YESTERDAY";
-  return d
-    .toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
-    .toUpperCase();
-}
-
-function getSetTypeStyle(set_type: string) {
-  switch (set_type) {
-    case "W":
-      return { label: "WARMUP", bg: "bg-amber-500/10", text: "text-amber-500" };
-    case "D":
-      return {
-        label: "DROP SET",
-        bg: "bg-purple-500/10",
-        text: "text-purple-500",
-      };
-    case "F":
-      return { label: "FAILURE", bg: "bg-red-500/10", text: "text-red-500" };
-    default:
-      return { label: "NORMAL", bg: "bg-zinc-800", text: "text-zinc-400" };
-  }
-}
-
-const isCardio = (mg: string) => mg?.toLowerCase() === "cardio";
-
-function DayCell({
-  cell,
-  onPress,
-}: {
-  cell: CalendarDay;
-  onPress: () => void;
-}) {
-  if (cell.day === 0) return <View style={{ flex: 1 }} />;
-  const hasWorkout = cell.workout !== null;
-  const muscles = cell.workout?.muscles ?? [];
-  const muscleLabel = muscles.slice(0, 2).map(abbrevMuscle).join(" | ");
-
-  return (
-    <TouchableOpacity
-      style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}
-      onPress={hasWorkout ? onPress : undefined}
-      activeOpacity={hasWorkout ? 0.7 : 1}
-    >
-      <View
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 17,
-          backgroundColor: hasWorkout ? RED : "transparent",
-          borderWidth: cell.isToday && !hasWorkout ? 1.5 : 0,
-          borderColor: cell.isToday ? RED : "transparent",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text
-          style={{
-            color: hasWorkout ? "#fff" : cell.isToday ? RED : "#a1a1aa",
-            fontWeight: hasWorkout ? "900" : "600",
-            fontSize: 14,
-          }}
-        >
-          {cell.day}
-        </Text>
-      </View>
-      {hasWorkout && muscleLabel ? (
-        <Text
-          style={{
-            color: "#52525b",
-            fontSize: 7.5,
-            fontWeight: "700",
-            textTransform: "uppercase",
-            marginTop: 3,
-            textAlign: "center",
-            letterSpacing: 0.2,
-          }}
-          numberOfLines={1}
-        >
-          {muscleLabel}
-        </Text>
-      ) : (
-        <View style={{ height: 13 }} />
-      )}
-    </TouchableOpacity>
-  );
-}
-
-export default function MonthlyReportScreen() {
+export default function WorkoutHistory() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const isFocused = useIsFocused();
   const db = useSQLiteContext();
   const { weightUnit } = useUnits();
   const weightUnitLower = weightUnit.toLowerCase();
 
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [history, setHistory] = useState<WorkoutEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [workoutDays, setWorkoutDays] = useState<WorkoutDay[]>([]);
-
-  // Workout detail modal
-  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDay | null>(
+  const [isDetailsVisible, setIsDetailsVisible] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutEntry | null>(
     null,
   );
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>(
     [],
   );
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
 
-  const isCurrentMonth =
-    year === now.getFullYear() && month === now.getMonth() + 1;
+  // Exercise detail modal state
+  const [isExerciseDetailVisible, setIsExerciseDetailVisible] = useState(false);
+  const [selectedExerciseName, setSelectedExerciseName] = useState<string>("");
+  const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>([]);
+  const [loadingExerciseHistory, setLoadingExerciseHistory] = useState(false);
 
-  const loadData = useCallback(async () => {
+  useEffect(() => {
+    loadWorkoutHistory();
+  }, []);
+
+  const loadWorkoutHistory = async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
-      const userRow = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM users WHERE email = ?",
+
+      const rows = await db.getAllAsync<WorkoutEntry>(
+        `SELECT id, title, date, duration, total_volume, notes, photo
+         FROM workouts 
+         WHERE user_id = (SELECT id FROM users WHERE email = ?)
+         ORDER BY date DESC`,
         [email],
       );
-      if (!userRow) return;
 
-      const monthStr = `${year}-${String(month).padStart(2, "0")}`;
-
-      const workoutRows = await db.getAllAsync<{
-        id: number;
-        date: string;
-        title: string;
-        duration: string;
-        total_volume: number;
-        notes: string;
-        photo: string | null;
-      }>(
-        `SELECT id, date(date) as date, title, duration, total_volume, notes, photo
-         FROM workouts
-         WHERE user_id = ? AND strftime('%Y-%m', date) = ?
-         ORDER BY date ASC`,
-        [userRow.id, monthStr],
-      );
-
-      const wDays: WorkoutDay[] = await Promise.all(
-        workoutRows.map(async (w) => {
-          const muscleRows = await db.getAllAsync<{ muscle_group: string }>(
-            `SELECT DISTINCT e.muscle_group
-             FROM workout_exercises we
-             JOIN exercises e ON e.id = we.exercise_id
-             WHERE we.workout_id = ? AND e.muscle_group != 'Cardio'`,
-            [w.id],
-          );
-          return {
-            workoutId: w.id,
-            date: w.date,
-            title: w.title,
-            duration: w.duration,
-            total_volume: w.total_volume,
-            notes: w.notes,
-            photo: w.photo,
-            muscles: muscleRows.map((r) => r.muscle_group).slice(0, 3),
-          };
-        }),
-      );
-      setWorkoutDays(wDays);
+      setHistory(rows);
     } catch (e) {
-      console.error("[MonthlyReport]", e);
+      console.error("Erro ao carregar histórico de treinos:", e);
+    } finally {
+      setLoading(false);
     }
-  }, [db, year, month]);
+  };
 
-  useEffect(() => {
-    if (isFocused) loadData();
-  }, [isFocused, loadData]);
-
-  const openWorkout = async (w: WorkoutDay) => {
-    setSelectedWorkout(w);
-    setShowDetail(true);
-    setDetailLoading(true);
+  const loadWorkoutDetails = async (workout: WorkoutEntry) => {
     try {
       const details = await db.getAllAsync<WorkoutExercise>(
-        `SELECT e.name as exercise_name, e.muscle_group,
-                ws.weight, ws.reps, ws.distance, ws.time,
-                ws.set_type, ws.index_order, ws.is_personal_record
-         FROM workout_sets ws
-         JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-         JOIN exercises e ON ws.exercise_id = e.id
-         WHERE we.workout_id = ?
-         ORDER BY we.index_order ASC, ws.index_order ASC`,
-        [w.workoutId],
+        `SELECT 
+          e.name as exercise_name,
+          e.muscle_group,
+          ws.weight, 
+          ws.reps,
+          ws.distance,
+          ws.time,
+          ws.set_type, 
+          ws.index_order,
+          ws.is_personal_record
+        FROM workout_sets ws
+        JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+        JOIN exercises e ON ws.exercise_id = e.id
+        WHERE we.workout_id = ?
+        ORDER BY we.index_order ASC, ws.index_order ASC`,
+        [workout.id],
       );
-      setWorkoutExercises(details ?? []);
+
+      setSelectedWorkout(workout);
+      setWorkoutExercises(details || []);
+      setIsDetailsVisible(true);
     } catch (e) {
-      console.error("[openWorkout]", e);
-    } finally {
-      setDetailLoading(false);
+      console.error("[loadWorkoutDetails] erro:", e);
+      Alert.alert("Erro", "Não foi possível carregar os detalhes.");
     }
   };
 
-  // ── Calendario ────
-  const workoutMap: Record<string, WorkoutDay> = {};
-  workoutDays.forEach((w) => {
-    workoutMap[w.date] = w;
-  });
+  const loadExerciseHistory = async (exerciseName: string) => {
+    setLoadingExerciseHistory(true);
+    setSelectedExerciseName(exerciseName);
+    setIsExerciseDetailVisible(true);
 
-  const weeks = buildCalendarGrid(year, month).map((week) =>
-    week.map((cell) => ({
-      ...cell,
-      workout: cell.dateStr ? (workoutMap[cell.dateStr] ?? null) : null,
-    })),
-  );
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) return;
 
-  // ── Navegação ───────
-  const goToPrev = () => {
-    if (month === 1) {
-      setMonth(12);
-      setYear((y) => y - 1);
-    } else setMonth((m) => m - 1);
+      // Fetch all sets for this exercise across all workouts
+      const rows = await db.getAllAsync<
+        WorkoutExercise & { workout_title: string; workout_date: string }
+      >(
+        `SELECT 
+          w.title as workout_title,
+          w.date as workout_date,
+          e.name as exercise_name,
+          e.muscle_group,
+          ws.weight,
+          ws.reps,
+          ws.distance,
+          ws.time,
+          ws.set_type,
+          ws.index_order,
+          ws.is_personal_record
+        FROM workout_sets ws
+        JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+        JOIN exercises e ON ws.exercise_id = e.id
+        JOIN workouts w ON we.workout_id = w.id
+        WHERE e.name = ?
+          AND w.user_id = (SELECT id FROM users WHERE email = ?)
+        ORDER BY w.date DESC, ws.index_order ASC`,
+        [exerciseName, email],
+      );
+
+      // Group by workout
+      const grouped: Record<string, ExerciseHistory> = {};
+      rows.forEach((row) => {
+        const key = `${row.workout_date}_${row.workout_title}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            workout_title: row.workout_title,
+            date: row.workout_date,
+            sets: [],
+          };
+        }
+        grouped[key].sets.push(row);
+      });
+
+      setExerciseHistory(Object.values(grouped));
+    } catch (e) {
+      console.error("[loadExerciseHistory] erro:", e);
+      Alert.alert(
+        "Erro",
+        "Não foi possível carregar o histórico do exercício.",
+      );
+    } finally {
+      setLoadingExerciseHistory(false);
+    }
   };
-  const goToNext = () => {
-    if (isCurrentMonth) return;
-    if (month === 12) {
-      setMonth(1);
-      setYear((y) => y + 1);
-    } else setMonth((m) => m + 1);
+
+  const formatDate = (dateStr: string) => {
+    const workoutDate = new Date(dateStr);
+    const today = new Date();
+
+    const workoutDay = new Date(
+      workoutDate.getFullYear(),
+      workoutDate.getMonth(),
+      workoutDate.getDate(),
+    );
+    const todayDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+
+    const diffTime = todayDay.getTime() - workoutDay.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "TODAY";
+    if (diffDays === 1) return "YESTERDAY";
+    return workoutDate
+      .toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+      .toUpperCase();
   };
 
-  // ── Group exercises ─────
-  const exerciseGroups = Object.values(
-    workoutExercises.reduce(
-      (acc, obj) => {
-        const key = obj.exercise_name;
-        if (!acc[key]) acc[key] = { name: key, sets: [] };
-        acc[key].sets.push(obj);
-        return acc;
-      },
-      {} as Record<string, { name: string; sets: WorkoutExercise[] }>,
-    ),
-  );
+  const getSetTypeStyle = (set_type: string) => {
+    switch (set_type) {
+      case "W":
+        return {
+          label: "WARMUP",
+          bg: "bg-amber-500/10",
+          text: "text-amber-500",
+        };
+      case "D":
+        return {
+          label: "DROP SET",
+          bg: "bg-purple-500/10",
+          text: "text-purple-500",
+        };
+      case "F":
+        return { label: "FAILURE", bg: "bg-red-500/10", text: "text-red-500" };
+      default:
+        return { label: "NORMAL", bg: "bg-zinc-800", text: "text-zinc-400" };
+    }
+  };
 
-  // ── Estatísticas ─────
-  const workoutCount = workoutDays.length;
+  const isCardio = (muscle_group: string) =>
+    muscle_group?.toLowerCase() === "cardio";
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
@@ -399,194 +251,111 @@ export default function MonthlyReportScreen() {
 
       {/* HEADER */}
       <View
-        style={{ paddingTop: insets.top + 8 }}
-        className="flex-row items-center px-4 pb-3 border-b border-zinc-900 bg-black"
+        style={{ paddingTop: insets.top }}
+        className="flex-row items-center justify-between px-4 py-4 border-b border-zinc-900"
       >
         <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-9 h-9 items-center justify-center"
+          onPress={() => router.replace("/profile")}
+          className="p-2"
         >
-          <ChevronLeft size={26} color="#fff" />
+          <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
-        <View className="flex-1 flex-row items-center justify-center gap-x-3">
-          <TouchableOpacity onPress={goToPrev} className="p-1">
-            <ChevronLeft size={18} color="#71717a" />
-          </TouchableOpacity>
-          <Text className="text-white text-lg font-black uppercase tracking-wide">
-            {MONTH_SHORT[month - 1]} {year}
-          </Text>
-          <TouchableOpacity
-            onPress={goToNext}
-            className="p-1"
-            style={{ opacity: isCurrentMonth ? 0.3 : 1 }}
-          >
-            <ChevronRight size={18} color="#71717a" />
-          </TouchableOpacity>
-        </View>
-        <View className="w-9" />
+        <Text className="text-white text-lg font-black flex-1 text-center px-4 uppercase">
+          Workout History
+        </Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-      >
-        {/* Estatisticas */}
-        <View className="flex-row mx-4 gap-x-3 mt-5 mb-5">
-          {[
-            { label: "Workouts", value: `${workoutCount}` },
-            {
-              label: "Days trained",
-              value: `${workoutCount} / ${new Date(year, month, 0).getDate()}`,
-            },
-          ].map((s) => (
-            <View
-              key={s.label}
-              style={{
-                flex: 1,
-                backgroundColor: "#111",
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: "#27272a",
-                padding: 14,
-              }}
-            >
-              <Text
-                style={{
-                  color: "#52525b",
-                  fontSize: 10,
-                  fontWeight: "800",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  marginBottom: 4,
-                }}
-              >
-                {s.label}
-              </Text>
-              <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900" }}>
-                {s.value}
-              </Text>
-            </View>
-          ))}
+      {loading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator color="#E31C25" size="large" />
         </View>
-
-        {/* CALENDARIO */}
-        <View className="mx-4 bg-zinc-900/20 rounded-[28px] border border-zinc-800 overflow-hidden">
-          <Text
-            style={{
-              color: "#fff",
-              fontWeight: "900",
-              fontSize: 22,
-              textTransform: "uppercase",
-              paddingHorizontal: 20,
-              paddingTop: 16,
-              paddingBottom: 8,
-            }}
-          >
-            {MONTH_LABELS[month - 1]} {year}
-          </Text>
-
-          {/* dia headers */}
-          <View
-            style={{
-              flexDirection: "row",
-              paddingHorizontal: 8,
-              paddingBottom: 4,
-            }}
-          >
-            {DAY_LETTERS.map((l) => (
-              <Text
-                key={l}
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  color: "#3f3f46",
-                  fontSize: 11,
-                  fontWeight: "800",
-                  textTransform: "uppercase",
-                }}
+      ) : (
+        <ScrollView
+          className="px-6 mt-4"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 60 }}
+        >
+          {history.length === 0 ? (
+            <Text className="text-zinc-500 text-center mt-10 font-bold uppercase">
+              Nenhum treino registado ainda.
+            </Text>
+          ) : (
+            history.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => loadWorkoutDetails(item)}
+                activeOpacity={0.7}
+                className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-[30px] mb-4 flex-row justify-between items-center"
               >
-                {l}
-              </Text>
-            ))}
-          </View>
-          <View
-            style={{
-              height: 1,
-              backgroundColor: "#27272a",
-              marginHorizontal: 12,
-              marginBottom: 4,
-            }}
-          />
-
-          {weeks.map((week, wi) => (
-            <View
-              key={wi}
-              style={{ flexDirection: "row", paddingHorizontal: 8 }}
-            >
-              {week.map((cell, di) => (
-                <DayCell
-                  key={di}
-                  cell={cell}
-                  onPress={() => cell.workout && openWorkout(cell.workout)}
+                <View className="flex-1">
+                  <Text className="text-[#E31C25] font-bold uppercase text-xs tracking-widest mb-1">
+                    {formatDate(item.date)}
+                  </Text>
+                  <Text className="text-white text-xl font-black">
+                    {item.title}
+                  </Text>
+                  <View className="flex-row items-center gap-2 mt-3">
+                    <Clock color="#71717a" size={14} />
+                    <Text className="text-zinc-400 font-medium text-sm">
+                      {item.duration} • {item.total_volume}
+                      {weightUnitLower}
+                    </Text>
+                  </View>
+                </View>
+                <ChevronLeft
+                  size={20}
+                  color="#E31C25"
+                  style={{ transform: [{ rotate: "180deg" }] }}
                 />
-              ))}
-            </View>
-          ))}
-          <View style={{ height: 12 }} />
-        </View>
-      </ScrollView>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      )}
 
-      {/* ── MODAL detalhes treino ── */}
-      <Modal visible={showDetail} animationType="slide" transparent>
+      {/* MODAL: DETALHES DO TREINO */}
+      <Modal visible={isDetailsVisible} animationType="slide" transparent>
         <View className="flex-1 bg-black/95 justify-end">
           <View className="h-[92%] bg-[#050505] rounded-t-[50px] border-t border-[#E31C25]/40">
             <View className="w-12 h-1.5 bg-zinc-800 rounded-full self-center mt-4" />
-
-            {/* Modal header */}
             <View className="px-8 pt-8 pb-6">
               <View className="flex-row items-center justify-between">
                 <TouchableOpacity
-                  onPress={() => setShowDetail(false)}
+                  onPress={() => setIsDetailsVisible(false)}
                   className="w-12 h-12 bg-zinc-900 rounded-2xl items-center justify-center border border-zinc-800"
                 >
-                  <X size={20} color="white" />
+                  <ChevronLeft size={24} color="white" />
                 </TouchableOpacity>
-                <View className="items-end flex-1 ml-4">
-                  <Text className="text-[#E31C25] text-[9px] font-black uppercase tracking-widest mb-1">
-                    {selectedWorkout ? formatDate(selectedWorkout.date) : ""}
-                  </Text>
-                  <Text
-                    className="text-white text-2xl font-black tracking-tighter"
-                    numberOfLines={1}
-                  >
+                <View className="items-end">
+                  <Text className="text-white text-2xl font-black tracking-tighter">
                     {selectedWorkout?.title || "Workout"}
                   </Text>
                   <View className="flex-row items-center mt-1">
-                    <Clock size={12} color={RED} />
-                    <Text
-                      style={{ color: RED }}
-                      className="text-xs font-black uppercase ml-1"
-                    >
-                      {selectedWorkout?.duration || "—"}
+                    <Clock size={12} color="#E31C25" />
+                    <Text className="text-[#E31C25] text-xs font-black uppercase ml-1">
+                      {selectedWorkout?.duration || "00:00:00"}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              {/* Volume + Date row */}
-              <View className="flex-row mt-6 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-900 justify-around">
+              <View className="flex-row mt-8 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-900 justify-around">
                 <View className="items-center">
-                  <Text className="text-zinc-500 text-[8px] font-black uppercase mb-1">
+                  <Text className="text-zinc-500 text-[8px] font-black uppercase">
                     Volume Total
                   </Text>
                   <Text className="text-white font-black">
-                    {selectedWorkout?.total_volume ?? 0}
-                    {weightUnitLower}
+                    {workoutExercises.some(
+                      (e) => e.muscle_group?.toLowerCase() === "cardio",
+                    )
+                      ? "Cardio"
+                      : `${selectedWorkout?.total_volume}${weightUnitLower}`}
                   </Text>
                 </View>
-                <View className="w-[1px] bg-zinc-800" />
+                <View className="w-[1px] h-full bg-zinc-800" />
                 <View className="items-center">
-                  <Text className="text-zinc-500 text-[8px] font-black uppercase mb-1">
+                  <Text className="text-zinc-500 text-[8px] font-black uppercase">
                     Date
                   </Text>
                   <Text className="text-white font-black">
@@ -603,113 +372,293 @@ export default function MonthlyReportScreen() {
                 <View className="mt-4 rounded-3xl overflow-hidden border border-zinc-800">
                   <Image
                     source={{ uri: selectedWorkout.photo }}
-                    style={{ width: "100%", height: 180 }}
+                    style={{ width: "100%", height: 200 }}
                     resizeMode="cover"
                   />
                 </View>
               )}
             </View>
 
-            {/* Exercisios */}
-            {detailLoading ? (
+            <ScrollView
+              className="px-6"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 100 }}
+            >
+              {Object.values(
+                workoutExercises.reduce(
+                  (acc, obj) => {
+                    const key = obj.exercise_name;
+                    if (!acc[key]) acc[key] = { name: key, sets: [] };
+                    acc[key].sets.push(obj);
+                    return acc;
+                  },
+                  {} as Record<
+                    string,
+                    { name: string; sets: WorkoutExercise[] }
+                  >,
+                ),
+              ).map((group, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => loadExerciseHistory(group.name)}
+                  activeOpacity={0.75}
+                  className="mb-6 bg-zinc-900/20 rounded-[40px] p-6 border border-zinc-900"
+                >
+                  {/* Exercise header with history button */}
+                  <View className="flex-row items-center justify-between mb-4">
+                    <Text className="text-[#E31C25] text-lg font-black uppercase tracking-tighter flex-1 mr-2">
+                      {group.name}
+                    </Text>
+                    <View className="flex-row items-center gap-1 bg-[#E31C25]/10 border border-[#E31C25]/20 px-3 py-1.5 rounded-xl">
+                      <TrendingUp size={10} color="#E31C25" />
+                      <Text className="text-[#E31C25] text-[9px] font-black uppercase ml-1">
+                        Histórico
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="flex-row mb-3 px-2">
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-8">
+                      Set
+                    </Text>
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase flex-1 text-center">
+                      Type
+                    </Text>
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-20 text-center">
+                      {isCardio(group.sets[0]?.muscle_group)
+                        ? "Dist."
+                        : "Weight"}
+                    </Text>
+                    <Text className="text-zinc-600 text-[8px] font-black uppercase w-24 text-right">
+                      {isCardio(group.sets[0]?.muscle_group) ? "Time" : "Reps"}
+                    </Text>
+                  </View>
+
+                  {group.sets.map((set, sIdx) => {
+                    const { label, bg, text } = getSetTypeStyle(set.set_type);
+                    return (
+                      <View
+                        key={sIdx}
+                        className="flex-row items-center py-3 border-b border-zinc-800/30 px-2"
+                      >
+                        <Text className="text-zinc-500 font-black w-8">
+                          {sIdx + 1}
+                        </Text>
+                        <View className="flex-1 items-center">
+                          <View className={`px-2 py-0.5 rounded-md ${bg}`}>
+                            <Text className={`text-[8px] font-black ${text}`}>
+                              {label}
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="w-20 flex-row items-center justify-center">
+                          <Text
+                            className="text-white font-black text-center"
+                            numberOfLines={1}
+                          >
+                            {isCardio(set.muscle_group)
+                              ? `${parseFloat(String(set.distance ?? set.weight ?? 0).replace(",", "."))}km`
+                              : `${set.weight}${weightUnitLower}`}
+                          </Text>
+                          {set.is_personal_record === 1 && (
+                            <Trophy
+                              size={10}
+                              color="#FFD700"
+                              style={{ marginLeft: 2 }}
+                            />
+                          )}
+                        </View>
+                        <Text
+                          className="text-zinc-200 font-black w-24 text-right"
+                          numberOfLines={1}
+                        >
+                          {isCardio(set.muscle_group)
+                            ? (set.time ?? "00:00:00")
+                            : set.reps}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </TouchableOpacity>
+              ))}
+
+              {selectedWorkout?.notes && (
+                <View className="mt-4 p-6 bg-zinc-900/10 border border-dashed border-zinc-800 rounded-[35px]">
+                  <Text className="text-zinc-500 text-[10px] font-black uppercase mb-2">
+                    Workout Notes
+                  </Text>
+                  <Text className="text-zinc-300 text-sm">{`"${selectedWorkout.notes}"`}</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL: HISTÓRICO DO EXERCÍCIO */}
+      <Modal
+        visible={isExerciseDetailVisible}
+        animationType="slide"
+        transparent
+      >
+        <View className="flex-1 bg-black/95 justify-end">
+          <View className="h-[85%] bg-[#050505] rounded-t-[50px] border-t border-[#E31C25]/40">
+            <View className="w-12 h-1.5 bg-zinc-800 rounded-full self-center mt-4" />
+
+            {/* Header */}
+            <View className="px-8 pt-8 pb-6">
+              <View className="flex-row items-center justify-between mb-2">
+                <TouchableOpacity
+                  onPress={() => setIsExerciseDetailVisible(false)}
+                  className="w-12 h-12 bg-zinc-900 rounded-2xl items-center justify-center border border-zinc-800"
+                >
+                  <X size={20} color="white" />
+                </TouchableOpacity>
+                <View className="flex-1 ml-4">
+                  <Text className="text-[#E31C25] text-[9px] font-black uppercase tracking-widest mb-1">
+                    Histórico do Exercício
+                  </Text>
+                  <Text
+                    className="text-white text-xl font-black tracking-tighter"
+                    numberOfLines={2}
+                  >
+                    {selectedExerciseName}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Content */}
+            {loadingExerciseHistory ? (
               <View className="flex-1 justify-center items-center">
-                <ActivityIndicator color={RED} size="large" />
+                <ActivityIndicator color="#E31C25" size="large" />
               </View>
             ) : (
               <ScrollView
                 className="px-6"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: 60 }}
               >
-                {exerciseGroups.map((group, idx) => (
-                  <View
-                    key={idx}
-                    className="mb-6 bg-zinc-900/20 rounded-[32px] p-6 border border-zinc-900"
-                  >
-                    {/* Nome exercicios */}
-                    <View className="flex-row items-center justify-between mb-4">
-                      <Text className="text-[#E31C25] text-lg font-black uppercase tracking-tighter flex-1 mr-2">
-                        {group.name}
-                      </Text>
-                    </View>
-
-                    {/* Sets header */}
-                    <View className="flex-row mb-3 px-2">
-                      <Text className="text-zinc-600 text-[8px] font-black uppercase w-8">
-                        Set
-                      </Text>
-                      <Text className="text-zinc-600 text-[8px] font-black uppercase flex-1 text-center">
-                        Type
-                      </Text>
-                      <Text className="text-zinc-600 text-[8px] font-black uppercase w-20 text-center">
-                        {isCardio(group.sets[0]?.muscle_group)
-                          ? "Dist."
-                          : "Weight"}
-                      </Text>
-                      <Text className="text-zinc-600 text-[8px] font-black uppercase w-24 text-right">
-                        {isCardio(group.sets[0]?.muscle_group)
-                          ? "Time"
-                          : "Reps"}
-                      </Text>
-                    </View>
-
-                    {/* Sets rows */}
-                    {group.sets.map((set, sIdx) => {
-                      const { label, bg, text } = getSetTypeStyle(set.set_type);
-                      return (
-                        <View
-                          key={sIdx}
-                          className="flex-row items-center py-3 border-b border-zinc-800/30 px-2"
-                        >
-                          <Text className="text-zinc-500 font-black w-8">
-                            {sIdx + 1}
+                {exerciseHistory.length === 0 ? (
+                  <View className="items-center mt-10">
+                    <TrendingUp size={40} color="#27272a" />
+                    <Text className="text-zinc-600 font-black uppercase text-sm mt-4 text-center">
+                      Sem histórico para este exercício
+                    </Text>
+                  </View>
+                ) : (
+                  exerciseHistory.map((entry, eIdx) => (
+                    <View
+                      key={eIdx}
+                      className="mb-5 bg-zinc-900/20 rounded-[32px] p-5 border border-zinc-900"
+                    >
+                      {/* Workout info */}
+                      <View className="flex-row items-center justify-between mb-4">
+                        <View className="flex-1">
+                          <Text className="text-[#E31C25] text-[9px] font-black uppercase tracking-widest mb-0.5">
+                            {formatDate(entry.date)}
                           </Text>
-                          <View className="flex-1 items-center">
-                            <View className={`px-2 py-0.5 rounded-md ${bg}`}>
-                              <Text className={`text-[8px] font-black ${text}`}>
-                                {label}
-                              </Text>
+                          <Text className="text-white font-black text-base">
+                            {entry.workout_title}
+                          </Text>
+                        </View>
+                        {/* Best set badge */}
+                        {(() => {
+                          const best = entry.sets.reduce((prev, curr) =>
+                            (curr.weight ?? 0) > (prev.weight ?? 0)
+                              ? curr
+                              : prev,
+                          );
+                          if (!isCardio(best.muscle_group) && best.weight) {
+                            return (
+                              <View className="bg-zinc-800/60 rounded-2xl px-3 py-2 items-center border border-zinc-700/40">
+                                <Text className="text-zinc-500 text-[7px] font-black uppercase">
+                                  Melhor Set
+                                </Text>
+                                <Text className="text-white text-xs font-black">
+                                  {best.weight}
+                                  {weightUnitLower} × {best.reps}
+                                </Text>
+                              </View>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </View>
+
+                      {/* Sets table header */}
+                      <View className="flex-row mb-2 px-2">
+                        <Text className="text-zinc-600 text-[8px] font-black uppercase w-8">
+                          Set
+                        </Text>
+                        <Text className="text-zinc-600 text-[8px] font-black uppercase flex-1 text-center">
+                          Type
+                        </Text>
+                        <Text className="text-zinc-600 text-[8px] font-black uppercase w-20 text-center">
+                          {isCardio(entry.sets[0]?.muscle_group)
+                            ? "Dist."
+                            : "Weight"}
+                        </Text>
+                        <Text className="text-zinc-600 text-[8px] font-black uppercase w-20 text-right">
+                          {isCardio(entry.sets[0]?.muscle_group)
+                            ? "Time"
+                            : "Reps"}
+                        </Text>
+                      </View>
+
+                      {/* Sets rows */}
+                      {entry.sets.map((set, sIdx) => {
+                        const { label, bg, text } = getSetTypeStyle(
+                          set.set_type,
+                        );
+                        return (
+                          <View
+                            key={sIdx}
+                            className="flex-row items-center py-2.5 border-b border-zinc-800/30 px-2"
+                          >
+                            <Text className="text-zinc-500 font-black w-8 text-sm">
+                              {sIdx + 1}
+                            </Text>
+                            <View className="flex-1 items-center">
+                              <View className={`px-2 py-0.5 rounded-md ${bg}`}>
+                                <Text
+                                  className={`text-[8px] font-black ${text}`}
+                                >
+                                  {label}
+                                </Text>
+                              </View>
                             </View>
-                          </View>
-                          <View className="w-20 flex-row items-center justify-center">
+                            <View className="w-20 flex-row items-center justify-center">
+                              <Text
+                                className="text-white font-black text-center text-sm"
+                                numberOfLines={1}
+                              >
+                                {isCardio(set.muscle_group)
+                                  ? `${parseFloat(String(set.distance ?? set.weight ?? 0).replace(",", "."))}km`
+                                  : `${set.weight}${weightUnitLower}`}
+                              </Text>
+                              {set.is_personal_record === 1 && (
+                                <Trophy
+                                  size={10}
+                                  color="#FFD700"
+                                  style={{ marginLeft: 2 }}
+                                />
+                              )}
+                            </View>
                             <Text
-                              className="text-white font-black text-center"
+                              className="text-zinc-200 font-black w-20 text-right text-sm"
                               numberOfLines={1}
                             >
                               {isCardio(set.muscle_group)
-                                ? `${parseFloat(String(set.distance ?? set.weight ?? 0).replace(",", "."))}km`
-                                : `${set.weight}${weightUnitLower}`}
+                                ? (set.time ?? "00:00:00")
+                                : set.reps}
                             </Text>
-                            {set.is_personal_record === 1 && (
-                              <Trophy
-                                size={10}
-                                color="#FFD700"
-                                style={{ marginLeft: 2 }}
-                              />
-                            )}
                           </View>
-                          <Text
-                            className="text-zinc-200 font-black w-24 text-right"
-                            numberOfLines={1}
-                          >
-                            {isCardio(set.muscle_group)
-                              ? (set.time ?? "00:00:00")
-                              : set.reps}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ))}
-
-                {selectedWorkout?.notes ? (
-                  <View className="mt-2 p-6 bg-zinc-900/10 border border-dashed border-zinc-800 rounded-[32px]">
-                    <Text className="text-zinc-500 text-[10px] font-black uppercase mb-2">
-                      Notes
-                    </Text>
-                    <Text className="text-zinc-300 text-sm">{`"${selectedWorkout.notes}"`}</Text>
-                  </View>
-                ) : null}
+                        );
+                      })}
+                    </View>
+                  ))
+                )}
               </ScrollView>
             )}
           </View>

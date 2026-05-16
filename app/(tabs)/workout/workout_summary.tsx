@@ -44,7 +44,7 @@ export default function WorkoutSummaryScreen() {
     } catch (e) {
       console.error("Error loading summary:", e);
     }
-  }, [db]); // A função só muda se o 'db' mudar
+  }, [db]);
 
   // 2. Atualiza o useEffect (por volta da linha 48)
   useEffect(() => {
