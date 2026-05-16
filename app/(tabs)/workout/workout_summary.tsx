@@ -199,13 +199,6 @@ export default function WorkoutSummaryScreen() {
           )}
         </View>
         {/* ── FIM SECÇÃO FOTOS ── */}
-
-        {/* Mensagem motivacional */}
-        <View className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800 items-center">
-          <Text className="text-zinc-400 text-center">
-            ´Consistency is what turns the ordinary into the extraordinary´
-          </Text>
-        </View>
       </ScrollView>
 
       {/* Botão Concluído */}

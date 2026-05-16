@@ -454,7 +454,7 @@ export default function LogWorkoutScreen() {
               [ex.id],
             );
             const prRes = await db.getFirstAsync<any>(
-              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
+              "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (CAST(weight AS REAL) * CAST(reps AS INTEGER)) DESC LIMIT 1",
               [ex.id],
             );
             return {
@@ -658,7 +658,7 @@ export default function LogWorkoutScreen() {
           [ex.id],
         );
         const prRes = await db.getFirstAsync<any>(
-          "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (weight * reps) DESC LIMIT 1",
+          "SELECT weight, reps FROM workout_sets WHERE exercise_id = ? ORDER BY (CAST(weight AS REAL) * CAST(reps AS INTEGER)) DESC LIMIT 1",
           [ex.id],
         );
         return {
@@ -906,19 +906,30 @@ export default function LogWorkoutScreen() {
               </View>
 
               {ex.sets.map((set, idx) => {
-                const setWeight = set.weight || set.suggestedWeight || "0";
-                const setReps = set.reps || set.suggestedReps || "0";
-                const setVolume =
-                  (parseFloat(setWeight) || 0) * (parseInt(setReps) || 0);
-                const sessionBest = ex.sessionBestVolume ?? 0;
-                // FIX: isPR — set completado com volume igual ao melhor da sessão
+                // Conversão segura: se for string vazia ou undefined, usa o sugerido, senão cai para "0"
+                const rawWeight = set.weight || set.suggestedWeight || "0";
+                const setWeight = parseFloat(rawWeight) || 0;
+
+                const rawReps = set.reps || set.suggestedReps || "0";
+                const setReps = parseInt(rawReps, 10) || 0;
+
+                const currentSetVolume = setWeight * setReps;
+
+                // 1. Procurar o volume do PR histórico real
+                const historicalPR =
+                  ex.personalRecords && ex.personalRecords[0];
+                const historicalPRVolume = historicalPR
+                  ? (historicalPR.weight || 0) * (historicalPR.reps || 0)
+                  : 0;
+
+                // 2. O troféu SÓ ativa se a série estiver feita E o volume desta série bater/igualar o recorde da vida
                 const isPR =
                   set.completed &&
-                  setVolume > 0 &&
-                  sessionBest > 0 &&
-                  setVolume === sessionBest;
+                  currentSetVolume > 0 &&
+                  currentSetVolume >= historicalPRVolume;
 
                 return (
+                  // O teu return do JSX continua exatamente igual a partir daqui...
                   <View key={set.id} className="mb-3">
                     <View
                       className={`flex-row items-center h-14 px-2 rounded-2xl border ${
