@@ -196,7 +196,7 @@ export default function LoginScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <Image
-        source={require("../../assets/images/imagelogin.jpg")}
+        source={require("../../assets/images/imagelogin.png")}
         style={{ width, height, position: "absolute" }}
         resizeMode="cover"
       />

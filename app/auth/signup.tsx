@@ -65,7 +65,7 @@ export default function SignupScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <Image
-        source={require("../../assets/images/imagesignup.jpg")}
+        source={require("../../assets/images/imagesignup.png")}
         style={{ width, height, position: "absolute" }}
         resizeMode="cover"
       />
