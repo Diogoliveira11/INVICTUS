@@ -309,16 +309,27 @@ export default function SaveWorkoutScreen() {
 
   // ── Stats ──
   const stats = useMemo(() => {
-    let totalVolume = 0,
-      totalSets = 0;
-    exercises.forEach((ex) =>
+    let totalVolume = 0;
+    let totalSets = 0;
+
+    exercises.forEach((ex) => {
+      // Verificar se o exercício é cardio (pelo grupo muscular)
+      const isCardio = ex.muscle_group?.toLowerCase() === "cardio";
+
       ex.sets.forEach((s) => {
         if (s.completed) {
-          totalVolume += (Number(s.weight) || 0) * (Number(s.reps) || 0);
           totalSets++;
+
+          // Só soma ao volume total se NÃO for cardio
+          if (!isCardio) {
+            const weight = parseFloat(String(s.weight)) || 0;
+            const reps = parseInt(String(s.reps), 10) || 0;
+            totalVolume += weight * reps;
+          }
         }
-      }),
-    );
+      });
+    });
+
     return { totalVolume, totalSets };
   }, [exercises]);
 

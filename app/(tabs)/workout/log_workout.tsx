@@ -330,14 +330,21 @@ export default function LogWorkoutScreen() {
   const stats = useMemo(() => {
     let totalSets = 0,
       totalVolume = 0;
-    exercises.forEach((ex) =>
+
+    exercises.forEach((ex) => {
+      const isCardio = ex.muscle_group?.toLowerCase() === "cardio";
+
       ex.sets.forEach((s) => {
         if (s.completed) {
           totalSets++;
-          totalVolume += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
+          if (!isCardio) {
+            totalVolume +=
+              (parseFloat(s.weight) || 0) * (parseInt(s.reps, 10) || 0);
+          }
         }
-      }),
-    );
+      });
+    });
+
     return { totalSets, totalVolume };
   }, [exercises]);
 
@@ -363,14 +370,20 @@ export default function LogWorkoutScreen() {
       return;
     }
 
+    // ── PROTEÇÃO CRÍTICA DO MINIMIZAR: Só recarrega se mudou fisicamente o ID da rotina aberta
+    if (activeRoutineId !== "" && String(routineId) !== activeRoutineId) {
+      setExercises([]);
+    } else if (exercises.length > 0) {
+      return;
+    }
+
     const workoutDbId = await createActiveWorkout(
       db,
       routineId || null,
       activeRoutineName || "",
     );
     setActiveWorkoutId(workoutDbId);
-
-    if (exercises.length > 0) return;
+    setActiveRoutineId(String(routineId));
 
     try {
       const routineRes = await db.getFirstAsync<{ name: string }>(
@@ -378,7 +391,6 @@ export default function LogWorkoutScreen() {
         [Number(routineId)],
       );
       if (routineRes) setActiveRoutineName(routineRes.name);
-      setActiveRoutineId(String(routineId));
 
       const routineExs = await db.getAllAsync<any>(
         `SELECT e.* FROM exercises e JOIN routine_exercises re ON e.id = re.exercise_id WHERE re.routine_id = ? ORDER BY re.index_order ASC`,
@@ -440,21 +452,22 @@ export default function LogWorkoutScreen() {
     weightUnit,
     startWorkout,
     isActive,
-    exercises.length,
     setExercises,
     activeRoutineName,
     router,
     setIsActive,
+    activeRoutineId,
+    exercises.length,
   ]);
 
-  // ── 1. Carrega biblioteca de exercícios
+  // ── 1. Biblioteca de Exercícios Estável
   useEffect(() => {
     db.getAllAsync<any>("SELECT * FROM exercises ORDER BY name ASC").then(
       setDbExercises,
     );
   }, [db]);
 
-  // ── 2. Inicialização do treino — corre UMA SÓ VEZ no mount
+  // ── 2. Inicialização Estável Controlada por Rota — Resolve segunda abertura e protege minimizar ──
   useEffect(() => {
     const recover = params.recover === "true";
 
@@ -467,8 +480,6 @@ export default function LogWorkoutScreen() {
               saved.workout.exercises_json,
             );
 
-            // Merge: restaura weight/reps/completed de cada set guardado na BD
-            // usa set_index como fallback se o id não coincidir
             saved.sets.forEach((s) => {
               const ex = recoveredExercises.find(
                 (e) => String(e.id) === String(s.exercise_id),
@@ -485,15 +496,12 @@ export default function LogWorkoutScreen() {
               }
             });
 
-            // Duração real desde o início do treino
             const startedAt = new Date(saved.workout.started_at).getTime();
             const elapsed = Math.floor((Date.now() - startedAt) / 1000);
 
-            // Define estado ANTES de arrancar o timer para preserveExercises funcionar
             setExercises(recoveredExercises);
             setActiveRoutineName(saved.workout.routine_name || "");
             setActiveWorkoutId(saved.workout.id);
-            // preserveExercises=true: não limpa os exercícios acabados de definir
             startWorkout("", elapsed, true);
             setIsActive(true);
           }
@@ -504,8 +512,7 @@ export default function LogWorkoutScreen() {
     } else {
       initWorkout();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // <- array vazio: corre só uma vez no mount
+  }, [params.routineId, params.recover, initWorkout]);
 
   const handleToggleSet = async (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);
@@ -821,8 +828,8 @@ export default function LogWorkoutScreen() {
                       <View className="flex-row items-center bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 self-start mt-1">
                         <Target size={12} color="#EAB308" />
                         <Text className="text-[#EAB308] text-[10px] font-bold ml-1 uppercase">
-                          PR: {ex.personalRecords[0].weight}
-                          {weightUnit} × {ex.personalRecords[0].reps} reps
+                          PR: {ex.personalRecords[0].weight} {weightUnit} ×{" "}
+                          {ex.personalRecords[0].reps} reps
                         </Text>
                       </View>
                     )}
@@ -1416,8 +1423,6 @@ export default function LogWorkoutScreen() {
                 keyboardType="numeric"
                 autoFocus
                 value={restModal.value}
-                placeholder="60"
-                placeholderTextColor="#52525b"
                 onChangeText={(v) =>
                   setRestModal((prev) => ({ ...prev, value: v }))
                 }
@@ -1438,11 +1443,11 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
-                    const secs = parseInt(restModal.value || "0") || 0;
+                    const seconds = parseInt(restModal.value || "0");
                     setExercises((prev: ActiveExercise[]) =>
                       prev.map((e) =>
                         e.logId === restModal.exLogId
-                          ? { ...e, rest_time: secs }
+                          ? { ...e, rest_time: seconds }
                           : e,
                       ),
                     );

@@ -129,8 +129,9 @@ export default function ProgressResult() {
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
+      // Procura a linha do db.getAllAsync e substitui por esta:
       const historyRows = await db.getAllAsync<Workout>(
-        "SELECT * FROM workouts WHERE date >= ? AND user_id = ? ORDER BY date DESC",
+        "SELECT * FROM workouts WHERE date >= date(?) AND user_id = ? ORDER BY date DESC",
         [firstDayISO, userRow.id],
       );
 
@@ -174,21 +175,33 @@ export default function ProgressResult() {
 
       if (!userRow) return;
 
-      const query = `
-      SELECT 
-        e.name as name, 
-        SUM(CAST(ws.weight AS REAL) * CAST(ws.reps AS INTEGER)) as volume
-      FROM workout_sets ws
-      JOIN exercises e ON ws.exercise_id = e.id
-      JOIN workouts w ON ws.workout_exercise_id = w.id
-      WHERE w.user_id = ? 
-      AND w.date >= date('now', '-7 days')
-      AND e.muscle_group != 'CARDIO'
-      GROUP BY e.id
-      ORDER BY volume DESC
-    `;
+      const now = new Date();
+      const firstDay = new Date(now);
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      firstDay.setDate(diff);
+      firstDay.setHours(0, 0, 0, 0);
+      const firstDayISO = firstDay.toISOString();
 
-      const result = await db.getAllAsync<any>(query, [userRow.id]);
+      const query = `
+SELECT 
+  e.name as name, 
+  SUM(CAST(ws.weight AS REAL) * CAST(ws.reps AS INTEGER)) as volume
+FROM workout_sets ws
+JOIN exercises e ON ws.exercise_id = e.id
+JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+JOIN workouts w ON we.workout_id = w.id
+WHERE w.user_id = ? 
+AND w.date >= date(?)
+AND e.muscle_group != 'CARDIO'
+GROUP BY e.id
+ORDER BY volume DESC
+`;
+
+      const result = await db.getAllAsync<any>(query, [
+        userRow.id,
+        firstDayISO,
+      ]);
       setVolumeByExercise(result);
     } catch (e) {
       console.error("Error loading volume by exercise:", e);
