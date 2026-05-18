@@ -217,12 +217,6 @@ export default function LogWorkoutScreen() {
   const db = useSQLiteContext();
 
   const hasRecovered = useRef(false);
-  const recoveredDataRef = useRef<{
-    exercises: ActiveExercise[];
-    routineName: string;
-    workoutId: number;
-    elapsed: number;
-  } | null>(null);
 
   const {
     timer,
@@ -280,17 +274,6 @@ export default function LogWorkoutScreen() {
       };
     }, [setIsMinimized]),
   );
-
-  useEffect(() => {
-    if (recoveredDataRef.current && isActive) {
-      const data = recoveredDataRef.current;
-      recoveredDataRef.current = null;
-      startWorkout("", data.elapsed);
-      setExercises(data.exercises);
-      setActiveRoutineName(data.routineName);
-      setActiveWorkoutId(data.workoutId);
-    }
-  }, [isActive, setExercises, startWorkout]);
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -359,49 +342,6 @@ export default function LogWorkoutScreen() {
   }, [exercises]);
 
   const initWorkout = useCallback(async () => {
-    const recover = params.recover === "true";
-
-    if (recover && !hasRecovered.current) {
-      hasRecovered.current = true;
-      try {
-        const saved = await getActiveWorkout(db);
-        if (saved && saved.workout.exercises_json) {
-          let recoveredExercises: ActiveExercise[] = JSON.parse(
-            saved.workout.exercises_json,
-          );
-
-          saved.sets.forEach((s) => {
-            const ex = recoveredExercises.find(
-              (e) => String(e.id) === String(s.exercise_id),
-            );
-            if (ex) {
-              const set = ex.sets.find((set) => set.id === s.id);
-              if (set) {
-                set.weight = s.weight;
-                set.reps = s.reps;
-                set.completed = s.completed === 1;
-              }
-            }
-          });
-
-          const startedAt = new Date(saved.workout.started_at).getTime();
-          const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-
-          startWorkout("", elapsed);
-
-          setTimeout(async () => {
-            setExercises(recoveredExercises);
-            setActiveRoutineName(saved.workout.routine_name || "");
-            setActiveWorkoutId(saved.workout.id);
-            setIsActive(true);
-          }, 50);
-
-          return;
-        }
-      } catch (e) {
-        console.error("Error recovering workout:", e);
-      }
-    }
     const routineId = Array.isArray(params.routineId)
       ? params.routineId[0]
       : params.routineId;
@@ -409,13 +349,13 @@ export default function LogWorkoutScreen() {
 
     if (shouldReset) {
       router.setParams({ reset: undefined });
-      startWorkout("");
+      startWorkout("", 0, false);
       setActiveRoutineName("");
     }
 
     if (!routineId) {
       if (!isActive) {
-        startWorkout("");
+        startWorkout("", 0, false);
         setActiveRoutineName("");
         const workoutDbId = await createActiveWorkout(db, null, "");
         setActiveWorkoutId(workoutDbId);
@@ -465,7 +405,6 @@ export default function LogWorkoutScreen() {
               image_url: ex.image,
               notes: "",
               rest_time: 0,
-              // FIX: guardar o PR histórico original separado (não será substituído por PR de sessão)
               personalRecords: prRes
                 ? [{ weight: prRes.weight, reps: prRes.reps }]
                 : [],
@@ -496,7 +435,6 @@ export default function LogWorkoutScreen() {
     }
   }, [
     params.routineId,
-    params.recover,
     params.reset,
     db,
     weightUnit,
@@ -509,12 +447,65 @@ export default function LogWorkoutScreen() {
     setIsActive,
   ]);
 
+  // ── 1. Carrega biblioteca de exercícios
   useEffect(() => {
     db.getAllAsync<any>("SELECT * FROM exercises ORDER BY name ASC").then(
       setDbExercises,
     );
-    initWorkout();
-  }, [db, initWorkout]);
+  }, [db]);
+
+  // ── 2. Inicialização do treino — corre UMA SÓ VEZ no mount
+  useEffect(() => {
+    const recover = params.recover === "true";
+
+    if (recover) {
+      (async () => {
+        try {
+          const saved = await getActiveWorkout(db);
+          if (saved && saved.workout.exercises_json) {
+            const recoveredExercises: ActiveExercise[] = JSON.parse(
+              saved.workout.exercises_json,
+            );
+
+            // Merge: restaura weight/reps/completed de cada set guardado na BD
+            // usa set_index como fallback se o id não coincidir
+            saved.sets.forEach((s) => {
+              const ex = recoveredExercises.find(
+                (e) => String(e.id) === String(s.exercise_id),
+              );
+              if (!ex) return;
+              let set = ex.sets.find((set) => set.id === s.id);
+              if (!set && s.set_index !== undefined) {
+                set = ex.sets[s.set_index];
+              }
+              if (set) {
+                set.weight = s.weight ?? set.weight;
+                set.reps = s.reps ?? set.reps;
+                set.completed = s.completed === 1;
+              }
+            });
+
+            // Duração real desde o início do treino
+            const startedAt = new Date(saved.workout.started_at).getTime();
+            const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+
+            // Define estado ANTES de arrancar o timer para preserveExercises funcionar
+            setExercises(recoveredExercises);
+            setActiveRoutineName(saved.workout.routine_name || "");
+            setActiveWorkoutId(saved.workout.id);
+            // preserveExercises=true: não limpa os exercícios acabados de definir
+            startWorkout("", elapsed, true);
+            setIsActive(true);
+          }
+        } catch (e) {
+          console.error("Error recovering workout:", e);
+        }
+      })();
+    } else {
+      initWorkout();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // <- array vazio: corre só uma vez no mount
 
   const handleToggleSet = async (exLogId: string, setId: string) => {
     const exercise = exercises.find((e) => e.logId === exLogId);
@@ -557,7 +548,6 @@ export default function LogWorkoutScreen() {
       }
     }
 
-    // FIX: Rest timer — usar startRestTimer/cancelRestTimer do context
     if (isCompleting && exercise.rest_time > 0) {
       startRestTimer(exercise.rest_time, setId);
     } else if (!isCompleting) {
@@ -572,23 +562,17 @@ export default function LogWorkoutScreen() {
         const r = parseInt(finalReps);
         const currentVolume = w > 0 && r > 0 ? w * r : 0;
 
-        // FIX: PR — comparar com o melhor volume histórico (personalRecords[0])
-        // e separar do sessionBestVolume (melhor desta sessão)
         let newPersonalRecords = ex.personalRecords;
         let newSessionBestVolume = ex.sessionBestVolume ?? 0;
 
         if (isCompleting && currentVolume > 0) {
-          // sessionBestVolume: melhor desta sessão (para badge de troféu)
           if (currentVolume > newSessionBestVolume) {
             newSessionBestVolume = currentVolume;
           }
-
-          // personalRecords: só atualiza se bater o PR histórico
           const historicalPR = ex.personalRecords[0];
           const historicalVolume = historicalPR
             ? historicalPR.weight * historicalPR.reps
             : 0;
-
           if (currentVolume > historicalVolume) {
             newPersonalRecords = [{ weight: w, reps: r }];
           }
@@ -637,8 +621,6 @@ export default function LogWorkoutScreen() {
 
   const handleSetRestTime = (exLogId: string) => {
     const currentEx = exercises.find((e) => e.logId === exLogId);
-    // FIX: não forçar para 60 quando rest_time === 0
-    // Usar String(rest_time) diretamente, e deixar placeholder sugerir 60
     setRestModal({
       visible: true,
       exLogId,
@@ -835,7 +817,6 @@ export default function LogWorkoutScreen() {
                     <Text className="text-[#E31C25] text-xl font-black uppercase tracking-tighter">
                       {ex.name}
                     </Text>
-                    {/* FIX: PR badge — mostrar peso E reps do PR histórico */}
                     {ex.personalRecords && ex.personalRecords.length > 0 && (
                       <View className="flex-row items-center bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 self-start mt-1">
                         <Target size={12} color="#EAB308" />
@@ -906,30 +887,22 @@ export default function LogWorkoutScreen() {
               </View>
 
               {ex.sets.map((set, idx) => {
-                // Conversão segura: se for string vazia ou undefined, usa o sugerido, senão cai para "0"
                 const rawWeight = set.weight || set.suggestedWeight || "0";
                 const setWeight = parseFloat(rawWeight) || 0;
-
                 const rawReps = set.reps || set.suggestedReps || "0";
                 const setReps = parseInt(rawReps, 10) || 0;
-
                 const currentSetVolume = setWeight * setReps;
-
-                // 1. Procurar o volume do PR histórico real
                 const historicalPR =
                   ex.personalRecords && ex.personalRecords[0];
                 const historicalPRVolume = historicalPR
                   ? (historicalPR.weight || 0) * (historicalPR.reps || 0)
                   : 0;
-
-                // 2. O troféu SÓ ativa se a série estiver feita E o volume desta série bater/igualar o recorde da vida
                 const isPR =
                   set.completed &&
                   currentSetVolume > 0 &&
                   currentSetVolume >= historicalPRVolume;
 
                 return (
-                  // O teu return do JSX continua exatamente igual a partir daqui...
                   <View key={set.id} className="mb-3">
                     <View
                       className={`flex-row items-center h-14 px-2 rounded-2xl border ${
@@ -1062,7 +1035,6 @@ export default function LogWorkoutScreen() {
                       prev.map((e) => {
                         if (e.logId !== ex.logId) return e;
                         const lastSet = e.sets[e.sets.length - 1];
-
                         const inheritedWeight =
                           lastSet?.weight !== "" && lastSet?.weight
                             ? lastSet.weight
@@ -1070,7 +1042,6 @@ export default function LogWorkoutScreen() {
                                 lastSet.suggestedWeight !== "0"
                               ? lastSet.suggestedWeight
                               : "0";
-
                         const inheritedReps =
                           lastSet?.reps !== "" && lastSet?.reps
                             ? lastSet.reps
@@ -1078,7 +1049,6 @@ export default function LogWorkoutScreen() {
                                 lastSet.suggestedReps !== "0"
                               ? lastSet.suggestedReps
                               : "0";
-
                         return {
                           ...e,
                           sets: [
@@ -1468,7 +1438,6 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
-                    // FIX: parseInt de string vazia dá NaN, tratar como 0
                     const secs = parseInt(restModal.value || "0") || 0;
                     setExercises((prev: ActiveExercise[]) =>
                       prev.map((e) =>

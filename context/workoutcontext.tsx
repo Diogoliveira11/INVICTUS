@@ -67,10 +67,14 @@ type WorkoutContextType = {
   setIsMinimized: (val: boolean) => void;
   setLastExercise: (val: string) => void;
   stopWorkout: (confirm?: boolean) => void;
-  startWorkout: (name: string, initialSeconds?: number) => void;
+  // preserveExercises: se true, não limpa os exercícios já carregados (recuperação)
+  startWorkout: (
+    name: string,
+    initialSeconds?: number,
+    preserveExercises?: boolean,
+  ) => void;
 };
 
-// Configura como as notificações se comportam quando a app está em foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -91,9 +95,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [seconds, setSeconds] = useState(0);
   const startTimeRef = useRef<number | null>(null);
   const [activeRestSetId, setActiveRestSetId] = useState<string | null>(null);
-
   const [isDiscardModalVisible, setIsDiscardModalVisible] = useState(false);
-
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const endTimeRef = useRef<number | null>(null);
   const restIntervalRef = useRef<any>(null);
@@ -105,7 +107,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setIsMinimized(false);
   };
 
-  // Pedir permissões e criar canal Android
   useEffect(() => {
     const requestPermissions = async () => {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -124,11 +125,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     requestPermissions();
   }, []);
 
-  // Timer master — sincroniza duration e rest timer, incluindo ao voltar do background
   useEffect(() => {
     const updateTimers = () => {
       const now = Date.now();
-
       if (endTimeRef.current) {
         const remaining = Math.round((endTimeRef.current - now) / 1000);
         if (remaining <= 0) {
@@ -140,7 +139,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           setRestTimer(remaining);
         }
       }
-
       if (isActive && startTimeRef.current) {
         const elapsed = Math.floor((now - startTimeRef.current) / 1000);
         setSeconds(elapsed);
@@ -149,11 +147,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     updateTimers();
     const masterInterval = setInterval(updateTimers, 1000);
-
     const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active") {
-        updateTimers();
-      }
+      if (nextAppState === "active") updateTimers();
     });
 
     return () => {
@@ -165,14 +160,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let interval: any;
     if (isActive) {
-      // Usamos uma função de atualização para evitar a dependência direta de 'seconds'
       if (startTimeRef.current === null) {
         setSeconds((prevSeconds) => {
           startTimeRef.current = Date.now() - prevSeconds * 1000;
           return prevSeconds;
         });
       }
-
       interval = setInterval(() => {
         if (startTimeRef.current) {
           const elapsed = Math.floor(
@@ -205,18 +198,14 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // FIX: startRestTimer exposto para o screen usar diretamente
   const startRestTimer = useCallback((restTime: number, setId: string) => {
     if (restTime <= 0) return;
-
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-
     const targetTime = Date.now() + restTime * 1000;
     endTimeRef.current = targetTime;
     setRestTimer(restTime);
     setActiveRestSetId(setId);
     scheduleRestNotification(restTime);
-
     restIntervalRef.current = setInterval(() => {
       const now = Date.now();
       const remaining = Math.round((targetTime - now) / 1000);
@@ -232,7 +221,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }, 1000);
   }, []);
 
-  // FIX: cancelRestTimer exposto para o screen usar diretamente
   const cancelRestTimer = useCallback(() => {
     setRestTimer(null);
     setActiveRestSetId(null);
@@ -250,11 +238,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             sets: ex.sets.map((s) => {
               if (s.id === setId) {
                 const newState = !s.completed;
-                if (newState && ex.rest_time > 0) {
+                if (newState && ex.rest_time > 0)
                   startRestTimer(ex.rest_time, setId);
-                } else if (!newState) {
-                  cancelRestTimer();
-                }
+                else if (!newState) cancelRestTimer();
                 return { ...s, completed: newState };
               }
               return s;
@@ -278,29 +264,31 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setExercises((prev) => {
         const exIndex = prev.findIndex((e) => e.logId === logId);
         if (exIndex === -1) return prev;
-
         const setIndex = prev[exIndex].sets.findIndex((s) => s.id === setId);
         if (setIndex === -1) return prev;
-
-        if (prev[exIndex].sets[setIndex][field as keyof WorkoutSet] === value) {
+        if (prev[exIndex].sets[setIndex][field as keyof WorkoutSet] === value)
           return prev;
-        }
-
         const newExercises = [...prev];
         const newSets = [...newExercises[exIndex].sets];
         newSets[setIndex] = { ...newSets[setIndex], [field]: value };
         newExercises[exIndex] = { ...newExercises[exIndex], sets: newSets };
-
         return newExercises;
       });
     },
     [],
   );
 
-  const startWorkout = (name: string, initialSeconds: number = 0) => {
+  // FIX: preserveExercises=true — não limpa exercícios (usado na recuperação de treino)
+  const startWorkout = (
+    name: string,
+    initialSeconds: number = 0,
+    preserveExercises: boolean = false,
+  ) => {
     startTimeRef.current = Date.now() - initialSeconds * 1000;
     setSeconds(initialSeconds);
-    setExercises([]);
+    if (!preserveExercises) {
+      setExercises([]);
+    }
     setIsActive(true);
     setIsMinimized(false);
     setLastExercise(name);
@@ -322,11 +310,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   const stopWorkout = (confirm = false) => {
-    if (confirm) {
-      setIsDiscardModalVisible(true);
-    } else {
-      clearWorkoutData();
-    }
+    if (confirm) setIsDiscardModalVisible(true);
+    else clearWorkoutData();
   };
 
   return (
@@ -390,7 +375,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             >
               <Trash2 color="#E31C25" size={32} />
             </View>
-
             <Text
               style={{
                 color: "white",
@@ -403,7 +387,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             >
               Discard workout?
             </Text>
-
             <Text
               style={{
                 color: "#71717a",
@@ -416,7 +399,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             >
               Are you sure you want to stop? All progress will be lost.
             </Text>
-
             <View style={{ flexDirection: "row", width: "100%", gap: 16 }}>
               <TouchableOpacity
                 onPress={() => setIsDiscardModalVisible(false)}
