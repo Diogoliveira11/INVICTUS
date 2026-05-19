@@ -3,9 +3,11 @@ import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
+
 import {
   ChevronDown,
   ChevronRight,
+  Dumbbell,
   Pencil,
   Settings,
 } from "lucide-react-native";
@@ -22,6 +24,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line, Rect, Text as SvgText } from "react-native-svg";
 import { useUnits } from "../../context/units_context";
+import { useWorkout } from "../../context/workoutcontext";
 
 const SCREEN_W = Dimensions.get("window").width;
 const RED = "#E31C25";
@@ -267,6 +270,7 @@ export default function ProfileScreen() {
   const db = useSQLiteContext();
   const { weightUnit: weightUnitRaw } = useUnits();
   const weightUnit = weightUnitRaw.toLowerCase();
+  const { isActive, stopWorkout } = useWorkout();
 
   const [userData, setUserData] = useState<{
     username: string;
@@ -281,6 +285,7 @@ export default function ProfileScreen() {
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [chartData, setChartData] = useState<BarPoint[]>([]);
   const [summaryValue, setSummaryValue] = useState(0);
+  const [showLogoutBlockedModal, setShowLogoutBlockedModal] = useState(false);
 
   const timeFilters: TimeFilter[] = ["3 Months", "Year", "All time"];
 
@@ -376,6 +381,10 @@ export default function ProfileScreen() {
   }, [isFocused, loadProfileData, loadChartData]);
 
   const handleLogout = async () => {
+    if (isActive) {
+      setShowLogoutBlockedModal(true);
+      return;
+    }
     await AsyncStorage.removeItem("userEmail");
     router.replace("/auth/login");
   };
@@ -647,6 +656,138 @@ export default function ProfileScreen() {
               )}
             </TouchableOpacity>
           ))}
+        </View>
+      </Modal>
+      {/* MODAL LOGOUT BLOQUEADO */}
+      <Modal
+        visible={showLogoutBlockedModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutBlockedModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.85)",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#121212",
+              width: "100%",
+              borderRadius: 32,
+              padding: 32,
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: "#27272a",
+            }}
+          >
+            {/* Ícone */}
+            <View
+              style={{
+                backgroundColor: "rgba(227,28,37,0.12)",
+                padding: 20,
+                borderRadius: 999,
+                marginBottom: 24,
+              }}
+            >
+              <Dumbbell color="#E31C25" size={36} />
+            </View>
+
+            {/* Título */}
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 20,
+                fontWeight: "900",
+                textTransform: "uppercase",
+                letterSpacing: -0.5,
+                marginBottom: 10,
+                textAlign: "center",
+              }}
+            >
+              Workout in Progress
+            </Text>
+
+            {/* Descrição */}
+            <Text
+              style={{
+                color: "#71717a",
+                fontSize: 13,
+                fontWeight: "700",
+                textTransform: "uppercase",
+                textAlign: "center",
+                lineHeight: 20,
+                marginBottom: 32,
+              }}
+            >
+              You must finish or discard your current workout before logging
+              out.
+            </Text>
+
+            {/* Botões */}
+            <View style={{ flexDirection: "row", width: "100%", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLogoutBlockedModal(false);
+                  stopWorkout(true);
+                  AsyncStorage.removeItem("userEmail");
+                  router.replace("/auth/login");
+                }}
+                style={{
+                  width: "48%",
+                  backgroundColor: "#27272a",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  borderColor: "#3f3f46",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#ef4444",
+                    fontWeight: "900",
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                  }}
+                >
+                  Discard{"\n"}Workout
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLogoutBlockedModal(false);
+                  router.push("/workout/log_workout");
+                }}
+                style={{
+                  width: "48%",
+                  backgroundColor: "#E31C25",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontWeight: "900",
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                  }}
+                >
+                  Go to{"\n"}Workout
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
