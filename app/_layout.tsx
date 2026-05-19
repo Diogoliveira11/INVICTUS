@@ -17,7 +17,6 @@ import "../global.css";
 import { UnitsProvider } from "../context/units_context";
 import { WorkoutProvider } from "../context/workoutcontext";
 
-// Silenciar avisos desnecessários apenas uma vez
 LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
 
 async function loadDatabase(): Promise<void> {
@@ -36,7 +35,6 @@ async function loadDatabase(): Promise<void> {
 
   const fileInfo = await FileSystem.getInfoAsync(dbPath);
   if (!fileInfo.exists) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const dbModule = require("../src/inicializedatabase.sqlite");
     const asset = await Asset.fromModule(dbModule).downloadAsync();
     await FileSystem.copyAsync({ from: asset.localUri!, to: dbPath });
@@ -47,7 +45,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [dbReady, setDbReady] = useState(false);
 
-  // Listener para notificações
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
@@ -60,7 +57,6 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
-  // Inicialização do banco de dados
   useEffect(() => {
     loadDatabase()
       .then(() => setDbReady(true))
@@ -145,9 +141,7 @@ export default function RootLayout() {
                   />
                   <Stack.Screen
                     name="workouthistory"
-                    options={{
-                      animation: "slide_from_right",
-                    }}
+                    options={{ animation: "slide_from_right" }}
                   />
                   <Stack.Screen
                     name="volumestats"

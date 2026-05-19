@@ -11,19 +11,16 @@ import {
   ChevronRight,
   ClipboardList,
   Dumbbell,
-  Globe,
-  HelpCircle,
   Info,
   Mail,
-  Moon,
   Ruler,
   Share,
-  Star,
   User,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useWorkout } from "../context/workoutcontext";
 import { exportUserData } from "../src/exportData";
 
 const RED = "#E31C25";
@@ -75,6 +72,8 @@ export default function SettingsScreen() {
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const { isActive, stopWorkout } = useWorkout();
+  const [showLogoutBlockedModal, setShowLogoutBlockedModal] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -245,9 +244,11 @@ export default function SettingsScreen() {
             label="Workouts"
             onPress={() => router.push("/workoutsettings")}
           />
-          <SettingItem icon={Ruler} label="Units" />
-          <SettingItem icon={Globe} label="Language" />
-          <SettingItem icon={Moon} label="Theme" />
+          <SettingItem
+            icon={Ruler}
+            label="Units"
+            onPress={() => router.push("/unit_settings")}
+          />
           <SettingItem
             icon={Share}
             label={exporting ? "Exporting..." : "Export Data"}
@@ -264,20 +265,36 @@ export default function SettingsScreen() {
 
         <SectionTitle title="Guides" />
         <View className="px-5">
-          <SettingItem icon={Info} label="Getting Started Guide" />
-          <SettingItem icon={ClipboardList} label="Routine Help" />
+          <SettingItem
+            icon={Info}
+            label="Getting Started Guide"
+            onPress={() => router.replace("/getting_started")}
+          />
+          <SettingItem
+            icon={ClipboardList}
+            label="Routine Help"
+            onPress={() => router.push("/routine_help")}
+          />
         </View>
-
         <SectionTitle title="Help" />
         <View className="px-5">
-          <SettingItem icon={HelpCircle} label="Frequently Asked Questions" />
-          <SettingItem icon={Mail} label="Contact Us" />
-          <SettingItem icon={Star} label="Review Invictus on the App Store" />
+          <SettingItem
+            icon={Mail}
+            label="Frequently Asked Questions"
+            onPress={() => router.push("/frequently_asked_questions")}
+          />
         </View>
 
         <TouchableOpacity
           className="mt-10 mb-10 items-center justify-center py-4"
-          onPress={() => router.replace("/auth/login")}
+          onPress={async () => {
+            if (isActive) {
+              setShowLogoutBlockedModal(true);
+              return;
+            }
+            await AsyncStorage.removeItem("userEmail");
+            router.replace("/auth/login");
+          }}
         >
           <Text className="text-[#E31C25] font-bold text-xl">Logout</Text>
         </TouchableOpacity>
@@ -540,6 +557,130 @@ export default function SettingsScreen() {
                 OK
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {/* MODAL LOGOUT BLOQUEADO */}
+      <Modal visible={showLogoutBlockedModal} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.9)",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#121212",
+              width: "100%",
+              padding: 32,
+              borderRadius: 40,
+              borderWidth: 1,
+              borderColor: "#27272a",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "rgba(227,28,37,0.12)",
+                padding: 16,
+                borderRadius: 999,
+                marginBottom: 24,
+                borderWidth: 1,
+                borderColor: "rgba(227,28,37,0.2)",
+              }}
+            >
+              <Dumbbell color="#E31C25" size={32} strokeWidth={3} />
+            </View>
+
+            <Text
+              style={{
+                color: "white",
+                fontSize: 20,
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: 12,
+                textAlign: "center",
+              }}
+            >
+              Workout in Progress
+            </Text>
+
+            <Text
+              style={{
+                color: "#71717a",
+                fontSize: 13,
+                fontWeight: "700",
+                textTransform: "uppercase",
+                textAlign: "center",
+                marginBottom: 32,
+                lineHeight: 20,
+              }}
+            >
+              You must finish or discard your current workout before logging
+              out.
+            </Text>
+
+            <View style={{ flexDirection: "row", width: "100%", gap: 12 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  setShowLogoutBlockedModal(false);
+                  stopWorkout(true);
+                  await AsyncStorage.removeItem("userEmail");
+                  router.replace("/auth/login");
+                }}
+                style={{
+                  width: "48%",
+                  backgroundColor: "#27272a",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  borderColor: "#3f3f46",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#ef4444",
+                    fontWeight: "900",
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                  }}
+                >
+                  Discard{"\n"}Workout
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLogoutBlockedModal(false);
+                  router.push("/workout/log_workout");
+                }}
+                style={{
+                  width: "48%",
+                  backgroundColor: "#E31C25",
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontWeight: "900",
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                  }}
+                >
+                  Go to{"\n"}Workout
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

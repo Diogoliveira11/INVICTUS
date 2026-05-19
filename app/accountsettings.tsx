@@ -203,7 +203,7 @@ export default function AccountSettingsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#111111" }}>
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar style="light" />
 
       {/* HEADER */}
