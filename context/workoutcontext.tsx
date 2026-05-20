@@ -17,6 +17,7 @@ import {
   Vibration,
   View,
 } from "react-native";
+import { useWorkoutSettings } from "./settings_context";
 
 export type SetType = "W" | "1" | "F" | "D";
 
@@ -87,6 +88,8 @@ Notifications.setNotificationHandler({
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
+  const { defaultRestTimer } = useWorkoutSettings();
+
   const [isActive, setIsActive] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [exercises, setExercises] = useState<ActiveExercise[]>([]);
@@ -228,28 +231,35 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     Notifications.cancelAllScheduledNotificationsAsync();
   }, []);
 
-  const toggleSetCompleted = (exLogId: string, setId: string) => {
-    setExercises((prev) =>
-      prev.map((ex) => {
-        if (ex.logId === exLogId) {
-          return {
-            ...ex,
-            sets: ex.sets.map((s) => {
-              if (s.id === setId) {
-                const newState = !s.completed;
-                if (newState && ex.rest_time > 0)
-                  startRestTimer(ex.rest_time, setId);
-                else if (!newState) cancelRestTimer();
-                return { ...s, completed: newState };
-              }
-              return s;
-            }),
-          };
-        }
-        return ex;
-      }),
-    );
-  };
+  const toggleSetCompleted = useCallback(
+    (exLogId: string, setId: string) => {
+      setExercises((prev) =>
+        prev.map((ex) => {
+          if (ex.logId === exLogId) {
+            return {
+              ...ex,
+              sets: ex.sets.map((s) => {
+                if (s.id === setId) {
+                  const newState = !s.completed;
+                  if (newState) {
+                    const restTime =
+                      ex.rest_time > 0 ? ex.rest_time : defaultRestTimer;
+                    startRestTimer(restTime, setId);
+                  } else {
+                    cancelRestTimer();
+                  }
+                  return { ...s, completed: newState };
+                }
+                return s;
+              }),
+            };
+          }
+          return ex;
+        }),
+      );
+    },
+    [defaultRestTimer, startRestTimer, cancelRestTimer],
+  );
 
   const formatTime = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600);

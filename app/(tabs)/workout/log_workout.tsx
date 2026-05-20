@@ -37,6 +37,7 @@ import {
   View,
 } from "react-native";
 import { IMAGE_MAP } from "../../../constants/exercise_images";
+import { useWorkoutSettings } from "../../../context/settings_context";
 import { useUnits } from "../../../context/units_context";
 import {
   ActiveExercise,
@@ -215,7 +216,7 @@ export default function LogWorkoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const db = useSQLiteContext();
-
+  const { defaultRestTimer } = useWorkoutSettings();
   const hasRecovered = useRef(false);
 
   const {
@@ -565,9 +566,11 @@ export default function LogWorkoutScreen() {
       }
     }
 
-    if (isCompleting && exercise.rest_time > 0) {
-      startRestTimer(exercise.rest_time, setId);
-    } else if (!isCompleting) {
+    if (isCompleting) {
+      const restTime =
+        exercise.rest_time > 0 ? exercise.rest_time : defaultRestTimer;
+      startRestTimer(restTime, setId);
+    } else {
       cancelRestTimer();
     }
 
