@@ -67,7 +67,7 @@ export default function ExploreExercisesPage() {
       );
       setEquipmentOptions(equipment.map((e) => e.equipment));
     } catch (e) {
-      console.error("Erro ao carregar filtros:", e);
+      console.error("Error loading filters:", e);
     }
   }, [db]);
 
@@ -95,7 +95,7 @@ export default function ExploreExercisesPage() {
       const allRows = await db.getAllAsync<Exercise>(query, params);
       setExercises(allRows);
     } catch (error) {
-      console.error("Erro ao carregar exercícios:", error);
+      console.error("Error loading exercises:", error);
     } finally {
       setLoading(false);
     }

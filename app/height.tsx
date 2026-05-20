@@ -174,8 +174,6 @@ export default function HeightSelection() {
   );
 }
 
-// ─── Hold Button ─────────────────────────────────────────────────────────────
-
 interface HoldButtonProps {
   onAction: () => void;
   disabled: boolean;
@@ -213,16 +211,13 @@ function HoldButton({
 
   const start = useCallback(() => {
     if (disabled) return;
-    // Guard: don't start if already running
     if (activeRef.current) return;
 
     activeRef.current = true;
     setPressed(true);
 
-    // Fire once immediately on touch down
     onAction();
 
-    // After hold delay, start repeating
     timeoutRef.current = setTimeout(() => {
       if (!activeRef.current) return;
       stepsRef.current = 0;
@@ -235,7 +230,6 @@ function HoldButton({
         onAction();
         stepsRef.current += 1;
 
-        // Turbo: switch to faster interval after threshold
         if (stepsRef.current === TURBO_THRESHOLD) {
           if (intervalRef.current) clearInterval(intervalRef.current);
           if (!activeRef.current) return;
@@ -254,7 +248,6 @@ function HoldButton({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        // Claim the touch immediately
         onStartShouldSetPanResponder: () => !disabled,
         onStartShouldSetPanResponderCapture: () => !disabled,
         onMoveShouldSetPanResponder: () => false,
@@ -290,8 +283,6 @@ function HoldButton({
     </View>
   );
 }
-
-// ─── Stepper Card ─────────────────────────────────────────────────────────────
 
 interface StepperCardProps {
   label: string;

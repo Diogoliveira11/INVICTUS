@@ -1,32 +1,30 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
-    BarChart2,
-    ChevronDown,
-    ChevronLeft,
-    ChevronUp,
-    Dumbbell,
-    HelpCircle,
-    Lock,
-    Search,
-    Settings,
-    Smartphone,
-    Star,
-    User,
+  BarChart2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  Dumbbell,
+  HelpCircle,
+  Lock,
+  Search,
+  Settings,
+  Smartphone,
+  Star,
+  User,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const RED = "#E31C25";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 type FAQ = {
   question: string;
@@ -41,8 +39,6 @@ type Section = {
   title: string;
   faqs: FAQ[];
 };
-
-// ─── Data ────────────────────────────────────────────────────────────────────
 
 const SECTIONS: Section[] = [
   {
@@ -289,8 +285,6 @@ const SECTIONS: Section[] = [
   },
 ];
 
-// ─── Components ──────────────────────────────────────────────────────────────
-
 const FAQItem = ({
   faq,
   isOpen,
@@ -448,8 +442,6 @@ const SectionCard = ({
     </View>
   );
 };
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function FAQScreen() {
   const router = useRouter();

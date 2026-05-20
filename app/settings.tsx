@@ -192,7 +192,7 @@ export default function SettingsScreen() {
       setSuccessMessage("Your data has been imported successfully.");
       setShowSuccess(true);
     } catch (e: any) {
-      console.error("Import error detalhado:", JSON.stringify(e), e?.message);
+      console.error("Import error detailed:", JSON.stringify(e), e?.message);
       setErrorMessage(
         e?.message ?? "Failed to import data. Make sure the file is valid.",
       );

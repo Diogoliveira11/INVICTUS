@@ -286,7 +286,7 @@ export default function LogWorkoutScreen() {
       );
       setEquipmentOptions(equipment.map((e) => e.equipment));
     } catch (error) {
-      console.error("Erro ao carregar opções:", error);
+      console.error("Error loading options:", error);
     }
   }, [db]);
 
@@ -311,7 +311,7 @@ export default function LogWorkoutScreen() {
       const rows = await db.getAllAsync<any>(query, queryParams);
       setDbExercises(rows);
     } catch (error) {
-      console.error("Erro ao carregar biblioteca:", error);
+      console.error("Error loading library::", error);
     }
   }, [search, selectedMuscle, selectedEquipment, db]);
 
@@ -370,7 +370,6 @@ export default function LogWorkoutScreen() {
       return;
     }
 
-    // ── PROTEÇÃO CRÍTICA DO MINIMIZAR: Só recarrega se mudou fisicamente o ID da rotina aberta
     if (activeRoutineId !== "" && String(routineId) !== activeRoutineId) {
       setExercises([]);
     } else if (exercises.length > 0) {
@@ -460,21 +459,32 @@ export default function LogWorkoutScreen() {
     exercises.length,
   ]);
 
-  // ── 1. Biblioteca de Exercícios Estável
   useEffect(() => {
     db.getAllAsync<any>("SELECT * FROM exercises ORDER BY name ASC").then(
       setDbExercises,
     );
   }, [db]);
 
-  // ── 2. Inicialização Estável Controlada por Rota — Resolve segunda abertura e protege minimizar ──
+  const workoutMethodsRef = useRef({
+    db,
+    setExercises,
+    setIsActive,
+    startWorkout,
+  });
+
+  useEffect(() => {
+    workoutMethodsRef.current = { db, setExercises, setIsActive, startWorkout };
+  });
+
   useEffect(() => {
     const recover = params.recover === "true";
 
     if (recover) {
       (async () => {
         try {
-          const saved = await getActiveWorkout(db);
+          const currentMethods = workoutMethodsRef.current;
+          const saved = await getActiveWorkout(currentMethods.db);
+
           if (saved && saved.workout.exercises_json) {
             const recoveredExercises: ActiveExercise[] = JSON.parse(
               saved.workout.exercises_json,
@@ -499,11 +509,11 @@ export default function LogWorkoutScreen() {
             const startedAt = new Date(saved.workout.started_at).getTime();
             const elapsed = Math.floor((Date.now() - startedAt) / 1000);
 
-            setExercises(recoveredExercises);
+            currentMethods.setExercises(recoveredExercises);
             setActiveRoutineName(saved.workout.routine_name || "");
             setActiveWorkoutId(saved.workout.id);
-            startWorkout("", elapsed, true);
-            setIsActive(true);
+            currentMethods.startWorkout("", elapsed, true);
+            currentMethods.setIsActive(true);
           }
         } catch (e) {
           console.error("Error recovering workout:", e);

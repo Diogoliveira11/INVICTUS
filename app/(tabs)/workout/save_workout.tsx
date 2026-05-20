@@ -41,7 +41,6 @@ import { clearActiveWorkout } from "../../../src/activeWorkout";
 
 const RED = "#E31C25";
 
-// ─── UPDATE ROUTINE BOTTOM SHEET ────────
 function UpdateRoutineSheet({
   visible,
   routineName,
@@ -201,7 +200,6 @@ function UpdateRoutineSheet({
           </Text>
         </TouchableOpacity>
 
-        {/* Keep original */}
         <TouchableOpacity
           onPress={onKeep}
           style={{ paddingVertical: 18, alignItems: "center" }}
@@ -289,7 +287,6 @@ export default function SaveWorkoutScreen() {
     }
   };
 
-  // Redefinir o estado local sempre que este ecrã ficar em foco
   useFocusEffect(
     useCallback(() => {
       setDescription("");
@@ -340,7 +337,7 @@ export default function SaveWorkoutScreen() {
     reps: number,
   ): Promise<number> => {
     try {
-      // 1. Calcular a carga teórica atual (1RM) usando a Fórmula de Epley
+      // 1. Calcular a carga teórica atual (1RM)
       // Apenas se reps < 12, caso contrário usamos o peso real
       const currentTheoreticalMax =
         reps < 12 ? weight * (1 + reps / 30) : weight;
@@ -353,7 +350,7 @@ export default function SaveWorkoutScreen() {
 
       if (!bestSet) return 1; // Se é o primeiro treino, é recorde
 
-      // 3. Calcular a máxima teórica do recorde antigo (respeitando a mesma regra)
+      // 3. Calcular a máxima teórica do recorde antigo
       const previousTheoreticalMax =
         bestSet.reps < 12
           ? bestSet.weight * (1 + bestSet.reps / 30)
@@ -447,7 +444,6 @@ export default function SaveWorkoutScreen() {
         }
       }
 
-      // Limpar treino ativo após guardar com sucesso
       await clearActiveWorkout(db);
 
       stopWorkout();
@@ -779,7 +775,7 @@ export default function SaveWorkoutScreen() {
         onKeep={handleKeepOriginal}
       />
 
-      {/* ── selecionar imagem */}
+      {/* selecionar imagem */}
       <Modal
         visible={showImageModal}
         transparent

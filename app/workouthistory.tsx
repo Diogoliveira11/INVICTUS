@@ -10,7 +10,7 @@ import {
   Trophy,
   X,
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -70,17 +70,12 @@ export default function WorkoutHistory() {
     [],
   );
 
-  // Exercise detail modal state
   const [isExerciseDetailVisible, setIsExerciseDetailVisible] = useState(false);
   const [selectedExerciseName, setSelectedExerciseName] = useState<string>("");
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>([]);
   const [loadingExerciseHistory, setLoadingExerciseHistory] = useState(false);
 
-  useEffect(() => {
-    loadWorkoutHistory();
-  }, []);
-
-  const loadWorkoutHistory = async () => {
+  const loadWorkoutHistory = useCallback(async () => {
     try {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
@@ -95,11 +90,15 @@ export default function WorkoutHistory() {
 
       setHistory(rows);
     } catch (e) {
-      console.error("Erro ao carregar histórico de treinos:", e);
+      console.error("Error loading workout history:", e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [db]);
+
+  useEffect(() => {
+    loadWorkoutHistory();
+  }, [loadWorkoutHistory]);
 
   const loadWorkoutDetails = async (workout: WorkoutEntry) => {
     try {
@@ -140,7 +139,6 @@ export default function WorkoutHistory() {
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
 
-      // Fetch all sets for this exercise across all workouts
       const rows = await db.getAllAsync<
         WorkoutExercise & { workout_title: string; workout_date: string }
       >(
@@ -166,7 +164,6 @@ export default function WorkoutHistory() {
         [exerciseName, email],
       );
 
-      // Group by workout
       const grouped: Record<string, ExerciseHistory> = {};
       rows.forEach((row) => {
         const key = `${row.workout_date}_${row.workout_title}`;
@@ -182,11 +179,8 @@ export default function WorkoutHistory() {
 
       setExerciseHistory(Object.values(grouped));
     } catch (e) {
-      console.error("[loadExerciseHistory] erro:", e);
-      Alert.alert(
-        "Erro",
-        "Não foi possível carregar o histórico do exercício.",
-      );
+      console.error("[loadExerciseHistory] error:", e);
+      Alert.alert("Error", "Unable to load the exercise history.");
     } finally {
       setLoadingExerciseHistory(false);
     }
@@ -404,7 +398,6 @@ export default function WorkoutHistory() {
                   activeOpacity={0.75}
                   className="mb-6 bg-zinc-900/20 rounded-[40px] p-6 border border-zinc-900"
                 >
-                  {/* Exercise header with history button */}
                   <View className="flex-row items-center justify-between mb-4">
                     <Text className="text-[#E31C25] text-lg font-black uppercase tracking-tighter flex-1 mr-2">
                       {group.name}
@@ -562,7 +555,6 @@ export default function WorkoutHistory() {
                             {entry.workout_title}
                           </Text>
                         </View>
-                        {/* Best set badge */}
                         {(() => {
                           const best = entry.sets.reduce((prev, curr) =>
                             (curr.weight ?? 0) > (prev.weight ?? 0)
@@ -586,7 +578,6 @@ export default function WorkoutHistory() {
                         })()}
                       </View>
 
-                      {/* Sets table header */}
                       <View className="flex-row mb-2 px-2">
                         <Text className="text-zinc-600 text-[8px] font-black uppercase w-8">
                           Set
@@ -606,7 +597,6 @@ export default function WorkoutHistory() {
                         </Text>
                       </View>
 
-                      {/* Sets rows */}
                       {entry.sets.map((set, sIdx) => {
                         const { label, bg, text } = getSetTypeStyle(
                           set.set_type,

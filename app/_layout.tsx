@@ -35,7 +35,8 @@ async function loadDatabase(): Promise<void> {
 
   const fileInfo = await FileSystem.getInfoAsync(dbPath);
   if (!fileInfo.exists) {
-    const dbModule = require("../src/inicializedatabase.sqlite");
+    // @ts-ignore
+    const dbModule = await import("../src/inicializedatabase.sqlite");
     const asset = await Asset.fromModule(dbModule).downloadAsync();
     await FileSystem.copyAsync({ from: asset.localUri!, to: dbPath });
   }
@@ -47,12 +48,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        console.log(
-          "Notificação clicada:",
-          response.notification.request.content.title,
-        );
-      },
+      (response) => {},
     );
     return () => subscription.remove();
   }, []);
@@ -60,7 +56,7 @@ export default function RootLayout() {
   useEffect(() => {
     loadDatabase()
       .then(() => setDbReady(true))
-      .catch((e) => console.error("❌ Erro ao inicializar a App:", e));
+      .catch((e) => console.error("Error starting the app:", e));
   }, []);
 
   LogBox.ignoreLogs([

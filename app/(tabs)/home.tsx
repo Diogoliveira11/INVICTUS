@@ -87,9 +87,7 @@ export default function ProgressResult() {
             routineId: data.workout.routine_id || "",
           });
         }
-      } catch {
-        console.log("No unfinished workout found");
-      }
+      } catch {}
     };
     checkUnfinishedWorkout();
   }, [db]);
@@ -129,7 +127,6 @@ export default function ProgressResult() {
       firstDay.setHours(0, 0, 0, 0);
       const firstDayISO = firstDay.toISOString();
 
-      // Procura a linha do db.getAllAsync e substitui por esta:
       const historyRows = await db.getAllAsync<Workout>(
         "SELECT * FROM workouts WHERE date >= date(?) AND user_id = ? ORDER BY date DESC",
         [firstDayISO, userRow.id],

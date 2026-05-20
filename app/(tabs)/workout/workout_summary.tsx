@@ -46,7 +46,6 @@ export default function WorkoutSummaryScreen() {
     }
   }, [db]);
 
-  // 2. Atualiza o useEffect (por volta da linha 48)
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);

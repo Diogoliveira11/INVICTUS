@@ -67,7 +67,6 @@ type WorkoutContextType = {
   setIsMinimized: (val: boolean) => void;
   setLastExercise: (val: string) => void;
   stopWorkout: (confirm?: boolean) => void;
-  // preserveExercises: se true, não limpa os exercícios já carregados (recuperação)
   startWorkout: (
     name: string,
     initialSeconds?: number,
@@ -278,7 +277,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  // FIX: preserveExercises=true — não limpa exercícios (usado na recuperação de treino)
   const startWorkout = (
     name: string,
     initialSeconds: number = 0,

@@ -413,7 +413,7 @@ export default function LoginScreen() {
                     {forgotError ? (
                       <View className="flex-row items-center mb-4 px-1">
                         <Text style={{ color: "#f87171", fontSize: 11 }}>
-                          ⚠ {forgotError}
+                          {forgotError}
                         </Text>
                       </View>
                     ) : null}

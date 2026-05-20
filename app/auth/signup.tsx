@@ -34,7 +34,7 @@ export default function SignupScreen() {
       return;
     }
 
-    // 2. Validar se existem pelo menos dois nomes (ex: Nome Apelido)
+    // 2. Validar se existem pelo menos dois nomes
     const nameParts = username.trim().split(/\s+/);
     if (nameParts.length < 2) {
       setError("Please enter your full name (at least two names).");

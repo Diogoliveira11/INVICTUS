@@ -1,26 +1,24 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
-    Calendar,
-    ChevronDown,
-    ChevronLeft,
-    ChevronUp,
-    Clock,
-    Dumbbell,
-    Flame,
-    ListChecks,
-    RefreshCw,
-    Shuffle,
-    Target,
-    Zap,
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  Clock,
+  Dumbbell,
+  Flame,
+  ListChecks,
+  RefreshCw,
+  Shuffle,
+  Target,
+  Zap,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const RED = "#E31C25";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
+export const RED = "#E31C25";
 
 type FAQ = {
   question: string;
@@ -34,8 +32,6 @@ type Section = {
   title: string;
   faqs: FAQ[];
 };
-
-// ─── Data ────────────────────────────────────────────────────────────────────
 
 const SECTIONS: Section[] = [
   {
@@ -267,8 +263,6 @@ const SECTIONS: Section[] = [
   },
 ];
 
-// ─── Components ──────────────────────────────────────────────────────────────
-
 const FAQItem = ({
   faq,
   isOpen,
@@ -415,8 +409,6 @@ const SectionCard = ({ section }: { section: Section }) => {
     </View>
   );
 };
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function RoutineHelpScreen() {
   const router = useRouter();

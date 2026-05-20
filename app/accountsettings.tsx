@@ -52,7 +52,6 @@ export default function AccountSettingsScreen() {
   const insets = useSafeAreaInsets();
   const db = useSQLiteContext();
 
-  // Captura parâmetros da rota (ex: se passaste o email no login)
   const params = useLocalSearchParams();
   const userEmail = params.email as string;
 
@@ -94,7 +93,6 @@ export default function AccountSettingsScreen() {
       return;
     }
     try {
-      // Buscar email do AsyncStorage em vez de depender dos params
       const email = await AsyncStorage.getItem("userEmail");
 
       if (!email) {
@@ -189,7 +187,6 @@ export default function AccountSettingsScreen() {
     }
 
     try {
-      // Usamos o userEmail capturado da sessão/rota
       const result = await updatePassword(db, userEmail, password, newVal);
       if (result.success) {
         closeEditModals();
