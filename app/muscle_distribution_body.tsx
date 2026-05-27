@@ -218,11 +218,6 @@ export default function MuscleDistributionBodyScreen() {
         [userRow.id, dateStr],
       );
 
-      console.log("[DEBUG] muscleSets raw:", JSON.stringify(rows));
-
-      console.log("[DEBUG] muscleSets:", JSON.stringify(rows));
-      console.log("[DEBUG] dateStr usado:", dateStr);
-
       setMuscleSets(rows);
       setTotalSets(rows.reduce((acc, r) => acc + r.sets, 0));
     } catch (e) {
