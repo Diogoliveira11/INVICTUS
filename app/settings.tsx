@@ -284,20 +284,6 @@ export default function SettingsScreen() {
             onPress={() => router.push("/frequently_asked_questions")}
           />
         </View>
-
-        <TouchableOpacity
-          className="mt-10 mb-10 items-center justify-center py-4"
-          onPress={async () => {
-            if (isActive) {
-              setShowLogoutBlockedModal(true);
-              return;
-            }
-            await AsyncStorage.removeItem("userEmail");
-            router.replace("/auth/login");
-          }}
-        >
-          <Text className="text-[#E31C25] font-bold text-xl">Logout</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* MODAL confirmação */}

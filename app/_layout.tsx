@@ -12,6 +12,7 @@ import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { Suspense, useEffect, useState } from "react";
 import { ActivityIndicator, LogBox, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
 
 import { WorkoutSettingsProvider } from "../context/settings_context";
@@ -104,54 +105,56 @@ export default function RootLayout() {
               <ThemeProvider
                 value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
               >
-                <View style={{ flex: 1 }}>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="onboarding" />
-                    <Stack.Screen name="auth/signup" />
-                    <Stack.Screen name="auth/login" />
-                    <Stack.Screen
-                      name="gender"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="units"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="birthday"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="weight"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="height"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="workoutschedule"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="workouthistory"
-                      options={{ animation: "slide_from_right" }}
-                    />
-                    <Stack.Screen
-                      name="volumestats"
-                      options={{
-                        presentation: "modal",
-                        animation: "slide_from_right",
-                      }}
-                    />
-                  </Stack>
-                  <StatusBar style="light" />
-                </View>
+                <SafeAreaProvider>
+                  <View style={{ flex: 1 }}>
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="index" />
+                      <Stack.Screen name="onboarding" />
+                      <Stack.Screen name="auth/signup" />
+                      <Stack.Screen name="auth/login" />
+                      <Stack.Screen
+                        name="gender"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="units"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="birthday"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="weight"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="height"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="workoutschedule"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="(tabs)"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="workouthistory"
+                        options={{ animation: "slide_from_right" }}
+                      />
+                      <Stack.Screen
+                        name="volumestats"
+                        options={{
+                          presentation: "modal",
+                          animation: "slide_from_right",
+                        }}
+                      />
+                    </Stack>
+                    <StatusBar style="light" />
+                  </View>
+                </SafeAreaProvider>
               </ThemeProvider>
             </WorkoutProvider>
           </WorkoutSettingsProvider>

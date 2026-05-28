@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { ChevronLeft, Clock, Dumbbell, Trophy } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   Image,
@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../../context/units_context";
+import { useWorkout } from "../../context/workoutcontext";
 import { clearActiveWorkout, getActiveWorkout } from "../../src/activeWorkout";
 
 interface Workout {
@@ -53,6 +54,7 @@ export default function ProgressResult() {
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [weeklyHistory, setWeeklyHistory] = useState<Workout[]>([]);
   const [isVolumeModalVisible, setIsVolumeModalVisible] = useState(false);
+  const { isActive } = useWorkout();
   const [volumeByExercise, setVolumeByExercise] = useState<
     { name: string; volume: number }[]
   >([]);
@@ -75,22 +77,6 @@ export default function ProgressResult() {
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>(
     [],
   );
-
-  useEffect(() => {
-    const checkUnfinishedWorkout = async () => {
-      try {
-        const data = await getActiveWorkout(db);
-        if (data && data.sets.length > 0) {
-          setRecoveryModal({
-            visible: true,
-            workoutName: data.workout.routine_name || "Unnamed",
-            routineId: data.workout.routine_id || "",
-          });
-        }
-      } catch {}
-    };
-    checkUnfinishedWorkout();
-  }, [db]);
 
   const loadUserData = useCallback(async () => {
     try {
@@ -241,7 +227,23 @@ ORDER BY volume DESC
       loadUserData();
       loadStats();
       loadVolumeByExercise();
-    }, [loadUserData, loadStats, loadVolumeByExercise]),
+
+      if (!isActive) {
+        const checkUnfinishedWorkout = async () => {
+          try {
+            const data = await getActiveWorkout(db);
+            if (data && data.sets.length > 0) {
+              setRecoveryModal({
+                visible: true,
+                workoutName: data.workout.routine_name || "Unnamed",
+                routineId: data.workout.routine_id || "",
+              });
+            }
+          } catch {}
+        };
+        checkUnfinishedWorkout();
+      }
+    }, [loadUserData, loadStats, loadVolumeByExercise, db, isActive]),
   );
 
   return (

@@ -8,11 +8,9 @@ import {
   Clock,
   Dumbbell,
   Flame,
-  ListChecks,
   RefreshCw,
   Shuffle,
-  Target,
-  Zap,
+  Target
 } from "lucide-react-native";
 import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -53,7 +51,7 @@ const SECTIONS: Section[] = [
       {
         question: "Can I have more than one routine?",
         answer:
-          "Yes. You can create as many routines as you like — for example, a Strength routine, a Hypertrophy routine, and a Deload routine — and switch between them whenever you want.",
+          "Yes. You can create as many routines as you like — for example, a Chest routine, a Back routine, and a Legs routine — and switch between them whenever you want.",
       },
     ],
   },
@@ -66,22 +64,12 @@ const SECTIONS: Section[] = [
       {
         question: "How do I create a new routine?",
         answer:
-          'Go to the Routines tab and tap "New Routine". Give it a name (e.g. "Push Pull Legs"), then add the workout days you want to train each week.',
+          'Go to the Workouts tab and tap "New Routine". Give it a name (e.g. "Push Pull Legs"), then add the exercices you want to train.',
       },
       {
-        question: "How do I add days to my routine?",
+        question: "Can I modify a session on the fly?",
         answer:
-          'Inside your routine, tap "Add Day". You can name each day (e.g. "Push Day", "Leg Day") and then add exercises to it just like a regular workout.',
-      },
-      {
-        question: "Can I reorder the days in my routine?",
-        answer:
-          "Yes. Press and hold any day card to drag and reorder it. The order determines the sequence in which days are suggested when you start a session.",
-      },
-      {
-        question: "Can I duplicate a day within a routine?",
-        answer:
-          "Yes. Tap the options menu (⋯) on any day card and select Duplicate. This is useful when two days share most of the same exercises.",
+          "No. When you start a session from a routine, you get workout screen where you can´t add, remove, or swap exercises.",
       },
     ],
   },
@@ -99,35 +87,12 @@ const SECTIONS: Section[] = [
       {
         question: "Can I set target sets and reps inside the routine?",
         answer:
-          "Yes. For each exercise in the routine you can define the target number of sets, target reps, and a target weight. These act as defaults when you start the workout.",
+          "No. For each exercise in the routine, you cannot set the desired number of sets, number of repetitions, and weight. To do so, you’ll need to start the workout and train",
       },
       {
         question: "What if an exercise I want isn't in the list?",
         answer:
           'You can create a custom exercise. Tap "Create Exercise" at the bottom of the search results, fill in the name, muscle group, and equipment type, and it will be saved to your library.',
-      },
-    ],
-  },
-  {
-    icon: ListChecks,
-    iconColor: "#fb923c",
-    iconBg: "rgba(251,146,60,0.12)",
-    title: "Following a Routine",
-    faqs: [
-      {
-        question: "How do I start a session from my routine?",
-        answer:
-          'On the home screen, your active routine is shown at the top. Tap "Start" next to the suggested day, or open the routine and tap the day you want to train.',
-      },
-      {
-        question: "What happens if I skip a day?",
-        answer:
-          "Nothing bad! INVICTUS doesn't penalise skipped days. The next time you start a session it will suggest the next day in your routine, but you can always pick any day manually.",
-      },
-      {
-        question: "Can I modify a session on the fly?",
-        answer:
-          "Absolutely. When you start a session from a routine, you get a live workout screen where you can add, remove, or swap exercises without changing the original routine template.",
       },
     ],
   },
@@ -140,45 +105,17 @@ const SECTIONS: Section[] = [
       {
         question: "How do I edit an existing routine?",
         answer:
-          "Open the Routines tab, tap the routine you want to edit, and tap the edit (pencil) icon. You can rename the routine, add or remove days, and change exercises at any time.",
+          "Open the “Workouts” section, tap the three dots next to the routine you want to edit, and tap the edit icon (pencil).",
       },
       {
         question: "How do I delete a routine?",
         answer:
-          "Open the routine, tap the options menu (⋯) in the top right, and select Delete. This only deletes the routine template — your past logged workouts are kept.",
+          "Open the “Workouts”, tap three dots o the routine you want to Delete. This only deletes the routine template — your past logged workouts are kept.",
       },
       {
         question: "Will editing a routine affect my workout history?",
         answer:
           "No. Your workout history is independent of the routine template. Editing or deleting a routine never changes workouts that have already been logged.",
-      },
-    ],
-  },
-  {
-    icon: Zap,
-    iconColor: "#facc15",
-    iconBg: "rgba(250,204,21,0.12)",
-    title: "Popular Routine Structures",
-    faqs: [
-      {
-        question: "What is a Push / Pull / Legs (PPL) split?",
-        answer:
-          "PPL is a 3 or 6-day split. Push days train chest, shoulders, and triceps. Pull days train back and biceps. Leg days train quads, hamstrings, glutes, and calves. It is one of the most effective splits for muscle growth.",
-      },
-      {
-        question: "What is an Upper / Lower split?",
-        answer:
-          "A 4-day split alternating between upper body (chest, back, shoulders, arms) and lower body (quads, hamstrings, glutes, calves). Great for beginners and intermediates who want balanced development.",
-      },
-      {
-        question: "What is a Full Body routine?",
-        answer:
-          "Training all major muscle groups in every session, usually 3 days per week with rest days in between. Ideal for beginners or for anyone returning after a break.",
-      },
-      {
-        question: "How many days per week should I train?",
-        answer:
-          "3–5 days is optimal for most people. Beginners benefit from 3 full-body sessions. Intermediate to advanced lifters often thrive on 4–5 days with a split routine. Rest and recovery are just as important as training.",
       },
     ],
   },

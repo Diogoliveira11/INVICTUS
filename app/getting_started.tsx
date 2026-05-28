@@ -10,7 +10,6 @@ import {
   Plus,
   Repeat2,
   Ruler,
-  User,
 } from "lucide-react-native";
 import React, { useRef, useState } from "react";
 import {
@@ -36,19 +35,6 @@ type Step = {
 
 const STEPS: Step[] = [
   {
-    icon: User,
-    iconColor: "#60a5fa",
-    iconBg: "rgba(96,165,250,0.12)",
-    title: "Set Up Your Profile",
-    description:
-      "Start by configuring your account and personal preferences so INVICTUS is tailored to you.",
-    tips: [
-      "Go to Settings → Account to update your name and email.",
-      "Choose your preferred units (kg/lbs, km/mi) in Settings → Units.",
-      "Your data stays local and private on your device.",
-    ],
-  },
-  {
     icon: Dumbbell,
     iconColor: "#a78bfa",
     iconBg: "rgba(167,139,250,0.12)",
@@ -56,7 +42,8 @@ const STEPS: Step[] = [
     description:
       "Log your first workout session. You can start from scratch or follow a routine.",
     tips: [
-      'Tap the "+" button on the home screen to start a new workout.',
+      'Tap the "dumbell" button on the home screen to start a workout.',
+      "You can start a blank workout or create multiple routines",
       "Give your workout a title to keep things organised.",
       "You can add notes to any workout for extra context.",
     ],
@@ -95,9 +82,9 @@ const STEPS: Step[] = [
     description:
       "Create recurring workout plans so you always know what to train next.",
     tips: [
-      'Go to the Routines tab and tap "New Routine".',
-      "Add workout days and assign exercises to each day.",
-      "You can follow a routine directly from your home screen.",
+      'Go to the Workouts tab and tap "New Routine".',
+      "Add exercises to the routine and give it a name",
+      "You can create unlimited routines",
     ],
   },
   {
@@ -108,9 +95,9 @@ const STEPS: Step[] = [
     description:
       "View your stats, volume over time, and personal records to stay motivated.",
     tips: [
-      "Open the Stats tab to see your total volume and workout history.",
+      "Open the ‘Statistics’ tab to view your total volume and the number of times your exercises have been completed",
       "Tap any exercise to see your strength progression over time.",
-      "Your PRs are saved automatically every time you beat a record.",
+      "Your PR's are saved automatically every time you beat a record.",
     ],
   },
   {
@@ -123,7 +110,7 @@ const STEPS: Step[] = [
     tips: [
       "Go to Settings → Export Data to save a JSON file of all your workouts.",
       "Use Settings → Import Data to restore from a previous backup.",
-      "Keep your export file somewhere safe like iCloud or Google Drive.",
+      "Keep your export file somewhere safe",
     ],
   },
 ];

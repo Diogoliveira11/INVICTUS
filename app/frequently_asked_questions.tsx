@@ -20,7 +20,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
         tags: ["account", "sign up", "register", "create"],
       },
       {
-        question: "How do I change my email or password?",
+        question: "How do I change my username, email or password?",
         answer:
           "Go to Settings → Account. From there you can update your display name, email address, and password at any time.",
         tags: ["account", "email", "password", "change", "update"],
@@ -62,13 +62,13 @@ const SECTIONS: Section[] = [
       {
         question: "I forgot my password. What do I do?",
         answer:
-          "On the login screen, tap 'Forgot Password'. Enter your email address and you'll receive a link to reset your password.",
+          "On the login screen, tap 'Forgot Password'. Enter your full name, email address and you'll choose your new password.",
         tags: ["password", "forgot", "reset", "login"],
       },
       {
         question: "Can I use INVICTUS on multiple devices?",
         answer:
-          "Yes. Log in with the same credentials on any device. Your data is tied to your account, so everything syncs automatically.",
+          "Yes. Each device has its own data, but there is a solution: export your data and import it to another device.",
         tags: ["devices", "multiple", "sync", "account"],
       },
       {
@@ -497,38 +497,31 @@ export default function FAQScreen() {
             fontWeight: "900",
             textTransform: "uppercase",
             letterSpacing: 0.5,
-            marginBottom: 6,
+            marginBottom: 16, // Alterado de 6 para 16 já que o Text vazio sumiu
           }}
         >
           Frequently Asked{"\n"}Questions
         </Text>
-        <Text
-          style={{
-            color: "#71717a",
-            fontSize: 13,
-            fontWeight: "600",
-            lineHeight: 20,
-            marginBottom: 16,
-          }}
-        >
-          Can´t find your answer? Contact us via Settings → Contact Us.
-        </Text>
+
+        {/* REPARO 1: Removido o <Text> vazio com marginBottom que gerava o buraco preto */}
 
         {/* Search bar */}
         <View
           style={{
             flexDirection: "row",
-            alignItems: "center",
+            alignItems: "center", // Garante o alinhamento central vertical do container
             backgroundColor: "#0f0f0f",
             borderRadius: 14,
             borderWidth: 1,
             borderColor: query ? RED : "#27272a",
             paddingHorizontal: 14,
-            paddingVertical: 12,
+            height: 48, // Definida altura fixa para consistência e cálculo de centro perfeito
             gap: 10,
           }}
         >
           <Search size={18} color={query ? RED : "#52525b"} strokeWidth={2.5} />
+
+          {/* REPARO 2: Correção do alinhamento do TextInput */}
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -539,14 +532,22 @@ export default function FAQScreen() {
               color: "#fff",
               fontSize: 14,
               fontWeight: "600",
-              padding: 0,
+              paddingVertical: 0, // Zera padding vertical para não empurrar o texto
+              margin: 0,
+              height: "100%", // Ocupa toda a altura centralizada pelo flexbox pai
+              textAlignVertical: "center", // Força o alinhamento no Android
             }}
             returnKeyType="search"
             autoCorrect={false}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery("")}>
-              <Text style={{ color: "#52525b", fontSize: 18, lineHeight: 20 }}>
+            <TouchableOpacity
+              onPress={() => setQuery("")}
+              style={{ height: "100%", justifyContent: "center" }} // Centraliza o botão 'X'
+            >
+              <Text
+                style={{ color: "#52525b", fontSize: 18, paddingHorizontal: 4 }}
+              >
                 ×
               </Text>
             </TouchableOpacity>
