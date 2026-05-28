@@ -20,7 +20,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -60,12 +60,6 @@ const SECTIONS: Section[] = [
         tags: ["account", "email", "password", "change", "update"],
       },
       {
-        question: "I forgot my password. What do I do?",
-        answer:
-          "On the login screen, tap 'Forgot Password'. Enter your full name, email address and you'll choose your new password.",
-        tags: ["password", "forgot", "reset", "login"],
-      },
-      {
         question: "Can I use INVICTUS on multiple devices?",
         answer:
           "Yes. Each device has its own data, but there is a solution: export your data and import it to another device.",
@@ -88,26 +82,8 @@ const SECTIONS: Section[] = [
       {
         question: "How do I log a workout?",
         answer:
-          "Tap the '+' button on the home screen to start a new workout. Add exercises, log your sets with weight and reps, and tap 'Finish Workout' when done.",
+          "Tap the dumbell button on the home screen to start a workout, you can start a blank workout or create multiple routines",
         tags: ["workout", "log", "start", "new"],
-      },
-      {
-        question: "Can I edit a workout after finishing it?",
-        answer:
-          "Yes. Open your workout history, tap the workout you want to edit, and tap the edit icon. You can modify sets, reps, weights, notes, and the workout title.",
-        tags: ["workout", "edit", "history", "change"],
-      },
-      {
-        question: "How do I delete a workout from my history?",
-        answer:
-          "Open the workout in your history, tap the options menu (⋯) in the top right, and select Delete. This cannot be undone.",
-        tags: ["workout", "delete", "history", "remove"],
-      },
-      {
-        question: "What is a superset and how do I log one?",
-        answer:
-          "A superset is two exercises performed back-to-back with no rest. To log one, add both exercises to your workout, then press and hold the first exercise and select 'Pair as Superset' to link them together.",
-        tags: ["superset", "exercises", "pair", "back to back"],
       },
       {
         question: "What are the different set types?",
@@ -144,7 +120,7 @@ const SECTIONS: Section[] = [
       {
         question: "Where can I see all my personal records?",
         answer:
-          "Go to the Stats tab and select an exercise to view its full PR history, including the date and session in which each record was set.",
+          "Go to the individual exercises section, and under the “Personal Records” tab, you can view your 1RM",
         tags: ["pr", "records", "stats", "history"],
       },
       {
@@ -194,22 +170,10 @@ const SECTIONS: Section[] = [
         tags: ["units", "kg", "lbs", "weight", "settings"],
       },
       {
-        question: "How do I change distance units (km / mi)?",
-        answer:
-          "Go to Settings → Units and switch between kilometres and miles. This affects distance-based exercises like running or cycling.",
-        tags: ["units", "km", "miles", "distance", "settings"],
-      },
-      {
         question: "Can I customise the default rest time?",
         answer:
           "Yes. Go to Settings → Workouts and set your preferred default rest duration. You can still adjust it manually during any workout session.",
         tags: ["rest", "timer", "default", "settings", "workouts"],
-      },
-      {
-        question: "How do I turn off automatic rest timer?",
-        answer:
-          "Go to Settings → Workouts and toggle off 'Auto-start Rest Timer'. The timer will no longer launch automatically after each set.",
-        tags: ["rest", "timer", "auto", "off", "settings"],
       },
     ],
   },
@@ -228,7 +192,7 @@ const SECTIONS: Section[] = [
       {
         question: "How do I back up my data?",
         answer:
-          "Go to Settings → Export Data. INVICTUS will generate a JSON file containing all your workouts, exercises, and sets. Save this file to iCloud, Google Drive, or any other location of your choice.",
+          "Go to Settings → Export Data. INVICTUS will generate a JSON file containing all your workouts, exercises, and sets.",
         tags: ["backup", "export", "data", "json", "save"],
       },
       {
@@ -260,7 +224,7 @@ const SECTIONS: Section[] = [
       {
         question: "The app crashed. What should I do?",
         answer:
-          "Try closing and reopening the app. If the issue persists, restart your device. If it still crashes, contact us via Settings → Contact Us with a description of what you were doing when it crashed.",
+          "Try closing and reopening the app. If the issue persists, restart your device.",
         tags: ["crash", "bug", "error", "restart", "technical"],
       },
       {
@@ -270,15 +234,9 @@ const SECTIONS: Section[] = [
         tags: ["slow", "performance", "lag", "technical"],
       },
       {
-        question: "Why are my weights showing in the wrong unit?",
-        answer:
-          "Go to Settings → Units and confirm the correct unit is selected. If you recently changed units, reload the app to make sure all screens have updated.",
-        tags: ["units", "weight", "wrong", "bug", "technical"],
-      },
-      {
         question: "Is INVICTUS available on Android and iOS?",
         answer:
-          "Yes. INVICTUS is available on both iOS (iPhone and iPad) and Android devices. Download it from the App Store or Google Play.",
+          "Yes. INVICTUS is available on both iOS (iPhone and iPad) and Android devices.",
         tags: ["android", "ios", "download", "availability", "platform"],
       },
     ],
