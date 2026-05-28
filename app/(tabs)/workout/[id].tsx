@@ -33,7 +33,7 @@ import Svg, {
 } from "react-native-svg";
 import { useUnits } from "../../../context/units_context";
 
-// ─── GIF MAP ────────────────────────────────────────────────────────────────
+// ─── GIF MAP ─────
 const GIF_MAP: { [key: string]: any } = {
   "assets/exercises_gifs/back_extension.gif": require("../../../assets/exercises_gifs/back_extension.gif"),
   "assets/exercises_gifs/back_extension_machine.gif": require("../../../assets/exercises_gifs/back_extension_machine.gif"),

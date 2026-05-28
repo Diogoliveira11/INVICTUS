@@ -76,7 +76,7 @@ export default function SettingsScreen() {
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const { isActive, stopWorkout } = useWorkout();
+  const { stopWorkout } = useWorkout();
   const [showLogoutBlockedModal, setShowLogoutBlockedModal] = useState(false);
 
   const handleExport = async () => {
