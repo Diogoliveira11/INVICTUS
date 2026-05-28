@@ -1,10 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react-native";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react-native";
 import React, { useState } from "react";
 import {
-  Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   Text,
@@ -12,6 +17,8 @@ import {
   View,
 } from "react-native";
 import { updateUserBirthday } from "../src/database";
+
+const RED = "#E31C25";
 
 const MONTH_NAMES = [
   "January",
@@ -51,6 +58,10 @@ export default function BirthdaySelection() {
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
+  // ESTADOS DO NOVO MODAL PADRONIZADO
+  const [showAttentionModal, setShowAttentionModal] = useState(false);
+  const [attentionMessage, setAttentionMessage] = useState("");
+
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
   const firstDay = getFirstDayOfWeek(viewYear, viewMonth);
 
@@ -62,6 +73,11 @@ export default function BirthdaySelection() {
 
   const rows: (number | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+
+  const showAlert = (message: string) => {
+    setAttentionMessage(message);
+    setShowAttentionModal(true);
+  };
 
   const goBack = () => {
     if (viewMonth === 0) {
@@ -93,13 +109,13 @@ export default function BirthdaySelection() {
 
   const handleNext = async () => {
     if (!selectedDay) {
-      Alert.alert("Select a date", "Please pick your birth date.");
+      showAlert("Please pick your birth date.");
       return;
     }
     try {
       const userEmail = await AsyncStorage.getItem("userEmail");
       if (!userEmail) {
-        Alert.alert("Error", "User session lost. Please sign up again.");
+        showAlert("User session lost. Please sign up again.");
         router.replace("/auth/signup");
         return;
       }
@@ -108,7 +124,7 @@ export default function BirthdaySelection() {
       router.replace("/weight");
     } catch (e) {
       console.error("[Onboarding] Error saving birthday:", e);
-      Alert.alert("Error", "Could not save your birthday.");
+      showAlert("Could not save your birthday.");
     }
   };
 
@@ -155,7 +171,7 @@ export default function BirthdaySelection() {
         <View style={{ alignItems: "center", marginTop: 24 }}>
           <View
             style={{
-              backgroundColor: selectedDay ? "#E31C25" : "#2D2F33",
+              backgroundColor: selectedDay ? RED : "#2D2F33",
               borderRadius: 999,
               paddingHorizontal: 20,
               paddingVertical: 10,
@@ -246,8 +262,7 @@ export default function BirthdaySelection() {
                     paddingVertical: 10,
                     alignItems: "center",
                     borderRadius: 8,
-                    backgroundColor:
-                      year === viewYear ? "#E31C25" : "transparent",
+                    backgroundColor: year === viewYear ? RED : "transparent",
                   }}
                 >
                   <Text
@@ -293,8 +308,7 @@ export default function BirthdaySelection() {
                       alignItems: "center",
                       justifyContent: "center",
                       borderRadius: 12,
-                      backgroundColor:
-                        isSelected && day ? "#E31C25" : "transparent",
+                      backgroundColor: isSelected && day ? RED : "transparent",
                     }}
                     activeOpacity={0.7}
                   >
@@ -342,7 +356,7 @@ export default function BirthdaySelection() {
 
           <TouchableOpacity
             style={{
-              backgroundColor: selectedDay ? "#E31C25" : "#2D2F33",
+              backgroundColor: selectedDay ? RED : "#2D2F33",
               paddingVertical: 16,
               paddingHorizontal: 40,
               borderRadius: 999,
@@ -356,6 +370,88 @@ export default function BirthdaySelection() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ── MODAL DE ATENÇÃO (IDÊNTICO AO OUTRO) ── */}
+      <Modal visible={showAttentionModal} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.9)",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#121212",
+              width: "100%",
+              padding: 32,
+              borderRadius: 40,
+              borderWidth: 1,
+              borderColor: "#27272a",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "rgba(245,158,11,0.1)",
+                padding: 16,
+                borderRadius: 999,
+                marginBottom: 24,
+                borderWidth: 1,
+                borderColor: "rgba(245,158,11,0.2)",
+              }}
+            >
+              <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
+            </View>
+            <Text
+              style={{
+                color: "white",
+                fontSize: 20,
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: 12,
+              }}
+            >
+              Attention
+            </Text>
+            <Text
+              style={{
+                color: "#71717a",
+                fontSize: 13,
+                fontWeight: "700",
+                textTransform: "uppercase",
+                textAlign: "center",
+                marginBottom: 32,
+              }}
+            >
+              {attentionMessage}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowAttentionModal(false)}
+              style={{
+                width: "100%",
+                backgroundColor: RED,
+                paddingVertical: 16,
+                borderRadius: 16,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: "white",
+                  fontWeight: "900",
+                  fontSize: 18,
+                  textTransform: "uppercase",
+                }}
+              >
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

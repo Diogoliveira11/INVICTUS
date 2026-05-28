@@ -7,18 +7,14 @@ import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   Image,
-  Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { getUserData, login, resetPassword } from "../../src/database";
+import { login } from "../../src/database";
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -38,12 +34,6 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [showModal, setShowModal] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotName, setForgotName] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [forgotError, setForgotError] = useState("");
-
   const [statusVisible, setStatusVisible] = useState(false);
   const [statusType, setStatusType] = useState<StatusType>("success");
   const [statusMessage, setStatusMessage] = useState("");
@@ -61,15 +51,6 @@ export default function LoginScreen() {
     setStatusType(type);
     setStatusMessage(message);
     setStatusVisible(true);
-  };
-
-  const handleCloseForgotModal = () => {
-    Keyboard.dismiss();
-    setShowModal(false);
-    setForgotEmail("");
-    setForgotName("");
-    setNewPassword("");
-    setForgotError("");
   };
 
   // FUNÇÃO DE BIOMETRIA
@@ -134,60 +115,6 @@ export default function LoginScreen() {
       }
     } catch {
       setError("An error occurred during login.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (loading) return;
-    if (!forgotEmail || !forgotName || !newPassword) {
-      setForgotError("Please fill in all fields.");
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(forgotEmail.trim())) {
-      setForgotError("Please enter a valid email address.");
-      return;
-    }
-    setForgotError("");
-    setLoading(true);
-    try {
-      const userData = (await getUserData(
-        db,
-        forgotEmail.toLowerCase().trim(),
-      )) as any;
-      if (!userData) {
-        setForgotError("No account found with this email.");
-        setLoading(false);
-        return;
-      }
-      if (userData.username.trim() !== forgotName.trim()) {
-        setForgotError(
-          "Name doesn't match. Check uppercase/lowercase letters.",
-        );
-        setLoading(false);
-        return;
-      }
-      if (userData.pass === newPassword) {
-        setForgotError("New password must be different from the current one.");
-        setLoading(false);
-        return;
-      }
-      const success = await resetPassword(
-        db,
-        forgotEmail.toLowerCase().trim(),
-        forgotName,
-        newPassword,
-      );
-      if (success) {
-        handleCloseForgotModal();
-        showStatus("success", "Your password has been updated successfully!");
-      } else {
-        setForgotError("Something went wrong. Please try again.");
-      }
-    } catch {
-      setForgotError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -259,6 +186,7 @@ export default function LoginScreen() {
             <Text className="text-red-400 text-xs mb-3">{error}</Text>
           ) : null}
 
+          {/* AREA DO REMEMBER ME (FORGOT PASSWORD REMOVIDO DAQUI) */}
           <View className="flex-row justify-between items-center mb-8">
             <TouchableOpacity
               onPress={() => setRememberMe(!rememberMe)}
@@ -272,11 +200,6 @@ export default function LoginScreen() {
                 )}
               </View>
               <Text className="text-white text-xs opacity-70">Remember me</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowModal(true)}>
-              <Text className="text-white text-xs opacity-70 underline">
-                Forgot Password?
-              </Text>
             </TouchableOpacity>
           </View>
 
@@ -316,168 +239,51 @@ export default function LoginScreen() {
         </View>
       </View>
 
-      {/* ── ESQUERCER PASS - MODAL ── */}
-      <Modal
-        visible={showModal}
-        animationType="slide"
-        transparent
-        onRequestClose={handleCloseForgotModal}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <TouchableWithoutFeedback onPress={handleCloseForgotModal}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "rgba(0,0,0,0.7)",
-                justifyContent: "flex-end",
-              }}
-            >
-              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View
-                  style={{
-                    width: "100%",
-                    backgroundColor: "#121212",
-                    borderTopLeftRadius: 40,
-                    borderTopRightRadius: 40,
-                    borderTopWidth: 1,
-                    borderTopColor: "rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <ScrollView
-                    keyboardShouldPersistTaps="handled"
-                    contentContainerStyle={{
-                      padding: 32,
-                      paddingBottom: Platform.OS === "ios" ? 48 : 32,
-                    }}
-                    bounces={false}
-                  >
-                    <View
-                      style={{
-                        width: 48,
-                        height: 4,
-                        backgroundColor: "rgba(255,255,255,0.2)",
-                        borderRadius: 2,
-                        alignSelf: "center",
-                        marginBottom: 24,
-                      }}
-                    />
-                    <Text className="text-white text-2xl font-bold mb-2 text-center">
-                      Reset Password
-                    </Text>
-                    <Text className="text-white/40 text-xs text-center mb-8">
-                      Enter your details exactly as registered
-                    </Text>
-                    <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
-                      <TextInput
-                        className="text-white text-base"
-                        placeholder="Exact Full Name"
-                        placeholderTextColor="#666"
-                        autoCapitalize="words"
-                        value={forgotName}
-                        onChangeText={(t) => {
-                          setForgotName(t);
-                          if (forgotError) setForgotError("");
-                        }}
-                      />
-                    </View>
-                    <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
-                      <TextInput
-                        className="text-white text-base"
-                        placeholder="Email Address"
-                        placeholderTextColor="#666"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={forgotEmail}
-                        onChangeText={(t) => {
-                          setForgotEmail(t);
-                          if (forgotError) setForgotError("");
-                        }}
-                      />
-                    </View>
-                    <View className="bg-white/5 rounded-2xl px-4 border border-white/10 h-16 justify-center mb-4">
-                      <TextInput
-                        className="text-white text-base"
-                        placeholder="New Password"
-                        placeholderTextColor="#666"
-                        secureTextEntry
-                        value={newPassword}
-                        onChangeText={(t) => {
-                          setNewPassword(t);
-                          if (forgotError) setForgotError("");
-                        }}
-                      />
-                    </View>
-                    {forgotError ? (
-                      <View className="flex-row items-center mb-4 px-1">
-                        <Text style={{ color: "#f87171", fontSize: 11 }}>
-                          {forgotError}
-                        </Text>
-                      </View>
-                    ) : null}
-                    <TouchableOpacity
-                      onPress={handleResetPassword}
-                      disabled={loading}
-                      className="w-full h-14 rounded-2xl bg-white justify-center items-center mt-2"
-                      style={{ opacity: loading ? 0.6 : 1 }}
-                    >
-                      <Text className="text-black font-black uppercase tracking-widest text-xs">
-                        {loading ? "Updating..." : "Update Password"}
-                      </Text>
-                    </TouchableOpacity>
-                  </ScrollView>
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
-      </Modal>
-
       {/* ── STATUS MODAL ── */}
-      <Modal visible={statusVisible} transparent animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.6)",
-            paddingHorizontal: 24,
-          }}
-        >
-          <View className="w-full rounded-[35px] overflow-hidden border border-white/10 bg-[#1a1a1a]">
-            <View className="p-8 items-center">
-              <View
-                className={`w-16 h-16 rounded-full justify-center items-center mb-4 ${statusType === "success" ? "bg-green-500/20" : "bg-red-500/20"}`}
-              >
-                <Text
-                  style={{
-                    fontSize: 30,
-                    color: statusType === "success" ? "#4ade80" : "#f87171",
-                  }}
+      <View>
+        <Modal visible={statusVisible} transparent animationType="fade">
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.6)",
+              paddingHorizontal: 24,
+            }}
+          >
+            <View className="w-full rounded-[35px] overflow-hidden border border-white/10 bg-[#1a1a1a]">
+              <View className="p-8 items-center">
+                <View
+                  className={`w-16 h-16 rounded-full justify-center items-center mb-4 ${statusType === "success" ? "bg-green-500/20" : "bg-red-500/20"}`}
                 >
-                  {statusType === "success" ? "✓" : "✕"}
+                  <Text
+                    style={{
+                      fontSize: 30,
+                      color: statusType === "success" ? "#4ade80" : "#f87171",
+                    }}
+                  >
+                    {statusType === "success" ? "✓" : "✕"}
+                  </Text>
+                </View>
+                <Text className="text-white text-xl font-bold mb-2">
+                  {statusType === "success" ? "Success!" : "Error"}
                 </Text>
+                <Text className="text-white/60 text-center mb-8 text-sm">
+                  {statusMessage}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setStatusVisible(false)}
+                  className={`w-full h-12 rounded-xl justify-center items-center ${statusType === "success" ? "bg-green-500" : "bg-red-500"}`}
+                >
+                  <Text className="text-white font-bold uppercase text-xs tracking-widest">
+                    Continue
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <Text className="text-white text-xl font-bold mb-2">
-                {statusType === "success" ? "Success!" : "Error"}
-              </Text>
-              <Text className="text-white/60 text-center mb-8 text-sm">
-                {statusMessage}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setStatusVisible(false)}
-                className={`w-full h-12 rounded-xl justify-center items-center ${statusType === "success" ? "bg-green-500" : "bg-red-500"}`}
-              >
-                <Text className="text-white font-bold uppercase text-xs tracking-widest">
-                  Continue
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      </View>
     </View>
   );
 }
