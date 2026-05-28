@@ -30,15 +30,19 @@ const SettingItem = ({
   label,
   onPress,
   hideArrow = false,
+  isLast = false,
 }: {
   icon: any;
   label: string;
   onPress?: () => void;
   hideArrow?: boolean;
+  isLast?: boolean;
 }) => (
   <TouchableOpacity
     onPress={onPress}
-    className="flex-row items-center justify-between py-4 border-b border-zinc-900/50"
+    className={`flex-row items-center justify-between py-4 ${
+      isLast ? "" : "border-b border-zinc-900/50"
+    }`}
   >
     <View className="flex-row items-center gap-4">
       <Icon size={22} color="#A1A1AA" />
@@ -49,7 +53,7 @@ const SettingItem = ({
 );
 
 const SectionTitle = ({ title }: { title: string }) => (
-  <View className="bg-zinc-900/50 px-5 py-3 mt-4">
+  <View className="px-5 py-2 mt-3 mb-1">
     <Text className="text-zinc-500 text-xs font-bold uppercase tracking-widest">
       {title}
     </Text>
@@ -206,6 +210,7 @@ export default function SettingsScreen() {
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar style="light" />
 
+      {/* Header */}
       <View
         style={{ paddingTop: insets.top + 8 }}
         className="pb-3 bg-black flex-row items-center px-4 border-b border-zinc-900"
@@ -222,12 +227,18 @@ export default function SettingsScreen() {
         <View className="w-9" />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 20,
+        }}
+      >
         <SectionTitle title="Account" />
-        <View className="px-5">
+        <View className="px-5 bg-zinc-900/10">
           <SettingItem
             icon={User}
             label="Account"
+            isLast={true}
             onPress={() =>
               router.push({
                 pathname: "/accountsettings",
@@ -238,7 +249,7 @@ export default function SettingsScreen() {
         </View>
 
         <SectionTitle title="Preferences" />
-        <View className="px-5">
+        <View className="px-5 bg-zinc-900/10">
           <SettingItem
             icon={Dumbbell}
             label="Workouts"
@@ -260,11 +271,12 @@ export default function SettingsScreen() {
             label={importing ? "Importing..." : "Import Data"}
             onPress={() => setShowConfirmImport(true)}
             hideArrow
+            isLast={true}
           />
         </View>
 
         <SectionTitle title="Guides" />
-        <View className="px-5">
+        <View className="px-5 bg-zinc-900/10">
           <SettingItem
             icon={Info}
             label="Getting Started Guide"
@@ -274,14 +286,17 @@ export default function SettingsScreen() {
             icon={ClipboardList}
             label="Routine Help"
             onPress={() => router.push("/routine_help")}
+            isLast={true}
           />
         </View>
+
         <SectionTitle title="Help" />
-        <View className="px-5">
+        <View className="px-5 bg-zinc-900/10">
           <SettingItem
             icon={Mail}
             label="Frequently Asked Questions"
             onPress={() => router.push("/frequently_asked_questions")}
+            isLast={true}
           />
         </View>
       </ScrollView>
