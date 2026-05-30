@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
@@ -24,6 +23,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // @ts-ignore
 import InvictusLogo from "../../../assets/images/logo_invictus.jpeg";

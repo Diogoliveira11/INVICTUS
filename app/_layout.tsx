@@ -38,9 +38,8 @@ async function loadDatabase(): Promise<void> {
 
   const fileInfo = await FileSystem.getInfoAsync(dbPath);
   if (!fileInfo.exists) {
-    // @ts-ignore
-    const dbModule = await import("../src/inicializedatabase.sqlite");
-    const asset = await Asset.fromModule(dbModule).downloadAsync();
+    const asset = Asset.fromModule(require("../src/inicializedatabase.sqlite"));
+    await asset.downloadAsync();
     await FileSystem.copyAsync({ from: asset.localUri!, to: dbPath });
   }
 }
@@ -67,6 +66,8 @@ export default function RootLayout() {
     "expo-notifications: Android Push notifications",
     "expo-notifications functionality is not fully supported",
   ]);
+
+  LogBox.ignoreLogs(["setBehaviorAsync` is not supported"]);
 
   if (!dbReady) {
     return (

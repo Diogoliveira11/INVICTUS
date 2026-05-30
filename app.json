@@ -77,7 +77,8 @@
         {
           "faceIDPermissionText": "Allow INVICTUS to use Face ID for quick access."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

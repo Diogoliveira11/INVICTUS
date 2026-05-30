@@ -719,9 +719,10 @@ export default function LogWorkoutScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1, backgroundColor: "#000", paddingTop: insets.top }}
+      style={{ flex: 1, backgroundColor: "#000" }}
     >
       <StatusBar barStyle="light-content" />
+      <View style={{ height: insets.top, backgroundColor: "#000" }} />
       <View className="flex-row items-center justify-between px-4 py-3 bg-black border-b border-zinc-900">
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronDown size={30} color="white" />

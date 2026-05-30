@@ -27,7 +27,6 @@ import {
   Modal,
   PanResponder,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
@@ -35,6 +34,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useUnits } from "../../../context/units_context";
 import { useWorkout } from "../../../context/workoutcontext";
 import { clearActiveWorkout } from "../../../src/activeWorkout";
@@ -542,7 +542,7 @@ export default function SaveWorkoutScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }} edges={["top"]}>
       <StatusBar barStyle="light-content" />
 
       {/* Header */}

@@ -22,7 +22,7 @@ export default function UnitSettingsScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-2">
           <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
-        <Text className="text-white text-lg font-black flex-1 text-center px-4 uppercase">
+        <Text className="text-white text-lg font-black flex-1 text-center px-4">
           Units
         </Text>
         <View className="w-10" />
