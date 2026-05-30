@@ -138,14 +138,18 @@ export default function TabsLayout() {
           options={{
             tabBarIcon: ({ focused }) => (
               <View
-                className={`w-8 h-8 rounded-full overflow-hidden ${focused ? "border-[2px] border-[#E31C25]" : "border border-zinc-500"}`}
+                className={`w-8 h-8 rounded-full overflow-hidden ${
+                  focused
+                    ? "border-[2px] border-[#E31C25]"
+                    : "border border-zinc-500"
+                }`}
               >
                 <Image
-                  source={{
-                    uri:
-                      profilePicture ||
-                      "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
-                  }}
+                  source={
+                    profilePicture
+                      ? { uri: profilePicture }
+                      : require("../../assets/images/logo_invictus.jpeg")
+                  }
                   className="w-full h-full"
                   resizeMode="cover"
                 />

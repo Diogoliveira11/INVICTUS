@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -30,7 +29,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../context/units_context";
 
 // @ts-ignore
-import InvictusLogo from "../assets/images/logo_invictus.jpeg";
 
 export default function EditProfile() {
   const router = useRouter();
@@ -203,10 +201,11 @@ export default function EditProfile() {
                   resizeMode="cover"
                 />
               ) : (
-                <Image
-                  source={InvictusLogo}
-                  className="w-full h-full"
-                  contentFit="contain"
+                <RNImage
+                  // Corrigido para apenas UM nível de recuo (../)
+                  source={require("../assets/images/logo_invictus.jpeg")}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
                 />
               )}
             </View>

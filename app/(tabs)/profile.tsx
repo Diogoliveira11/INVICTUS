@@ -483,11 +483,11 @@ export default function ProfileScreen() {
           <View className="w-[105px] h-[105px] rounded-full border-[3px] border-[#E31C25] items-center justify-center">
             <View className="w-[92px] h-[92px] rounded-full border-2 border-black overflow-hidden bg-zinc-900">
               <Image
-                source={{
-                  uri:
-                    userData?.profile_picture ||
-                    "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
-                }}
+                source={
+                  userData?.profile_picture
+                    ? { uri: userData.profile_picture }
+                    : require("../../assets/images/logo_invictus.jpeg")
+                }
                 className="w-full h-full"
                 resizeMode="cover"
               />
