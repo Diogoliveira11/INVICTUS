@@ -29,7 +29,6 @@ import { useWorkout } from "../../context/workoutcontext";
 const SCREEN_W = Dimensions.get("window").width;
 const RED = "#E31C25";
 
-// ─── tipos ───────
 type MetricFilter = "Duration" | "Volume" | "Reps";
 type TimeFilter = "3 Months" | "Year" | "All time";
 
@@ -68,13 +67,11 @@ function formatMetricValue(
   return `${value} reps`;
 }
 
-// Gerar intervalos semanais para um número específico de semanas anteriores
 function getWeekBuckets(
   weeks: number,
 ): { label: string; monday: string; sunday: string }[] {
   const buckets = [];
   const now = new Date();
-  // Veja a segunda-feira desta semana
   const day = now.getDay();
   const thisMonday = new Date(now);
   thisMonday.setDate(now.getDate() - ((day + 6) % 7));
@@ -99,7 +96,6 @@ function getWeekBuckets(
   return buckets;
 }
 
-// ─── GRÁFICO DE BARRAS ─────────
 function ProfileBarChart({
   data,
   metric,
@@ -144,7 +140,6 @@ function ProfileBarChart({
 
   const maxV = Math.max(...data.map((d) => d.value), 1);
 
-  // Nice Y max
   const niceMax = (() => {
     if (maxV <= 0) return 1;
     const mag = Math.pow(10, Math.floor(Math.log10(maxV)));
@@ -232,7 +227,6 @@ function ProfileBarChart({
           );
         })}
 
-        {/* Bars */}
         {data.map((d, i) => (
           <React.Fragment key={i}>
             <Rect
@@ -262,7 +256,6 @@ function ProfileBarChart({
   );
 }
 
-// ─── ECRÃ PRINCIPAL ───────
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -285,7 +278,7 @@ export default function ProfileScreen() {
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [chartData, setChartData] = useState<BarPoint[]>([]);
   const [summaryValue, setSummaryValue] = useState(0);
-  const [showLogoutBlockedModal, setShowLogoutBlockedModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const timeFilters: TimeFilter[] = ["3 Months", "Year", "All time"];
 
@@ -320,12 +313,10 @@ export default function ProfileScreen() {
       );
       if (!userRow) return;
 
-      // Decida quantas semanas mostrar
       const weeks =
         activeTime === "3 Months" ? 13 : activeTime === "Year" ? 52 : 104;
       const buckets = getWeekBuckets(weeks);
 
-      // ✅ DEPOIS — queries sequenciais
       const points: BarPoint[] = [];
 
       for (const b of buckets) {
@@ -334,7 +325,7 @@ export default function ProfileScreen() {
         if (activeMetric === "Duration") {
           const rows = await db.getAllAsync<{ duration: string }>(
             `SELECT duration FROM workouts
-       WHERE user_id = ? AND date(date) BETWEEN ? AND ? AND duration IS NOT NULL`,
+             WHERE user_id = ? AND date(date) BETWEEN ? AND ? AND duration IS NOT NULL`,
             [userRow.id, b.monday, b.sunday],
           );
           value = rows.reduce(
@@ -344,20 +335,20 @@ export default function ProfileScreen() {
         } else if (activeMetric === "Volume") {
           const row = await db.getFirstAsync<{ vol: number }>(
             `SELECT SUM(ws.weight * ws.reps) as vol
-       FROM workout_sets ws
-       JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-       JOIN workouts w ON we.workout_id = w.id
-       WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
+             FROM workout_sets ws
+             JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+             JOIN workouts w ON we.workout_id = w.id
+             WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
             [userRow.id, b.monday, b.sunday],
           );
           value = Math.round(row?.vol ?? 0);
         } else {
           const row = await db.getFirstAsync<{ cnt: number }>(
             `SELECT SUM(ws.reps) as cnt
-       FROM workout_sets ws
-       JOIN workout_exercises we ON ws.workout_exercise_id = we.id
-       JOIN workouts w ON we.workout_id = w.id
-       WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
+             FROM workout_sets ws
+             JOIN workout_exercises we ON ws.workout_exercise_id = we.id
+             JOIN workouts w ON we.workout_id = w.id
+             WHERE w.user_id = ? AND date(w.date) BETWEEN ? AND ?`,
             [userRow.id, b.monday, b.sunday],
           );
           value = row?.cnt ?? 0;
@@ -380,13 +371,17 @@ export default function ProfileScreen() {
     }
   }, [isFocused, loadProfileData, loadChartData]);
 
-  const handleLogout = async () => {
-    if (isActive) {
-      setShowLogoutBlockedModal(true);
-      return;
-    }
+  const doLogout = async () => {
     await AsyncStorage.removeItem("userEmail");
     router.replace("/auth/login");
+  };
+
+  const handleLogout = async () => {
+    if (isActive) {
+      setShowLogoutModal(true);
+    } else {
+      await doLogout();
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -399,18 +394,18 @@ export default function ProfileScreen() {
   };
 
   const FilterButton = ({ label }: { label: MetricFilter }) => {
-    const isActive = activeMetric === label;
+    const isActiveFilter = activeMetric === label;
     return (
       <TouchableOpacity
         onPress={() => setActiveMetric(label)}
         className={`px-5 py-2 rounded-full mr-2 border ${
-          isActive
+          isActiveFilter
             ? "bg-[#E31C25] border-[#E31C25]"
             : "bg-zinc-900 border-zinc-800"
         }`}
       >
         <Text
-          className={`font-black text-[10px] uppercase ${isActive ? "text-white" : "text-zinc-500"}`}
+          className={`font-black text-[10px] uppercase ${isActiveFilter ? "text-white" : "text-zinc-500"}`}
         >
           {label}
         </Text>
@@ -483,11 +478,11 @@ export default function ProfileScreen() {
           <View className="w-[105px] h-[105px] rounded-full border-[3px] border-[#E31C25] items-center justify-center">
             <View className="w-[92px] h-[92px] rounded-full border-2 border-black overflow-hidden bg-zinc-900">
               <Image
-                source={
-                  userData?.profile_picture
-                    ? { uri: userData.profile_picture }
-                    : require("../../assets/images/logo_invictus.jpeg")
-                }
+                source={{
+                  uri:
+                    userData?.profile_picture ||
+                    "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
+                }}
                 className="w-full h-full"
                 resizeMode="cover"
               />
@@ -541,7 +536,6 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
-            {/* botão de filtro de tempo */}
             <TouchableOpacity
               onPress={() => setShowTimeModal(true)}
               className="flex-row items-center gap-1 bg-zinc-800/50 px-4 py-1.5 rounded-full border border-zinc-700/50"
@@ -658,12 +652,13 @@ export default function ProfileScreen() {
           ))}
         </View>
       </Modal>
-      {/* MODAL LOGOUT BLOQUEADO */}
+
+      {/* MODAL LOGOUT COM TREINO ATIVO */}
       <Modal
-        visible={showLogoutBlockedModal}
+        visible={showLogoutModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowLogoutBlockedModal(false)}
+        onRequestClose={() => setShowLogoutModal(false)}
       >
         <View
           style={{
@@ -678,14 +673,13 @@ export default function ProfileScreen() {
             style={{
               backgroundColor: "#121212",
               width: "100%",
-              borderRadius: 32,
+              borderRadius: 40,
               padding: 32,
               alignItems: "center",
               borderWidth: 1,
               borderColor: "#27272a",
             }}
           >
-            {/* Ícone */}
             <View
               style={{
                 backgroundColor: "rgba(227,28,37,0.12)",
@@ -696,8 +690,6 @@ export default function ProfileScreen() {
             >
               <Dumbbell color="#E31C25" size={36} />
             </View>
-
-            {/* Título */}
             <Text
               style={{
                 color: "#fff",
@@ -711,8 +703,6 @@ export default function ProfileScreen() {
             >
               Workout in Progress
             </Text>
-
-            {/* Descrição */}
             <Text
               style={{
                 color: "#71717a",
@@ -724,21 +714,17 @@ export default function ProfileScreen() {
                 marginBottom: 32,
               }}
             >
-              You must finish or discard your current workout before logging
-              out.
+              You have an active workout. Do you want to discard it and logout?
             </Text>
-
-            {/* Botões */}
             <View style={{ flexDirection: "row", width: "100%", gap: 12 }}>
               <TouchableOpacity
-                onPress={() => {
-                  setShowLogoutBlockedModal(false);
-                  stopWorkout(true);
-                  AsyncStorage.removeItem("userEmail");
-                  router.replace("/auth/login");
+                onPress={async () => {
+                  setShowLogoutModal(false);
+                  stopWorkout(false);
+                  await doLogout();
                 }}
                 style={{
-                  width: "48%",
+                  flex: 1,
                   backgroundColor: "#27272a",
                   paddingVertical: 16,
                   borderRadius: 16,
@@ -757,16 +743,13 @@ export default function ProfileScreen() {
                     textAlign: "center",
                   }}
                 >
-                  Discard{"\n"}Workout
+                  Discard{"\n"}& Logout
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => {
-                  setShowLogoutBlockedModal(false);
-                  router.push("/workout/log_workout");
-                }}
+                onPress={() => setShowLogoutModal(false)}
                 style={{
-                  width: "48%",
+                  flex: 1,
                   backgroundColor: "#E31C25",
                   paddingVertical: 16,
                   borderRadius: 16,
@@ -783,7 +766,7 @@ export default function ProfileScreen() {
                     textAlign: "center",
                   }}
                 >
-                  Go to{"\n"}Workout
+                  Keep{"\n"}Workout
                 </Text>
               </TouchableOpacity>
             </View>
