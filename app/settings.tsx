@@ -1,6 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
@@ -21,7 +19,7 @@ import React, { useState } from "react";
 import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useWorkout } from "../context/workoutcontext";
-import { exportUserData } from "../src/exportData";
+import { exportUserData, importUserData } from "../src/exportData";
 
 const RED = "#E31C25";
 
@@ -70,7 +68,6 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  // Estatisticas Modal
   const [showConfirmImport, setShowConfirmImport] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
@@ -86,7 +83,7 @@ export default function SettingsScreen() {
       if (!email) return;
       await exportUserData(db, email);
     } catch {
-      setErrorMessage("Failed to import data. Make sure the file is valid.");
+      setErrorMessage("Failed to export data. Please try again.");
       setShowError(true);
     } finally {
       setExporting(false);
@@ -95,108 +92,16 @@ export default function SettingsScreen() {
 
   const handleImportConfirmed = async () => {
     setShowConfirmImport(false);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     try {
       setImporting(true);
       const email = await AsyncStorage.getItem("userEmail");
       if (!email) return;
-
-      const user = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM users WHERE email = ?",
-        [email],
-      );
-      if (!user) return;
-
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "application/json",
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled) return;
-
-      const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
-      const data = JSON.parse(content);
-      if (!data.workouts) throw new Error("Invalid file");
-
-      await db.runAsync(
-        `DELETE FROM workout_sets WHERE workout_exercise_id IN (
-          SELECT we.id FROM workout_exercises we
-          JOIN workouts w ON we.workout_id = w.id
-          WHERE w.user_id = ?
-        )`,
-        [user.id],
-      );
-      await db.runAsync(
-        `DELETE FROM workout_exercises WHERE workout_id IN (
-          SELECT id FROM workouts WHERE user_id = ?
-        )`,
-        [user.id],
-      );
-      await db.runAsync("DELETE FROM workouts WHERE user_id = ?", [user.id]);
-
-      for (const workout of data.workouts) {
-        await db.runAsync(
-          `INSERT INTO workouts (user_id, date, title, notes, description, total_volume, duration)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            user.id,
-            workout.date,
-            workout.title,
-            workout.notes,
-            workout.description,
-            workout.total_volume,
-            workout.duration,
-          ],
-        );
-        const insertedWorkout = await db.getFirstAsync<{ id: number }>(
-          "SELECT MAX(id) as id FROM workouts WHERE user_id = ?",
-          [user.id],
-        );
-        const newWorkoutId = insertedWorkout!.id;
-
-        for (const exercise of workout.exercises ?? []) {
-          const lastWEx = await db.getFirstAsync<{ id: number }>(
-            "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
-          );
-          const newExerciseId = lastWEx!.id + 1;
-          await db.runAsync(
-            `INSERT INTO workout_exercises (id, workout_id, exercise_id, index_order, notes)
-             VALUES (?, ?, ?, ?, ?)`,
-            [
-              newExerciseId,
-              newWorkoutId,
-              exercise.exercise_id,
-              exercise.index_order,
-              exercise.notes,
-            ],
-          );
-          for (const set of exercise.sets ?? []) {
-            const lastSet = await db.getFirstAsync<{ id: number }>(
-              "SELECT COALESCE(MAX(id), 0) as id FROM workout_sets",
-            );
-            const newSetId = lastSet!.id + 1;
-            await db.runAsync(
-              `INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, index_order, set_type, weight, reps, is_personal_record, distance, time)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                newSetId,
-                newExerciseId,
-                set.exercise_id,
-                set.index_order,
-                set.set_type,
-                set.weight,
-                set.reps,
-                set.is_personal_record,
-                set.distance,
-                set.time,
-              ],
-            );
-          }
-        }
-      }
+      await importUserData(db, email);
       setSuccessMessage("Your data has been imported successfully.");
       setShowSuccess(true);
     } catch (e: any) {
-      console.error("Import error detailed:", JSON.stringify(e), e?.message);
+      console.error("Import error:", e);
       setErrorMessage(
         e?.message ?? "Failed to import data. Make sure the file is valid.",
       );
@@ -229,9 +134,7 @@ export default function SettingsScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 20,
-        }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
       >
         <SectionTitle title="Account" />
         <View className="px-5 bg-zinc-900/10">
@@ -301,7 +204,7 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL confirmação */}
+      {/* MODAL confirmação import */}
       <Modal visible={showConfirmImport} transparent animationType="fade">
         <View
           style={{
@@ -356,7 +259,8 @@ export default function SettingsScreen() {
                 marginBottom: 32,
               }}
             >
-              This will replace all your current workout data. Are you sure?
+              This will replace ALL your current data including workouts,
+              routines, custom exercises and settings. This cannot be undone.
             </Text>
             <TouchableOpacity
               onPress={handleImportConfirmed}
@@ -561,6 +465,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
       {/* MODAL LOGOUT BLOQUEADO */}
       <Modal visible={showLogoutBlockedModal} transparent animationType="fade">
         <View
@@ -595,7 +500,6 @@ export default function SettingsScreen() {
             >
               <Dumbbell color="#E31C25" size={32} strokeWidth={3} />
             </View>
-
             <Text
               style={{
                 color: "white",
@@ -608,7 +512,6 @@ export default function SettingsScreen() {
             >
               Workout in Progress
             </Text>
-
             <Text
               style={{
                 color: "#71717a",
@@ -623,12 +526,11 @@ export default function SettingsScreen() {
               You must finish or discard your current workout before logging
               out.
             </Text>
-
             <View style={{ flexDirection: "row", width: "100%", gap: 12 }}>
               <TouchableOpacity
                 onPress={async () => {
                   setShowLogoutBlockedModal(false);
-                  stopWorkout(true);
+                  stopWorkout(false);
                   await AsyncStorage.removeItem("userEmail");
                   router.replace("/auth/login");
                 }}
