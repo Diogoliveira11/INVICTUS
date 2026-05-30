@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
   Check,
@@ -271,6 +272,7 @@ export default function LogWorkoutScreen() {
     logId: string;
     name: string;
   }>({ visible: false, logId: "", name: "" });
+  const [showEmptyModal, setShowEmptyModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -731,15 +733,22 @@ export default function LogWorkoutScreen() {
           Workout
         </Text>
         <TouchableOpacity
-          onPress={() =>
+          onPress={() => {
+            const hasCompleted = exercises.some((ex) =>
+              ex.sets.some((s) => s.completed),
+            );
+            if (!hasCompleted) {
+              setShowEmptyModal(true);
+              return;
+            }
             router.push({
               pathname: "/workout/save_workout",
               params: {
                 routineName: activeRoutineName,
                 ...(activeRoutineId ? { routineId: activeRoutineId } : {}),
               },
-            })
-          }
+            });
+          }}
           className="bg-[#E31C25] px-5 py-2 rounded-full"
         >
           <Text className="text-white font-black uppercase text-xs">
@@ -1137,6 +1146,31 @@ export default function LogWorkoutScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* ── MODAL SEM SETS ── */}
+      <Modal visible={showEmptyModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/90 justify-center items-center px-6">
+          <View className="bg-[#121212] w-full p-8 rounded-[40px] border border-zinc-800 items-center">
+            <View className="bg-amber-500/10 p-4 rounded-full mb-6 border border-amber-500/20">
+              <AlertCircle color="#f59e0b" size={32} strokeWidth={3} />
+            </View>
+            <Text className="text-white text-center text-xl font-black uppercase mb-3">
+              Attention
+            </Text>
+            <Text className="text-zinc-500 text-center text-sm font-bold uppercase mb-8">
+              Complete at least one set before finishing!
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowEmptyModal(false)}
+              className="w-full bg-[#E31C25] py-4 rounded-xl items-center"
+            >
+              <Text className="text-white font-black uppercase text-lg">
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── MODAL DE SELEÇÃO DE EXERCÍCIOS ── */}
       <Modal

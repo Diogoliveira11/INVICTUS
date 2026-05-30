@@ -24,6 +24,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useWorkout } from "../context/workoutcontext";
+import { clearActiveWorkout } from "../src/activeWorkout";
 import { updateEmail, updatePassword, updateUsername } from "../src/database";
 
 const SettingItem = ({
@@ -55,7 +57,10 @@ export default function AccountSettingsScreen() {
   const params = useLocalSearchParams();
   const userEmail = params.email as string;
 
+  const { isActive, stopWorkout } = useWorkout();
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showWorkoutWarning, setShowWorkoutWarning] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -71,12 +76,10 @@ export default function AccountSettingsScreen() {
   const [newVal, setNewVal] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Limpa mensagem de erro quando o utilizador volta a escrever
   useEffect(() => {
     setErrorMessage(null);
   }, [currentVal, password, newVal]);
 
-  // Função para limpar campos e fechar modais de edição
   const closeEditModals = () => {
     setIsUserModalVisible(false);
     setIsEmailModalVisible(false);
@@ -240,7 +243,13 @@ export default function AccountSettingsScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={() => setShowDeleteConfirm(true)}
+          onPress={() => {
+            if (isActive) {
+              setShowWorkoutWarning(true);
+            } else {
+              setShowDeleteConfirm(true);
+            }
+          }}
           className="mt-10 mb-10 items-center justify-center py-4"
         >
           <Text className="text-[#E31C25] font-bold text-xl">
@@ -248,6 +257,110 @@ export default function AccountSettingsScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* MODAL: WORKOUT ATIVO */}
+      <Modal transparent visible={showWorkoutWarning} animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.9)",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#121212",
+              width: "100%",
+              padding: 32,
+              borderRadius: 40,
+              borderWidth: 1,
+              borderColor: "#27272a",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "rgba(239,68,68,0.1)",
+                padding: 16,
+                borderRadius: 999,
+                marginBottom: 24,
+                borderWidth: 1,
+                borderColor: "rgba(239,68,68,0.2)",
+              }}
+            >
+              <AlertTriangle color="#ef4444" size={32} strokeWidth={3} />
+            </View>
+            <Text
+              style={{
+                color: "white",
+                fontSize: 20,
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: 8,
+                textAlign: "center",
+              }}
+            >
+              Active Workout
+            </Text>
+            <Text
+              style={{
+                color: "#71717a",
+                fontSize: 13,
+                fontWeight: "700",
+                textTransform: "uppercase",
+                textAlign: "center",
+                marginBottom: 24,
+              }}
+            >
+              You have an active workout. Do you want to discard it and delete
+              your account?
+            </Text>
+            <TouchableOpacity
+              onPress={async () => {
+                setShowWorkoutWarning(false);
+                stopWorkout(false);
+                await clearActiveWorkout(db);
+                setShowDeleteConfirm(true);
+              }}
+              style={{
+                width: "100%",
+                backgroundColor: "#E31C25",
+                paddingVertical: 16,
+                borderRadius: 16,
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
+              <Text
+                style={{
+                  color: "white",
+                  fontWeight: "900",
+                  fontSize: 16,
+                  textTransform: "uppercase",
+                }}
+              >
+                Discard & Continue
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowWorkoutWarning(false)}
+              style={{
+                width: "100%",
+                paddingVertical: 16,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{ color: "#71717a", fontWeight: "800", fontSize: 15 }}
+              >
+                Keep Workout
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* MODAL: CHANGE USERNAME */}
       <Modal animationType="slide" transparent visible={isUserModalVisible}>
