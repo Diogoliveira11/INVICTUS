@@ -1,5 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import * as SecureStore from "expo-secure-store";
 import * as Sharing from "expo-sharing";
 import { SQLiteDatabase } from "expo-sqlite";
 
@@ -20,7 +21,6 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
     );
     if (!user) throw new Error("User not found");
 
-    // user_settings — só colunas efectivamente usadas
     const userSettings = await db.getFirstAsync<{
       weight_unit: string;
       height_unit: string;
@@ -28,13 +28,11 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
       user.id,
     ]);
 
-    // exercícios custom do utilizador
     const customExercises = await db.getAllAsync<any>(
       "SELECT * FROM exercises WHERE is_custom = 1 AND created_by_user = ?",
       [user.id],
     );
 
-    // routines
     const routines = await db.getAllAsync<any>(
       "SELECT * FROM routines WHERE user_id = ?",
       [user.id],
@@ -43,7 +41,6 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
     const routinesWithDetails = await Promise.all(
       routines.map(async (routine) => {
         const routineExercises = await db.getAllAsync<any>(
-          // só colunas usadas — sem rest_duration e notes
           "SELECT id, exercise_id, routine_id, index_order FROM routine_exercises WHERE routine_id = ?",
           [routine.id],
         );
@@ -60,7 +57,6 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
       }),
     );
 
-    // workouts — sem coluna description
     const workouts = await db.getAllAsync<any>(
       "SELECT id, user_id, date, title, notes, total_volume, duration, photo FROM workouts WHERE user_id = ?",
       [user.id],
@@ -148,7 +144,6 @@ export const importUserData = async (
   if (!user) throw new Error("User not found");
 
   // ── 1. Apagar TUDO do utilizador ──
-
   await db.runAsync(
     `DELETE FROM workout_sets WHERE workout_exercise_id IN (
       SELECT we.id FROM workout_exercises we
@@ -213,7 +208,7 @@ export const importUserData = async (
     );
   }
 
-  // ── 3. Inserir user_settings — só weight_unit e height_unit ──
+  // ── 3. Inserir user_settings ──
   if (data.user_settings) {
     const s = data.user_settings;
     await db.runAsync(
@@ -253,7 +248,6 @@ export const importUserData = async (
 
     for (const re of routine.exercises ?? []) {
       const resolvedExId = exerciseIdMap[re.exercise_id] ?? re.exercise_id;
-      // sem rest_duration e notes
       const reResult = await db.runAsync(
         `INSERT INTO routine_exercises (exercise_id, routine_id, index_order)
          VALUES (?, ?, ?)`,
@@ -278,7 +272,7 @@ export const importUserData = async (
     }
   }
 
-  // ── 6. Inserir workouts — sem description ──
+  // ── 6. Inserir workouts ──
   for (const workout of data.workouts) {
     const wResult = await db.runAsync(
       `INSERT INTO workouts (user_id, date, title, notes, total_volume, duration, photo)
@@ -329,5 +323,13 @@ export const importUserData = async (
         );
       }
     }
+  }
+
+  // ── 7. Limpar SecureStore para evitar conflito de credenciais na biometria ──
+  try {
+    await SecureStore.deleteItemAsync("user_email");
+    await SecureStore.deleteItemAsync("user_password");
+  } catch {
+    // ignorar se não existir
   }
 };

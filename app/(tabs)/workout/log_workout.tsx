@@ -488,7 +488,7 @@ export default function LogWorkoutScreen() {
       setIsActive,
       startWorkout,
       isActive,
-    }; // ← adiciona isActive
+    };
   });
   useEffect(() => {
     const recover = params.recover === "true";
