@@ -197,14 +197,16 @@ export const importUserData = async (
   if (data.user) {
     await db.runAsync(
       `UPDATE users SET
-        profile_picture = ?,
-        gender = ?,
-        birthday = ?,
-        weight = ?,
-        height = ?,
-        weekly_goal = ?
-      WHERE id = ?`,
+    username = ?,
+    profile_picture = ?,
+    gender = ?,
+    birthday = ?,
+    weight = ?,
+    height = ?,
+    weekly_goal = ?
+  WHERE id = ?`,
       [
+        data.user.username ?? null,
         data.user.profile_picture ?? null,
         data.user.gender ?? null,
         data.user.birthday ?? null,
