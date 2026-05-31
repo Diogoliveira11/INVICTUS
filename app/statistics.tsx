@@ -144,7 +144,7 @@ export default function StatisticsScreen() {
         className="pb-3 bg-black flex-row items-center px-4 border-b border-zinc-900"
       >
         <TouchableOpacity
-          onPress={() => router.replace("/profile")}
+          onPress={() => router.push("/profile")}
           className="w-9 h-9 items-center justify-center"
         >
           <ChevronLeft size={26} color="#fff" />

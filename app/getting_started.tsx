@@ -56,7 +56,7 @@ const STEPS: Step[] = [
     description:
       "Search from hundreds of exercises and add them to your workout with a single tap.",
     tips: [
-      "Use the search bar to find any exercise by name or muscle group.",
+      "Use the search bar to find any exercise by name, equipment or muscle group",
       "Exercises are organised by category (chest, back, legs, etc.).",
       "You can reorder exercises by dragging them up or down.",
     ],
@@ -82,7 +82,7 @@ const STEPS: Step[] = [
     description:
       "Create recurring workout plans so you always know what to train next.",
     tips: [
-      'Go to the Workouts tab and tap "New Routine".',
+      'Tap the "dumbell" button on the home screen and tap "New Routine".',
       "Add exercises to the routine and give it a name",
       "You can create unlimited routines",
     ],
@@ -95,8 +95,8 @@ const STEPS: Step[] = [
     description:
       "View your stats, volume over time, and personal records to stay motivated.",
     tips: [
-      "Open the ‘Statistics’ tab to view your total volume and the number of times your exercises have been completed",
-      "Tap any exercise to see your strength progression over time.",
+      "Open the ‘Statistics’ in the Profile screen to view your muscle distribution, the number of times your exercises have been completed and your monthly report",
+      "In Workout screen tap any exercise to see your strength progression over time.",
       "Your PR's are saved automatically every time you beat a record.",
     ],
   },
@@ -108,8 +108,8 @@ const STEPS: Step[] = [
     description:
       "Export your workout data at any time and import it back whenever you need.",
     tips: [
-      "Go to Settings → Export Data to save a JSON file of all your workouts.",
-      "Use Settings → Import Data to restore from a previous backup.",
+      "Go to Settings in Profile screen and Export Data to save a file of all your workouts.",
+      "Go to Settings in Profile screen and Import Data to restore from a previous backup.",
       "Keep your export file somewhere safe",
     ],
   },

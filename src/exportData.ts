@@ -20,11 +20,13 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
     );
     if (!user) throw new Error("User not found");
 
-    // user_settings
-    const userSettings = await db.getFirstAsync<any>(
-      "SELECT * FROM user_settings WHERE user_id = ?",
-      [user.id],
-    );
+    // user_settings — só colunas efectivamente usadas
+    const userSettings = await db.getFirstAsync<{
+      weight_unit: string;
+      height_unit: string;
+    }>("SELECT weight_unit, height_unit FROM user_settings WHERE user_id = ?", [
+      user.id,
+    ]);
 
     // exercícios custom do utilizador
     const customExercises = await db.getAllAsync<any>(
@@ -41,7 +43,8 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
     const routinesWithDetails = await Promise.all(
       routines.map(async (routine) => {
         const routineExercises = await db.getAllAsync<any>(
-          "SELECT * FROM routine_exercises WHERE routine_id = ?",
+          // só colunas usadas — sem rest_duration e notes
+          "SELECT id, exercise_id, routine_id, index_order FROM routine_exercises WHERE routine_id = ?",
           [routine.id],
         );
         const routineExercisesWithSets = await Promise.all(
@@ -57,9 +60,9 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
       }),
     );
 
-    // workouts
+    // workouts — sem coluna description
     const workouts = await db.getAllAsync<any>(
-      "SELECT * FROM workouts WHERE user_id = ?",
+      "SELECT id, user_id, date, title, notes, total_volume, duration, photo FROM workouts WHERE user_id = ?",
       [user.id],
     );
 
@@ -84,7 +87,7 @@ export const exportUserData = async (db: SQLiteDatabase, email: string) => {
 
     const exportData = {
       exported_at: new Date().toISOString(),
-      version: 2,
+      version: 3,
       user: {
         username: user.username,
         email,
@@ -146,7 +149,6 @@ export const importUserData = async (
 
   // ── 1. Apagar TUDO do utilizador ──
 
-  // workout_sets
   await db.runAsync(
     `DELETE FROM workout_sets WHERE workout_exercise_id IN (
       SELECT we.id FROM workout_exercises we
@@ -155,17 +157,14 @@ export const importUserData = async (
     )`,
     [user.id],
   );
-  // workout_exercises
   await db.runAsync(
     `DELETE FROM workout_exercises WHERE workout_id IN (
       SELECT id FROM workouts WHERE user_id = ?
     )`,
     [user.id],
   );
-  // workouts
   await db.runAsync("DELETE FROM workouts WHERE user_id = ?", [user.id]);
 
-  // routine_sets
   await db.runAsync(
     `DELETE FROM routine_sets WHERE routine_exercise_id IN (
       SELECT re.id FROM routine_exercises re
@@ -174,37 +173,33 @@ export const importUserData = async (
     )`,
     [user.id],
   );
-  // routine_exercises
   await db.runAsync(
     `DELETE FROM routine_exercises WHERE routine_id IN (
       SELECT id FROM routines WHERE user_id = ?
     )`,
     [user.id],
   );
-  // routines
   await db.runAsync("DELETE FROM routines WHERE user_id = ?", [user.id]);
 
-  // exercícios custom
   await db.runAsync(
     "DELETE FROM exercises WHERE is_custom = 1 AND created_by_user = ?",
     [user.id],
   );
 
-  // user_settings
   await db.runAsync("DELETE FROM user_settings WHERE user_id = ?", [user.id]);
 
-  // ── 2. Atualizar dados do utilizador (se existirem no ficheiro) ──
+  // ── 2. Atualizar dados do utilizador ──
   if (data.user) {
     await db.runAsync(
       `UPDATE users SET
-    username = ?,
-    profile_picture = ?,
-    gender = ?,
-    birthday = ?,
-    weight = ?,
-    height = ?,
-    weekly_goal = ?
-  WHERE id = ?`,
+        username = ?,
+        profile_picture = ?,
+        gender = ?,
+        birthday = ?,
+        weight = ?,
+        height = ?,
+        weekly_goal = ?
+      WHERE id = ?`,
       [
         data.user.username ?? null,
         data.user.profile_picture ?? null,
@@ -218,20 +213,13 @@ export const importUserData = async (
     );
   }
 
-  // ── 3. Inserir user_settings ──
+  // ── 3. Inserir user_settings — só weight_unit e height_unit ──
   if (data.user_settings) {
     const s = data.user_settings;
     await db.runAsync(
-      `INSERT INTO user_settings (user_id, weight_unit, height_unit, biometrics_enabled, rest_timer_default, theme)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        user.id,
-        s.weight_unit ?? "kg",
-        s.height_unit ?? "cm",
-        s.biometrics_enabled ?? 0,
-        s.rest_timer_default ?? null,
-        s.theme ?? "dark",
-      ],
+      `INSERT INTO user_settings (user_id, weight_unit, height_unit)
+       VALUES (?, ?, ?)`,
+      [user.id, s.weight_unit ?? "kg", s.height_unit ?? "cm"],
     );
   }
 
@@ -239,7 +227,7 @@ export const importUserData = async (
   const exerciseIdMap: { [oldId: number]: number } = {};
 
   for (const ex of data.custom_exercises ?? []) {
-    await db.runAsync(
+    const exResult = await db.runAsync(
       `INSERT INTO exercises (name, image, gif, instructions, muscle_group, equipment, is_custom, created_by_user)
        VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
       [
@@ -252,43 +240,26 @@ export const importUserData = async (
         user.id,
       ],
     );
-    const inserted = await db.getFirstAsync<{ id: number }>(
-      "SELECT MAX(id) as id FROM exercises WHERE is_custom = 1 AND created_by_user = ?",
-      [user.id],
-    );
-    if (inserted) exerciseIdMap[ex.id] = inserted.id;
+    exerciseIdMap[ex.id] = exResult.lastInsertRowId;
   }
 
   // ── 5. Inserir routines ──
   for (const routine of data.routines ?? []) {
-    await db.runAsync(
+    const rResult = await db.runAsync(
       `INSERT INTO routines (user_id, name, description) VALUES (?, ?, ?)`,
       [user.id, routine.name, routine.description ?? null],
     );
-    const insertedRoutine = await db.getFirstAsync<{ id: number }>(
-      "SELECT MAX(id) as id FROM routines WHERE user_id = ?",
-      [user.id],
-    );
-    const newRoutineId = insertedRoutine!.id;
+    const newRoutineId = rResult.lastInsertRowId;
 
     for (const re of routine.exercises ?? []) {
       const resolvedExId = exerciseIdMap[re.exercise_id] ?? re.exercise_id;
-      await db.runAsync(
-        `INSERT INTO routine_exercises (exercise_id, routine_id, index_order, rest_duration, notes)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          resolvedExId,
-          newRoutineId,
-          re.index_order ?? 0,
-          re.rest_duration ?? null,
-          re.notes ?? null,
-        ],
+      // sem rest_duration e notes
+      const reResult = await db.runAsync(
+        `INSERT INTO routine_exercises (exercise_id, routine_id, index_order)
+         VALUES (?, ?, ?)`,
+        [resolvedExId, newRoutineId, re.index_order ?? 0],
       );
-      const insertedRE = await db.getFirstAsync<{ id: number }>(
-        "SELECT MAX(id) as id FROM routine_exercises WHERE routine_id = ?",
-        [newRoutineId],
-      );
-      const newREId = insertedRE!.id;
+      const newREId = reResult.lastInsertRowId;
 
       for (const rs of re.sets ?? []) {
         await db.runAsync(
@@ -307,59 +278,44 @@ export const importUserData = async (
     }
   }
 
-  // ── 6. Inserir workouts ──
+  // ── 6. Inserir workouts — sem description ──
   for (const workout of data.workouts) {
-    await db.runAsync(
-      `INSERT INTO workouts (user_id, date, title, notes, description, total_volume, duration, photo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    const wResult = await db.runAsync(
+      `INSERT INTO workouts (user_id, date, title, notes, total_volume, duration, photo)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         user.id,
         workout.date,
         workout.title,
         workout.notes ?? null,
-        workout.description ?? null,
         workout.total_volume ?? 0,
         workout.duration ?? null,
         workout.photo ?? null,
       ],
     );
-    const insertedWorkout = await db.getFirstAsync<{ id: number }>(
-      "SELECT MAX(id) as id FROM workouts WHERE user_id = ?",
-      [user.id],
-    );
-    const newWorkoutId = insertedWorkout!.id;
+    const newWorkoutId = wResult.lastInsertRowId;
 
     for (const exercise of workout.exercises ?? []) {
-      const lastWEx = await db.getFirstAsync<{ id: number }>(
-        "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
-      );
-      const newExerciseId = lastWEx!.id + 1;
       const resolvedExId =
         exerciseIdMap[exercise.exercise_id] ?? exercise.exercise_id;
 
-      await db.runAsync(
-        `INSERT INTO workout_exercises (id, workout_id, exercise_id, index_order, notes)
-         VALUES (?, ?, ?, ?, ?)`,
+      const weResult = await db.runAsync(
+        `INSERT INTO workout_exercises (workout_id, exercise_id, index_order, notes)
+         VALUES (?, ?, ?, ?)`,
         [
-          newExerciseId,
           newWorkoutId,
           resolvedExId,
           exercise.index_order ?? 0,
           exercise.notes ?? null,
         ],
       );
+      const newExerciseId = weResult.lastInsertRowId;
 
       for (const set of exercise.sets ?? []) {
-        const lastSet = await db.getFirstAsync<{ id: number }>(
-          "SELECT COALESCE(MAX(id), 0) as id FROM workout_sets",
-        );
-        const newSetId = lastSet!.id + 1;
-
         await db.runAsync(
-          `INSERT INTO workout_sets (id, workout_exercise_id, exercise_id, index_order, set_type, weight, reps, is_personal_record, distance, time)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO workout_sets (workout_exercise_id, exercise_id, index_order, set_type, weight, reps, is_personal_record, distance, time)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            newSetId,
             newExerciseId,
             resolvedExId,
             set.index_order ?? 0,

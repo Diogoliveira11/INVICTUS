@@ -3,6 +3,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
+import { clearActiveWorkout } from "../../src/activeWorkout";
 
 import {
   ChevronDown,
@@ -89,8 +90,8 @@ function getWeekBuckets(
     });
     buckets.push({
       label,
-      monday: monday.toISOString().slice(0, 10),
-      sunday: sunday.toISOString().slice(0, 10),
+      monday: `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`,
+      sunday: `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, "0")}-${String(sunday.getDate()).padStart(2, "0")}`,
     });
   }
   return buckets;
@@ -372,6 +373,8 @@ export default function ProfileScreen() {
   }, [isFocused, loadProfileData, loadChartData]);
 
   const doLogout = async () => {
+    stopWorkout(false);
+    await clearActiveWorkout(db);
     await AsyncStorage.removeItem("userEmail");
     router.replace("/auth/login");
   };
@@ -478,11 +481,11 @@ export default function ProfileScreen() {
           <View className="w-[105px] h-[105px] rounded-full border-[3px] border-[#E31C25] items-center justify-center">
             <View className="w-[92px] h-[92px] rounded-full border-2 border-black overflow-hidden bg-zinc-900">
               <Image
-                source={{
-                  uri:
-                    userData?.profile_picture ||
-                    "https://i.pinimg.com/736x/56/01/35/5601357bcf2b7fd819ce64424351a19d.jpg",
-                }}
+                source={
+                  userData?.profile_picture
+                    ? { uri: userData.profile_picture }
+                    : require("../../assets/images/logo_invictus.jpeg")
+                }
                 className="w-full h-full"
                 resizeMode="cover"
               />

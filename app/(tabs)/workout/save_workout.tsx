@@ -374,7 +374,13 @@ export default function SaveWorkoutScreen() {
 
       if (!user) return;
 
-      await db.runAsync(
+      // Buscar os próximos IDs ANTES de começar a inserir
+      const lastWEx = await db.getFirstAsync<{ id: number }>(
+        "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
+      );
+      let nextWeId = (lastWEx?.id ?? 0) + 1;
+
+      const wResult = await db.runAsync(
         "INSERT INTO workouts (user_id, date, title, duration, notes, total_volume, photo) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           user.id,
@@ -386,19 +392,10 @@ export default function SaveWorkoutScreen() {
           workoutImage,
         ],
       );
-
-      const insertedWorkout = await db.getFirstAsync<{ id: number }>(
-        "SELECT MAX(id) as id FROM workouts WHERE user_id = ?",
-        [user.id],
-      );
-      const newWorkoutId = insertedWorkout!.id;
+      const newWorkoutId = wResult.lastInsertRowId;
 
       for (const ex of exercises) {
-        // Procura o MAX antes de inserir
-        const lastWEx = await db.getFirstAsync<{ id: number }>(
-          "SELECT COALESCE(MAX(id), 0) as id FROM workout_exercises",
-        );
-        const workoutExerciseId = lastWEx!.id + 1;
+        const workoutExerciseId = nextWeId++;
 
         await db.runAsync(
           "INSERT INTO workout_exercises (id, workout_id, exercise_id, index_order) VALUES (?, ?, ?, ?)",
@@ -421,10 +418,6 @@ export default function SaveWorkoutScreen() {
             const weightValue = isCardio ? 0 : Number(set.weight) || 0;
             const repsValue = isCardio ? 0 : Number(set.reps) || 0;
 
-            await db.getFirstAsync<{ id: number }>(
-              "SELECT COALESCE(MAX(id), 0) as id FROM workout_sets",
-            );
-
             await db.runAsync(
               "INSERT INTO workout_sets (workout_exercise_id, exercise_id, weight, reps, set_type, index_order, is_personal_record, distance, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
               [
@@ -444,8 +437,8 @@ export default function SaveWorkoutScreen() {
         }
       }
 
+      console.log("ANTES STOP:", "a guardar");
       await clearActiveWorkout(db);
-
       stopWorkout();
       setDescription("");
       setWorkoutImage(null);
@@ -1125,8 +1118,9 @@ export default function SaveWorkoutScreen() {
               Saved workout!
             </Text>
             <TouchableOpacity
-              onPress={() => {
+              onPress={async () => {
                 setShowSuccessModal(false);
+                await clearActiveWorkout(db);
                 router.replace("/(tabs)/home");
               }}
               style={{

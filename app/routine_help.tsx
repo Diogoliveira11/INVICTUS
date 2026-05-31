@@ -10,7 +10,7 @@ import {
   Flame,
   RefreshCw,
   Shuffle,
-  Target
+  Target,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -69,7 +69,7 @@ const SECTIONS: Section[] = [
       {
         question: "Can I modify a session on the fly?",
         answer:
-          "No. When you start a session from a routine, you get workout screen where you can´t add, remove, or swap exercises.",
+          "Yes. When you start a session from a routine, you get workout screen where you can add, remove, or swap exercises.",
       },
     ],
   },

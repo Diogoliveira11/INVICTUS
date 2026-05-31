@@ -478,12 +478,18 @@ export default function LogWorkoutScreen() {
     setExercises,
     setIsActive,
     startWorkout,
+    isActive,
   });
 
   useEffect(() => {
-    workoutMethodsRef.current = { db, setExercises, setIsActive, startWorkout };
+    workoutMethodsRef.current = {
+      db,
+      setExercises,
+      setIsActive,
+      startWorkout,
+      isActive,
+    }; // ← adiciona isActive
   });
-
   useEffect(() => {
     const recover = params.recover === "true";
 
@@ -493,7 +499,7 @@ export default function LogWorkoutScreen() {
           const currentMethods = workoutMethodsRef.current;
           const saved = await getActiveWorkout(currentMethods.db);
 
-          if (saved && saved.workout.exercises_json) {
+          if (saved && saved.workout.exercises_json && isActive) {
             const recoveredExercises: ActiveExercise[] = JSON.parse(
               saved.workout.exercises_json,
             );
