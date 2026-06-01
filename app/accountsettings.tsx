@@ -57,7 +57,7 @@ export default function AccountSettingsScreen() {
   const params = useLocalSearchParams();
   const userEmail = params.email as string;
 
-  const { isActive, stopWorkout } = useWorkout();
+  const { stopWorkout } = useWorkout();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showWorkoutWarning, setShowWorkoutWarning] = useState(false);
@@ -243,8 +243,11 @@ export default function AccountSettingsScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={() => {
-            if (isActive) {
+          onPress={async () => {
+            const activeWorkout = await db.getFirstAsync<{ id: number }>(
+              "SELECT id FROM active_workout LIMIT 1",
+            );
+            if (activeWorkout) {
               setShowWorkoutWarning(true);
             } else {
               setShowDeleteConfirm(true);

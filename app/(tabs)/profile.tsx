@@ -264,7 +264,7 @@ export default function ProfileScreen() {
   const db = useSQLiteContext();
   const { weightUnit: weightUnitRaw } = useUnits();
   const weightUnit = weightUnitRaw.toLowerCase();
-  const { isActive, stopWorkout } = useWorkout();
+  const { stopWorkout } = useWorkout();
 
   const [userData, setUserData] = useState<{
     username: string;
@@ -380,7 +380,10 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    if (isActive) {
+    const activeWorkout = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM active_workout LIMIT 1",
+    );
+    if (activeWorkout) {
       setShowLogoutModal(true);
     } else {
       await doLogout();

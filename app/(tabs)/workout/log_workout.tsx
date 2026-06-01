@@ -499,7 +499,11 @@ export default function LogWorkoutScreen() {
           const currentMethods = workoutMethodsRef.current;
           const saved = await getActiveWorkout(currentMethods.db);
 
-          if (saved && saved.workout.exercises_json && isActive) {
+          if (
+            saved &&
+            saved.workout.exercises_json &&
+            workoutMethodsRef.current.isActive
+          ) {
             const recoveredExercises: ActiveExercise[] = JSON.parse(
               saved.workout.exercises_json,
             );

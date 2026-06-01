@@ -437,9 +437,7 @@ export default function SaveWorkoutScreen() {
         }
       }
 
-      console.log("ANTES STOP:", "a guardar");
       await clearActiveWorkout(db);
-      stopWorkout();
       setDescription("");
       setWorkoutImage(null);
       setShowSuccessModal(true);
@@ -1120,6 +1118,7 @@ export default function SaveWorkoutScreen() {
             <TouchableOpacity
               onPress={async () => {
                 setShowSuccessModal(false);
+                stopWorkout();
                 await clearActiveWorkout(db);
                 router.replace("/(tabs)/home");
               }}
