@@ -230,13 +230,12 @@ const SECTIONS: Section[] = [
       {
         question: "The app is running slowly. How do I fix it?",
         answer:
-          "Close background apps and restart INVICTUS. If your workout history is very large, some screens may take slightly longer to load — this is normal. Make sure your device OS is up to date.",
+          "Close background apps and restart INVICTUS. If your workout history is very large, some screens may take slightly longer to load — this is normal. Make sure your device IOS or Android is up to date.",
         tags: ["slow", "performance", "lag", "technical"],
       },
       {
         question: "Is INVICTUS available on Android and iOS?",
-        answer:
-          "Yes. INVICTUS is available on both iOS (iPhone and iPad) and Android devices.",
+        answer: "Yes. INVICTUS is available on both iOS and Android devices.",
         tags: ["android", "ios", "download", "availability", "platform"],
       },
     ],
