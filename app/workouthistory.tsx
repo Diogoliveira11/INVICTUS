@@ -405,7 +405,7 @@ export default function WorkoutHistory() {
                     <View className="flex-row items-center gap-1 bg-[#E31C25]/10 border border-[#E31C25]/20 px-3 py-1.5 rounded-xl">
                       <TrendingUp size={10} color="#E31C25" />
                       <Text className="text-[#E31C25] text-[9px] font-black uppercase ml-1">
-                        Histórico
+                        History
                       </Text>
                     </View>
                   </View>
@@ -509,7 +509,7 @@ export default function WorkoutHistory() {
                 </TouchableOpacity>
                 <View className="flex-1 ml-4">
                   <Text className="text-[#E31C25] text-[9px] font-black uppercase tracking-widest mb-1">
-                    Histórico do Exercício
+                    Exercise History
                   </Text>
                   <Text
                     className="text-white text-xl font-black tracking-tighter"
@@ -536,7 +536,7 @@ export default function WorkoutHistory() {
                   <View className="items-center mt-10">
                     <TrendingUp size={40} color="#27272a" />
                     <Text className="text-zinc-600 font-black uppercase text-sm mt-4 text-center">
-                      Sem histórico para este exercício
+                      No data available for this exercise
                     </Text>
                   </View>
                 ) : (

@@ -186,7 +186,7 @@ export default function LoginScreen() {
             <Text className="text-red-400 text-xs mb-3">{error}</Text>
           ) : null}
 
-          {/* AREA DO REMEMBER ME (FORGOT PASSWORD REMOVIDO DAQUI) */}
+          {/* AREA DO REMEMBER ME */}
           <View className="flex-row justify-between items-center mb-8">
             <TouchableOpacity
               onPress={() => setRememberMe(!rememberMe)}

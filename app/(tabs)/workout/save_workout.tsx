@@ -497,6 +497,7 @@ export default function SaveWorkoutScreen() {
       routineId &&
       routineId !== "" &&
       routineId !== "undefined" &&
+      routineId !== "null" &&
       routineId !== "0";
 
     if (hasRoutine) {
@@ -518,6 +519,7 @@ export default function SaveWorkoutScreen() {
       }
     }
 
+    // Se for um Empty Workout (sem ID de rotina válido), guarda direto sem abrir o sheet!
     await executeSave();
   };
 
